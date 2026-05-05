@@ -1,10 +1,86 @@
 # Family Tree Website Template
 
-A reusable family tree website template built with React, TypeScript, Vite, Express, Prisma, and PostgreSQL. The public repository keeps site identity configurable and keeps private family data out of tracked source files.
+A reusable full-stack family archive and family tree website. The app provides a public family archive, an interactive tree, member profiles, gallery and timeline pages, plus an admin panel backed by a database API.
 
-Family members, branches, nuclear families, timeline events, and gallery items are loaded from the API/database. Site identity, wording, feature flags, metadata, and tree defaults are configured through a local config file.
+This repository is designed to be safe as a public GitHub template:
 
-## Template Setup
+- Site identity lives in configuration.
+- Private local configuration is ignored by Git.
+- Runtime family data comes from the database/API.
+- No real family dataset is required in tracked source files.
+
+## Features
+
+### Public Website
+
+- Homepage with configurable family identity, hero copy, visual assets, and stats.
+- Interactive family tree with pan, zoom, search, focus mode, branch filtering, and optional minimap.
+- Member directory with search, generation filter, status filter, and branch filter.
+- Member profile pages with biography, dates, notes, photos, and family relationships.
+- Optional gallery page for family photos and albums.
+- Optional timeline page with automatic and manually curated events.
+- Responsive public layout with configurable metadata and theme tokens.
+
+### Admin Panel
+
+- Admin dashboard with database-backed stats.
+- Member CRUD with relationship fields.
+- Gallery CRUD with optional Vercel Blob photo upload.
+- Timeline CRUD for manually curated events.
+- Simple password-protected admin access.
+
+## Tech Stack
+
+| Area | Technology |
+|---|---|
+| Frontend | React 18, TypeScript, Vite, React Router |
+| Styling | TailwindCSS, CSS variables |
+| Animation | Framer Motion |
+| Icons | Lucide React |
+| Backend | Express |
+| Database | PostgreSQL with Prisma |
+| Database hosting | Neon PostgreSQL |
+| File storage | Vercel Blob |
+| Image processing | Sharp |
+| Deployment | Vercel serverless functions |
+
+## How Configuration Works
+
+The app imports site configuration from `src/config`.
+
+```text
+src/config/
+  defaultLabels.ts
+  family.config.example.ts
+  family.config.ts          # local only, ignored by Git
+  index.ts                  # resolver
+src/types/
+  config.ts
+```
+
+Resolution order:
+
+1. If `src/config/family.config.ts` exists locally, it is used.
+2. If it does not exist, `src/config/family.config.example.ts` is used.
+
+`family.config.ts` is intentionally listed in `.gitignore`, so every user can keep their own private identity/config without committing it.
+
+Config controls:
+
+- app name and family name
+- homepage, tree, gallery, and timeline copy
+- metadata title and description
+- default home/root member id
+- default branch id
+- gallery/timeline/minimap feature flags
+- tree zoom limits
+- optional theme tokens
+- optional UI wording labels
+- homepage and gallery visual assets
+
+Runtime family data is not stored in config. Members, branches, nuclear families, timeline events, and gallery items are loaded from the database through the API.
+
+## Quick Start
 
 Install dependencies:
 
@@ -12,44 +88,36 @@ Install dependencies:
 npm install
 ```
 
-Create your private local config:
+Create your local config:
 
 ```bash
 cp src/config/family.config.example.ts src/config/family.config.ts
 ```
 
-PowerShell:
+On Windows PowerShell:
 
 ```powershell
 Copy-Item src/config/family.config.example.ts src/config/family.config.ts
 ```
 
-Edit `src/config/family.config.ts` with your own:
+Edit `src/config/family.config.ts` with your own identity, text, feature flags, metadata, theme values, visual assets, and tree defaults.
 
-- app name and family name
-- homepage, tree, gallery, and timeline copy
-- metadata title and description
-- default tree home member id
-- feature flags for gallery, timeline, and minimap
-- optional theme colors and UI labels
+Run the app:
 
-`src/config/family.config.ts` is intentionally ignored by Git. Do not commit private family identity or local-only settings.
+```bash
+npm run dev
+```
 
-## Data Model
+The dev command starts both:
 
-Runtime family data comes from the database through the API:
+- Vite frontend at `http://localhost:5173`
+- Express backend at `http://localhost:3001`
 
-- members
-- family branches
-- nuclear families
-- timeline events
-- gallery items
+Vite proxies `/api/*` requests to the local backend.
 
-This template does not ship tracked real family data. Use the admin panel, API, or your own private seed script to populate your database.
+## Environment Variables
 
-## Environment
-
-Create `.env` with your own values:
+Create `.env` in the project root:
 
 ```env
 DATABASE_URL="postgresql://user:password@host.neon.tech/dbname?sslmode=require"
@@ -57,29 +125,14 @@ BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
 VITE_ADMIN_PASSWORD="your-admin-password"
 ```
 
-`BLOB_READ_WRITE_TOKEN` is only needed if you use photo uploads.
+Required:
 
-## Development
+- `DATABASE_URL`: PostgreSQL connection string.
 
-Run frontend and backend together:
+Optional:
 
-```bash
-npm run dev
-```
-
-Run only the frontend:
-
-```bash
-npm run dev:frontend
-```
-
-Run only the backend:
-
-```bash
-npm run dev:backend
-```
-
-The Vite dev server proxies `/api/*` requests to the local Express server.
+- `BLOB_READ_WRITE_TOKEN`: required only if you use photo upload.
+- `VITE_ADMIN_PASSWORD`: admin login password. If omitted, login will not validate against a useful password.
 
 ## Database Setup
 
@@ -95,57 +148,205 @@ Push the schema to your database:
 npx prisma db push
 ```
 
-The bundled seed command is a safe no-op:
+The bundled seed command is a safe no-op placeholder:
 
 ```bash
 npm run db:seed
 ```
 
-Use the admin panel or a private seed script for real family data.
+Use the admin panel, API, database tools, or your own private seed script to add real family data.
 
-## Configuration Files
+## Data Model Overview
+
+The app uses these main database-backed resources:
+
+| Resource | Purpose |
+|---|---|
+| `FamilyMember` | People in the family archive |
+| `FamilyBranch` | Branch/group definitions for filtering and summaries |
+| `NuclearFamily` | Parent-child family units used by the tree layout |
+| `TimelineEvent` | Manual timeline entries |
+| `GalleryItem` | Gallery albums/photos |
+
+Important relationship fields on members include:
+
+- `fatherId`
+- `motherId`
+- `spouseIds`
+- `formerSpouseIds`
+- `childrenIds`
+- `siblingIds`
+- `parentFamilyId`
+- `nuclearFamilyIds`
+
+The tree layout reads these relationships from API data. It does not require a tracked data file.
+
+## Project Structure
 
 ```text
-src/config/
-  defaultLabels.ts
-  family.config.example.ts
-  family.config.ts          # local only, ignored by Git
-  index.ts                  # config resolver
-src/types/
-  config.ts
+api/
+  [...path].ts              # Vercel serverless entrypoint
+
+prisma/
+  migrations/               # Prisma migration history
+  schema.prisma             # Database schema
+  seed.ts                   # Safe no-op template seed
+
+server/
+  app.ts                    # Express app and API routes
+  index.ts                  # Local backend entrypoint
+
+src/
+  App.tsx                   # Routes and global app shell
+  main.tsx                  # React entrypoint
+  index.css                 # CSS variables and global styles
+
+  admin/
+    components/             # Admin sidebar, modals, upload field, stats
+    hooks/                  # Admin auth hook
+    layouts/                # Admin layout wrapper
+    pages/                  # Admin dashboard, login, and CRUD pages
+
+  components/
+    FamilyTree.tsx          # Public tree wrapper
+    GalleryTimeline.tsx     # Gallery and timeline shared components
+    Layout.tsx              # Public layout and footer
+    MemberDetail.tsx        # Member detail modal/sheet
+    MemberForm.tsx          # Member CRUD form
+    Navbar.tsx              # Public navigation
+    tree/                   # Tree canvas, controls, minimap, cards
+    ui.tsx                  # Shared UI components
+
+  config/
+    defaultLabels.ts
+    family.config.example.ts
+    index.ts
+
+  constants/
+    treeLayout.ts           # Tree layout constants
+
+  hooks/
+    useFamilyStore.tsx      # Data fetching, CRUD actions, auth state, toasts
+    useSiteConfigEffects.ts # Runtime metadata/theme effects
+
+  pages/
+    HomePage.tsx
+    TreePage.tsx
+    MembersPage.tsx
+    MemberProfilePage.tsx
+    GalleryPage.tsx
+    TimelinePage.tsx
+
+  types/
+    config.ts
+    family.ts
+    tree.ts
+
+  utils/
+    family.ts
+    timeline.ts
+    treeLayout.ts
 ```
 
-The app imports config from `src/config` only. A local `family.config.ts` is used when present; otherwise the public example config is used.
+## API Endpoints
 
-## Features
+All endpoints are under `/api`.
 
-- Public homepage
-- Interactive family tree with pan, zoom, search, and optional minimap
-- Member directory and member profile pages
-- Optional gallery
-- Optional timeline
-- Admin dashboard
-- Member, gallery, and timeline CRUD backed by the API
-- Photo upload support through Vercel Blob
+### Members
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/members` | List members |
+| `POST` | `/api/members` | Create a member |
+| `PUT` | `/api/members/:id` | Update a member |
+| `DELETE` | `/api/members/:id` | Delete a member and clean relationship references |
+
+### Branches and Nuclear Families
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/branches` | List family branches |
+| `GET` | `/api/nuclear-families` | List nuclear families |
+
+### Timeline
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/timeline` | List timeline events |
+| `POST` | `/api/timeline` | Create a timeline event |
+| `PUT` | `/api/timeline/:id` | Update a timeline event |
+| `DELETE` | `/api/timeline/:id` | Delete a timeline event |
+
+### Gallery
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/gallery` | List gallery items |
+| `POST` | `/api/gallery` | Create a gallery item |
+| `PUT` | `/api/gallery/:id` | Update a gallery item |
+| `DELETE` | `/api/gallery/:id` | Delete a gallery item |
+
+### Uploads and Health
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/uploads/photos?folder=members&filename=name` | Upload, resize, convert, and store a member photo |
+| `POST` | `/api/uploads/photos?folder=gallery&filename=name` | Upload, resize, convert, and store a gallery image |
+| `GET` | `/api/health` | Health check |
+
+Photo uploads accept JPEG, PNG, and WebP images up to 4 MB. Uploaded images are rotated, resized to fit within 1600 x 1600, converted to WebP, and stored in Vercel Blob.
+
+## Deployment
+
+This project is prepared for Vercel.
+
+1. Push the repository to GitHub.
+2. Connect the repository to Vercel.
+3. Add required environment variables in Vercel.
+4. Make sure your private config strategy is ready before deploying a family-specific website.
+5. Run the database setup against your production database.
+
+For a public template release:
+
+- Keep `family.config.example.ts` tracked.
+- Keep `family.config.ts` ignored.
+- Do not commit private names, descriptions, images, or database seed data.
+
+## Privacy Rules
+
+Do not commit:
+
+- `src/config/family.config.ts`
+- `.env`
+- private seed scripts
+- exported family datasets
+- private photos or private media URLs
+- production database credentials
+
+The template is intended to be public-safe, but the data you add through your own database may still be private. Review your deployment, admin password, database permissions, and access controls before sharing a live site.
 
 ## Scripts
 
 | Script | Description |
 |---|---|
 | `npm run dev` | Run frontend and backend together |
-| `npm run dev:frontend` | Run the Vite frontend only |
-| `npm run dev:backend` | Run the Express backend only |
+| `npm run dev:frontend` | Run Vite only |
+| `npm run dev:backend` | Run Express only |
 | `npm run build` | Generate Prisma Client, type-check, and build production assets |
 | `npm run preview` | Preview the production build |
 | `npm run db:seed` | Safe no-op seed placeholder |
 
-## Deployment
+## Public Release Checklist
 
-This project is ready for Vercel deployment:
+Before publishing this as a GitHub template:
 
-1. Push the repository to GitHub.
-2. Connect the repository in Vercel.
-3. Add environment variables in the Vercel dashboard.
-4. Make sure your private config strategy is in place before deploying a family-specific site.
+- Confirm `src/config/family.config.ts` is ignored.
+- Run `git status --short --untracked-files=all` and make sure private config is absent.
+- Search tracked files for private family names, real biographies, private photos, or production URLs.
+- Confirm README and example config are generic.
+- Confirm `.env` and private seed scripts are not tracked.
+- Run `npm run build`.
 
-For a public template release, keep only `family.config.example.ts` tracked and keep `family.config.ts` ignored.
+## License
+
+Add your preferred license before publishing the repository as a reusable template.
