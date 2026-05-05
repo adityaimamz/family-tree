@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model FamilyMember {
+  id                 String         @id @default(uuid())
+  slugId             String         @unique
+  fullName           String
+  displayName        String
+  gender             String
+  generation         Int
+  familyBranchId     String
+  fatherId           String?
+  motherId           String?
+  spouseIds          String[]       @default([])
+  formerSpouseIds    String[]       @default([])
+  siblingIds         String[]       @default([])
+  parentFamilyId     String?
+  nuclearFamilyIds   String[]       @default([])
+  birthDate          String?
+  marriageDate       String?
+  deathDate          String?
+  isDeceased         Boolean        @default(false)
+  deceasedLabel      String?
+  birthPlace         String?
+  biography          String
+  notes              String
+  photo              String?
+  statusLabel        String
+  relationshipToRoot String
+  childrenIds        String[]       @default([])
+  branch             FamilyBranch   @relation(fields: [familyBranchId], references: [slugId])
+  father             FamilyMember?  @relation("FatherToChildren", fields: [fatherId], references: [slugId])
+  childrenAsFather   FamilyMember[] @relation("FatherToChildren")
+  mother             FamilyMember?  @relation("MotherToChildren", fields: [motherId], references: [slugId])
+  childrenAsMother   FamilyMember[] @relation("MotherToChildren")
+  parentFamily       NuclearFamily? @relation("ChildOfNuclearFamily", fields: [parentFamilyId], references: [slugId])
+}
+
+model FamilyBranch {
+  id            String          @id @default(uuid())
+  slugId        String          @unique
+  name          String
+  headMemberIds String[]        @default([])
+  spouseId      String?
+  description   String
+  summary       String?
+  memberIds     String[]        @default([])
+  color         String?
+  members       FamilyMember[]
+  families      NuclearFamily[]
+}
+
+model NuclearFamily {
+  id              String         @id @default(uuid())
+  slugId          String         @unique
+  name            String
+  parentIds       String[]       @default([])
+  childIds        String[]       @default([])
+  childrenIds     String[]       @default([])
+  branchId        String
+  summary         String
+  childrenMembers FamilyMember[] @relation("ChildOfNuclearFamily")
+  branch          FamilyBranch   @relation(fields: [branchId], references: [slugId])
+}
+
+model TimelineEvent {
+  id               String   @id @default(uuid())
+  slugId           String   @unique
+  year             String
+  type             String
+  title            String
+  description      String
+  relatedMemberIds String[] @default([])
+  memberIds        String[] @default([])
+  photo            String?
+  isAutomatic      Boolean  @default(false)
+}
+
+model GalleryItem {
+  id          String  @id @default(uuid())
+  slugId      String  @unique
+  title       String
+  date        String
+  year        String
+  event       String?
+  familyGroup String
+  description String
+  image       String
+}

@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 42 38% 96%;
+  --surface: 0 0% 100%;
+  --surface-soft: 40 35% 92%;
+  --text: 32 28% 16%;
+  --muted: 32 12% 45%;
+  --border: 35 22% 84%;
+  --warm-brown: 28 38% 34%;
+  --sage-green: 96 20% 45%;
+  --soft-blue: 205 36% 62%;
+  --terracotta: 15 54% 55%;
+  --soft-gold: 42 68% 58%;
+  --dark-green: 120 24% 28%;
+  --warning: 8 67% 56%;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at top left, hsl(var(--soft-gold) / 0.14), transparent 34rem),
+    radial-gradient(circle at 85% 12%, hsl(var(--sage-green) / 0.16), transparent 28rem),
+    hsl(var(--background));
+  color: hsl(var(--text));
+  font-family: Outfit, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  outline-color: hsl(var(--dark-green));
+  outline-offset: 3px;
+}
+
+.archive-grid {
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.38) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.38) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.tree-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--warm-brown) / 0.35) transparent;
+}
+
+.tree-scroll::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+.tree-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--warm-brown) / 0.25);
+  border-radius: 999px;
+}
+
+.surface-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.18) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(135deg, rgba(0, 0, 0, 0.72), transparent 72%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

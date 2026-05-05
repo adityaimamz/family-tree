@@ -1,0 +1,27 @@
+import type { FamilySiteLabels } from "../types/config";
+
+export const defaultLabels: FamilySiteLabels = {
+  navHome: "Beranda",
+  navTree: "Silsilah",
+  navMembers: "Anggota",
+  navGallery: "Galeri",
+  navTimeline: "Linimasa",
+  navAdmin: "Kelola",
+  allMembers: "Semua Anggota",
+  allGenerations: "Semua Generasi",
+  allBranches: "Semua Cabang",
+  deceased: "Almarhum/Almarhumah",
+  coreFamily: "Keluarga Inti",
+  membersFound: "anggota ditemukan",
+  branchSummaryFallback: "Semua keluarga tercatat dalam arsip ini.",
+  memberBiographyFallback: "tercatat dalam arsip keluarga. Biografi dapat dilengkapi kemudian oleh keluarga.",
+  relationshipPlaceholder: "Contoh: Cucu dari pendiri keluarga",
+  importMembersHelp: "Tempel JSON terstruktur anggota keluarga untuk mengganti data lokal di browser ini.",
+  emptyMembersTitle: "Belum ada anggota keluarga.",
+  emptyMembersDescription: "Data keluarga dapat ditambahkan dari panel admin setelah database siap.",
+  emptyGalleryTitle: "Belum ada foto keluarga.",
+  emptyGalleryDescription: "Arsip foto dapat ditambahkan dari panel admin.",
+  emptyTimelineTitle: "Tidak ada catatan pada pilihan ini.",
+  emptyTimelineDescription: "Coba pilih 'Semua' untuk melihat seluruh cerita keluarga.",
+  statusOptions: ["Garis Utama", "Keluarga Besar", "Menantu", "Anak", "Cucu", "Cicit", "Kerabat"],
+};
