@@ -10,9 +10,9 @@ const valueIcons: Record<string, LucideIcon> = {
 };
 
 const inviteRows = [
-  "Private workspace created",
-  "12 relatives ready to invite",
-  "Stories stay inside the family",
+  "148 relatives connected across 4 branches",
+  "37 biographies drafted and family-reviewed",
+  "624 photos named with source context",
 ];
 
 export default function CtaSection() {
@@ -31,7 +31,7 @@ export default function CtaSection() {
             Close the loop between family stories, relationships, biographies, photos, and timelines.
           </p>
           <h2 className="mt-5 max-w-[780px] font-body text-4xl font-semibold leading-[1.02] text-surface sm:text-5xl lg:text-6xl">
-            Give your family history a private product space.
+            Create a private home for your family history.
           </h2>
           <p className="mt-6 max-w-[58ch] text-base leading-8 text-surface/74">
             Start with one archive, invite the people who remember the details, and keep every record organized without
@@ -43,7 +43,7 @@ export default function CtaSection() {
               to="/"
               className="group inline-flex min-h-14 items-center justify-center gap-4 rounded-full bg-accent py-2 pl-6 pr-2 text-base font-semibold text-ink shadow-[0_24px_48px_-32px_rgba(210,181,110,0.92)] outline-none transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:bg-surface active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-surface/25"
             >
-              Create your family space
+              Create your family archive
               <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-surface transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1 group-hover:scale-105">
                 <ArrowRight className="h-5 w-5" strokeWidth={1.8} />
               </span>
@@ -52,7 +52,7 @@ export default function CtaSection() {
               href="#demo"
               className="group inline-flex min-h-14 items-center justify-center gap-4 rounded-full border border-surface/28 bg-surface/[0.06] py-2 pl-6 pr-2 text-base font-semibold text-surface outline-none transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:bg-surface/[0.12] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-surface/25"
             >
-              View product demo
+              View sample archive
               <span className="grid h-10 w-10 place-items-center rounded-full bg-surface/12 text-surface transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1 group-hover:scale-105">
                 <ArrowRight className="h-5 w-5" strokeWidth={1.8} />
               </span>
@@ -92,8 +92,8 @@ export default function CtaSection() {
           <div className="overflow-hidden rounded-[calc(2.25rem-0.375rem)] border border-white/80 bg-surface text-ink shadow-[inset_0_1px_1px_rgba(255,255,255,0.78)]">
             <div className="flex flex-col gap-4 border-b border-stroke bg-bg-alt/72 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-lg font-semibold text-ink">Archive setup</p>
-                <p className="mt-1 text-sm font-medium text-ink-muted">Invite-only family workspace</p>
+                <p className="text-lg font-semibold text-ink">Rahman family archive</p>
+                <p className="mt-1 text-sm font-medium text-ink-muted">Private archive with reviewed stories</p>
               </div>
               <span className="inline-flex w-fit items-center gap-2 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-surface">
                 <LockKeyhole className="h-4 w-4" strokeWidth={1.8} />
@@ -108,8 +108,8 @@ export default function CtaSection() {
                     WA
                   </span>
                   <div>
-                    <p className="font-semibold text-ink">WarisanAI Family Space</p>
-                    <p className="text-sm font-medium text-ink-muted">Ready for the Rahman archive</p>
+                    <p className="font-semibold text-ink">WarisanAI Family Archive</p>
+                    <p className="text-sm font-medium text-ink-muted">Stories, photos, timelines, and relationships connected</p>
                   </div>
                 </div>
 
@@ -135,8 +135,11 @@ export default function CtaSection() {
               <div className="mt-4 rounded-[1.45rem] bg-primary p-4 text-surface">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="font-semibold">Next step</p>
-                    <p className="mt-1 text-sm text-surface/72">Send the first invite and start organizing memories together.</p>
+                    <p className="font-semibold">Sample result</p>
+                    <p className="mt-1 text-sm text-surface/72">
+                      A relative can open one profile and see the tree position, biography, photos, timeline moments,
+                      and source notes together.
+                    </p>
                   </div>
                   <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-surface/12">
                     <ArrowRight className="h-5 w-5" strokeWidth={1.8} />

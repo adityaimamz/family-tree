@@ -14,15 +14,15 @@ import { Link } from "react-router-dom";
 import { fadeUp, staggerContainer } from "../lib/animationVariants";
 
 const archiveRows = [
-  { label: "Family tree", value: "148 profiles", icon: GitBranch },
-  { label: "Biographies", value: "37 drafts", icon: BookOpen },
-  { label: "Photo context", value: "624 tagged", icon: Camera },
+  { label: "Family tree records", value: "148 profiles", icon: GitBranch },
+  { label: "Biographies in review", value: "37 drafts", icon: BookOpen },
+  { label: "Photos with context", value: "624 tagged", icon: Camera },
 ];
 
 const activityRows = [
-  "Rina added context to a 1987 reunion photo",
-  "Aditya approved a new biography draft",
-  "Siti connected two branches in the tree",
+  "Rina named five relatives in a 1987 reunion photo",
+  "Aditya approved Ibu Lina's biography draft",
+  "Siti attached source notes to the Noor branch",
 ];
 
 const photoTiles = [
@@ -56,21 +56,22 @@ export default function HeroSection() {
             variants={fadeUp}
             className="max-w-[54ch] text-sm font-semibold leading-6 text-primary"
           >
-            A private AI workspace for families that want their stories, photos,
-            and relationships to stay organized.
+            A private family archive for stories, photos, timelines,
+            biographies, and family tree records.
           </motion.p>
           <motion.h1
             variants={fadeUp}
              className="mt-6 max-w-[880px] font-body text-5xl font-semibold leading-[0.98] text-ink sm:text-6xl lg:text-7xl"
           >
-            <span className="block">Preserve family stories</span>
-            <span className="block text-primary">in one private archive.</span>
+            <span className="block">Save the family stories</span>
+            <span className="block text-primary">before they disappear.</span>
           </motion.h1>
           <motion.p
             variants={fadeUp}
             className="mt-7 max-w-[62ch] text-lg leading-8 text-ink-secondary"
           >
-            WarisanAI helps families save chats, photos, timelines, and relationship records before they disappear across generations.
+            WarisanAI helps relatives gather scattered memories into one calm, invite-only archive where every photo,
+            life story, date, and relationship can keep its context.
           </motion.p>
 
           <motion.div
@@ -81,16 +82,16 @@ export default function HeroSection() {
               to="/"
               className="group inline-flex min-h-14 items-center justify-center gap-4 rounded-full bg-primary py-2 pl-6 pr-2 text-base font-semibold text-surface shadow-[0_22px_42px_-30px_rgba(44,80,22,0.95)] outline-none transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:bg-warm-brown active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-sage-light"
             >
-              Create your family space
+              Create your family archive
               <span className="grid h-10 w-10 place-items-center rounded-full bg-surface/12 transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1 group-hover:scale-105">
                 <ArrowRight className="h-5 w-5" strokeWidth={1.8} />
               </span>
             </Link>
             <a
-              href="#family-space"
+              href="#demo"
               className="group inline-flex min-h-14 items-center justify-center gap-4 rounded-full border border-stroke bg-surface/88 py-2 pl-6 pr-2 text-base font-semibold text-ink outline-none transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:border-primary/40 hover:bg-surface active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-sage-light"
             >
-              See private workspace
+              View sample workspace
               <span className="grid h-10 w-10 place-items-center rounded-full bg-primary-muted text-primary transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1 group-hover:scale-105">
                 <ArrowRight className="h-5 w-5" strokeWidth={1.8} />
               </span>
@@ -103,7 +104,7 @@ export default function HeroSection() {
           >
             {[
               "Private by default",
-              "Built for relatives",
+              "Built for family review",
               "Context stays attached",
             ].map((item) => (
               <div key={item} className="flex items-center gap-2">
@@ -148,10 +149,10 @@ export default function HeroSection() {
                       RA
                     </div>
                     <div>
-                      <p className="font-semibold text-ink">Rahman Archive</p>
-                      <p className="text-xs font-medium text-ink-muted">
-                        12 relatives active
-                      </p>
+                  <p className="font-semibold text-ink">Rahman Archive</p>
+                  <p className="text-xs font-medium text-ink-muted">
+                        Invite-only family workspace
+                  </p>
                     </div>
                   </div>
 

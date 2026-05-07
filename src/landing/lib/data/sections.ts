@@ -2,44 +2,46 @@ export const problems = [
   {
     icon: "messages",
     title: "Scattered chats",
-    desc: "History lives in WhatsApp chats no one will search again",
+    desc: "The story is split across WhatsApp threads, voice notes, and family group chats no one knows how to search.",
   },
   {
     icon: "image",
-    title: "Photos without context",
-    desc: "Faces and places forgotten over generations",
+    title: "Unnamed photos",
+    desc: "Old albums keep the faces, but lose the names, places, dates, and reasons the moment mattered.",
   },
   {
     icon: "file",
     title: "Lost notes",
-    desc: "Important memories buried in unread files",
+    desc: "Recipes, letters, and reunion lists stay buried in drawers, folders, and phone galleries.",
   },
   {
     icon: "clock",
-    title: "Fading memories",
-    desc: "Every year, another story becomes harder to remember",
+    title: "Living memory fades",
+    desc: "The relatives who remember nicknames, moves, and family turning points will not always be able to retell them.",
   },
 ];
 
 export const features = [
-  { title: "Private by default", desc: "Only invited relatives can enter the family workspace." },
-  { title: "Role-based access", desc: "Owners, admins, and members get clear permissions." },
-  { title: "Invite family members", desc: "Bring relatives into the archive without exposing public links." },
-  { title: "Secure family spaces", desc: "Keep stories, photos, and relationship data in one protected place." },
+  { title: "Branches", desc: "Keep family lines readable without separating the archive into disconnected folders." },
+  { title: "Stories", desc: "Capture short memories, notes, names, and source details while relatives can still explain them." },
+  { title: "Photos", desc: "Attach names, dates, places, and related people to the images the family keeps." },
+  { title: "Timelines", desc: "Connect milestones to biographies, photos, and the relatives who verified them." },
+  { title: "Biographies", desc: "Draft life stories from fragments, then keep the family in control of the final voice." },
+  { title: "Relationships", desc: "Trace how two relatives connect with source context still attached." },
 ];
 
 export const events = [
-  { year: "1952", title: "Born in Yogyakarta", desc: "The family story begins" },
-  { year: "1975", title: "Married Hasan Rahman", desc: "A new chapter opens" },
-  { year: "1990", title: "Family moved to Jakarta", desc: "New city, stronger roots" },
-  { year: "2010", title: "Celebrated 35th anniversary", desc: "A milestone remembered" },
+  { year: "1952", title: "Born in Yogyakarta", desc: "Birth record linked to Lina Rahman's profile" },
+  { year: "1975", title: "Married Hasan Rahman", desc: "Wedding photo and family notes attached" },
+  { year: "1990", title: "Moved to Jakarta", desc: "Move confirmed by Aunt Rina and the blue notebook" },
+  { year: "2010", title: "Celebrated 35th anniversary", desc: "Album, guest list, and biography context connected" },
 ];
 
 export const values = [
   {
     icon: "lock",
     title: "Private access",
-    desc: "Only invited members can view your family space.",
+    desc: "Only invited members can view your family archive.",
   },
   {
     icon: "pen",
@@ -57,39 +59,41 @@ export const footerLinks = [
   {
     title: "Product",
     links: [
-      { label: "Private space", href: "#family-space" },
+      { label: "Private archive", href: "#family-space" },
       { label: "Family tree", href: "#demo" },
       { label: "Timeline", href: "#timeline" },
-      { label: "Problems", href: "#features" },
+      { label: "Biography studio", href: "#biography" },
+      { label: "Relationship explainer", href: "#relationships" },
     ],
   },
   {
-    title: "Company",
+    title: "Trust",
     links: [
-      { label: "Landing", href: "/landing" },
-      { label: "Sign in", href: "/" },
-      { label: "Security", href: "#family-space" },
+      { label: "Security", href: "#privacy" },
+      { label: "Privacy", href: "#privacy" },
+      { label: "Terms", href: "#privacy" },
+      { label: "Contact", href: "mailto:hello@warisan.ai" },
     ],
   },
   {
-    title: "Contact",
+    title: "Start",
     links: [
-      { label: "Demo", href: "#demo" },
-      { label: "Email", href: "mailto:hello@warisan.ai" },
-      { label: "Privacy", href: "#family-space" },
+      { label: "Create archive", href: "/" },
+      { label: "Sample archive", href: "#demo" },
+      { label: "Memory problem", href: "#features" },
     ],
   },
 ];
 
 export const familyTreeChips = [
-  "Search",
-  "Branch filter",
-  "Zoom controls",
-  "Relationship path",
-  "Profile preview",
+  "Branch names",
+  "Confirmed relatives",
+  "Linked photos",
+  "Review status",
+  "Source context",
 ];
 
-export const relationshipPath = ["Rina", "Arman Rahman", "Siti Rahman", "Aditya Rahman"];
+export const relationshipPath = ["Rina Noor", "Arman Rahman", "Taufik & Mariam Rahman", "Siti Rahman", "Aditya Rahman"];
 
 export const relationshipNodes = [
   { x: 100, y: 20, fill: "hsl(var(--sage-green) / 0.4)", label: "GR" },

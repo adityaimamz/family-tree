@@ -57,17 +57,17 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col gap-4 text-sm font-medium text-ink-muted sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-8 flex flex-col items-center gap-4 text-center text-sm font-medium text-ink-muted">
           <p>2026 WarisanAI. All rights reserved.</p>
-          <div className="flex flex-wrap gap-4">
-            <a href="#family-space" className="transition hover:text-primary">
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2">
+            <a href="#privacy" className="transition hover:text-primary">
+              Security
+            </a>
+            <a href="#privacy" className="transition hover:text-primary">
               Privacy
             </a>
-            <a href="#demo" className="transition hover:text-primary">
-              Product demo
-            </a>
-            <a href="/landing" className="transition hover:text-primary">
-              Landing
+            <a href="mailto:hello@warisan.ai" className="transition hover:text-primary">
+              Contact
             </a>
           </div>
         </div>

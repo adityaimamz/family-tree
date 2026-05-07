@@ -19,22 +19,24 @@ export default function TimelineSection() {
   return (
     <section id="timeline" className="relative overflow-hidden bg-bg py-24 lg:py-32">
       <div className="absolute inset-x-0 top-0 h-40 bg-[linear-gradient(180deg,hsl(var(--surface-soft)_/_0.78),transparent)]" />
-      <div className="relative mx-auto grid w-full max-w-[1320px] gap-14 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.86fr)_minmax(560px,1.14fr)] lg:items-center lg:gap-16 xl:px-8">
+      <div className="relative mx-auto grid w-full max-w-[1320px] gap-14 px-4 sm:px-6 lg:grid-cols-[minmax(560px,1.14fr)_minmax(0,0.86fr)] lg:items-center lg:gap-16 xl:px-8">
         <motion.div
           initial={{ opacity: 0, y: 26 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.65, ease: "easeOut" }}
+          className="order-1 lg:order-2"
         >
           <p className="max-w-[42ch] text-sm font-semibold leading-6 text-primary">
-            A living family timeline keeps dates, stories, photos, and people connected instead of scattered across folders.
+            A living family timeline keeps dates, photos, biographies, and source notes connected instead of scattered
+            across folders.
           </p>
           <h2 className="mt-5 max-w-[720px] font-body text-4xl font-semibold leading-[1.04] text-ink sm:text-5xl lg:text-6xl">
-            Turn family history into a timeline relatives can actually read.
+            Turn scattered memories into a family timeline everyone can follow.
           </h2>
           <p className="mt-6 max-w-[58ch] text-base leading-8 text-ink-secondary">
-            Build a chronological workspace where every milestone carries context: who was there, what changed, and which
-            photos or biographies belong with the event.
+            Build a chronological workspace where every milestone carries context: who was there, what changed, which
+            photos belong with it, and which source notes helped the family confirm the date.
           </p>
 
           <div className="mt-10 grid gap-3 sm:grid-cols-3">
@@ -61,13 +63,13 @@ export default function TimelineSection() {
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ type: "spring", stiffness: 90, damping: 20 }}
-          className="rounded-[2.25rem] border border-white/80 bg-white/35 p-1.5 shadow-[0_32px_86px_-56px_rgba(80,54,30,0.92)] ring-1 ring-stroke/50"
+          className="order-2 rounded-[2.25rem] border border-white/80 bg-white/35 p-1.5 shadow-[0_32px_86px_-56px_rgba(80,54,30,0.92)] ring-1 ring-stroke/50 lg:order-1"
         >
           <div className="overflow-hidden rounded-[calc(2.25rem-0.375rem)] border border-white/80 bg-surface/92 shadow-[inset_0_1px_1px_rgba(255,255,255,0.78)]">
             <div className="flex flex-col gap-4 border-b border-stroke bg-bg-alt/72 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-lg font-semibold text-ink">Living timeline workspace</p>
-                <p className="mt-1 text-sm font-medium text-ink-muted">4 milestones connected to profiles and source records.</p>
+                <p className="text-lg font-semibold text-ink">Family timeline workspace</p>
+                <p className="mt-1 text-sm font-medium text-ink-muted">4 milestones connected to profiles, photos, and source records.</p>
               </div>
               <span className="inline-flex w-fit items-center gap-2 rounded-full bg-primary-muted px-3 py-2 text-xs font-semibold text-primary">
                 <Clock3 className="h-4 w-4" strokeWidth={1.8} />

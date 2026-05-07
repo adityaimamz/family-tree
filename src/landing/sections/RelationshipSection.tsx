@@ -8,8 +8,8 @@ const highlightedPath = "M 20 120 L 50 70 L 100 20 L 150 70 L 180 120";
 
 export default function RelationshipSection() {
   return (
-    <section className="relative overflow-hidden bg-bg-alt py-24 lg:py-32">
-      <div className="absolute inset-0 bg-archive-texture opacity-35 [mask-image:linear-gradient(180deg,rgba(0,0,0,0.7),transparent_90%)]" />
+    <section id="relationships" className="relative overflow-hidden bg-[hsl(var(--sage-green)_/_0.13)] py-24 lg:py-32">
+      <div className="absolute inset-0 bg-archive-texture opacity-28 [mask-image:linear-gradient(180deg,rgba(0,0,0,0.7),transparent_90%)]" />
       <div className="relative mx-auto grid w-full max-w-[1320px] gap-14 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.86fr)_minmax(560px,1.14fr)] lg:items-center lg:gap-16 xl:px-8">
         <motion.div
           initial={{ opacity: 0, y: 26 }}
@@ -77,8 +77,9 @@ export default function RelationshipSection() {
                     </div>
                   </div>
                   <p className="text-lg font-medium leading-8 text-ink">
-                    Rina is Aditya&apos;s cousin. Rina&apos;s father and Aditya&apos;s mother are siblings, so they share
-                    the same grandparent line.
+                    Rina is Aditya&apos;s cousin. They share the same grandparents: Arman Rahman is Rina&apos;s father,
+                    and Siti Rahman is Aditya&apos;s mother. The highlighted route shows both branches meeting at the
+                    grandparent line.
                   </p>
                 </div>
 

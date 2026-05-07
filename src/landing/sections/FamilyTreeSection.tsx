@@ -14,7 +14,7 @@ const treeNodes = [
   { x: 268, y: 170, label: "DR", name: "Dimas Rahman", tone: "muted" },
 ];
 
-const branches = ["Rahman core", "Noor branch", "1970-1995", "Living members"];
+const branches = ["Rahman branch", "Noor branch", "Yogyakarta line", "Confirmed only"];
 
 const nodeFill = {
   primary: "hsl(var(--dark-green))",
@@ -27,12 +27,13 @@ export default function FamilyTreeSection() {
   return (
     <section id="demo" className="relative overflow-hidden bg-bg-alt py-24 lg:py-32">
       <div className="absolute inset-0 bg-archive-texture opacity-35 [mask-image:linear-gradient(180deg,rgba(0,0,0,0.72),transparent_90%)]" />
-      <div className="relative mx-auto grid w-full max-w-[1320px] gap-14 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.86fr)_minmax(560px,1.14fr)] lg:items-center lg:gap-16 xl:px-8">
+      <div className="relative mx-auto grid w-full max-w-[1320px] gap-14 px-4 sm:px-6 lg:grid-cols-[minmax(560px,1.14fr)_minmax(0,0.86fr)] lg:items-center lg:gap-16 xl:px-8">
         <motion.div
           initial={{ opacity: 0, y: 26 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.65, ease: "easeOut" }}
+          className="order-1 lg:order-2"
         >
           <p className="max-w-[42ch] text-sm font-semibold leading-6 text-primary">
             Family tree command center for browsing names, branches, stories, and profile context without opening a dozen files.
@@ -41,7 +42,8 @@ export default function FamilyTreeSection() {
             Explore every generation with context attached.
           </h2>
           <p className="mt-6 max-w-[58ch] text-base leading-8 text-ink-secondary">
-            Search people, filter branches, zoom across generations, and open profile details while the relationship map stays readable.
+            Search people, filter named branches, zoom across generations, and open profile details with photos,
+            confirmation status, and source notes close by.
           </p>
 
           <div className="mt-10 grid gap-3 sm:grid-cols-2">
@@ -71,7 +73,7 @@ export default function FamilyTreeSection() {
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ type: "spring", stiffness: 90, damping: 20 }}
-          className="rounded-[2.25rem] border border-white/80 bg-white/35 p-1.5 shadow-[0_32px_86px_-56px_rgba(80,54,30,0.92)] ring-1 ring-stroke/50"
+          className="order-2 rounded-[2.25rem] border border-white/80 bg-white/35 p-1.5 shadow-[0_32px_86px_-56px_rgba(80,54,30,0.92)] ring-1 ring-stroke/50 lg:order-1"
         >
           <div className="overflow-hidden rounded-[calc(2.25rem-0.375rem)] border border-white/80 bg-surface/92 shadow-[inset_0_1px_1px_rgba(255,255,255,0.78)]">
             <div className="flex flex-col gap-3 border-b border-stroke bg-bg-alt/72 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -107,7 +109,7 @@ export default function FamilyTreeSection() {
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-ink">Rahman generation map</p>
-                      <p className="mt-1 text-xs font-medium text-ink-muted">7 visible profiles, 2 branches selected</p>
+                      <p className="mt-1 text-xs font-medium text-ink-muted">7 confirmed relatives, 2 branches selected</p>
                     </div>
                     <div className="flex items-center gap-2 rounded-full bg-primary-muted px-3 py-2 text-xs font-semibold text-primary">
                       <Clock3 className="h-4 w-4" strokeWidth={1.8} />
@@ -175,11 +177,11 @@ export default function FamilyTreeSection() {
                     <span className="grid h-12 w-12 place-items-center rounded-2xl bg-primary text-sm font-semibold text-surface">AR</span>
                     <div>
                       <p className="font-semibold text-ink">Aditya Rahman</p>
-                      <p className="text-xs font-medium text-ink-muted">1982, son</p>
+                      <p className="text-xs font-medium text-ink-muted">1982, Rahman branch</p>
                     </div>
                   </div>
                   <div className="grid gap-2 text-sm">
-                    {["Branch: Rahman core", "Linked photos: 42", "Biography: in review"].map((item) => (
+                    {["Branch: Rahman branch", "Confirmed relative: yes", "Linked photos: 42", "Review status: biography draft", "Source: Aunt Rina interview"].map((item) => (
                       <div key={item} className="flex items-center justify-between gap-3 rounded-2xl bg-bg-alt px-3 py-2 text-ink-secondary">
                         {item}
                         <ChevronRight className="h-4 w-4 text-primary" strokeWidth={1.8} />

@@ -2,30 +2,30 @@ import { motion } from "framer-motion";
 import { ArrowRight, Check, Clock3, FileText, LockKeyhole, PenLine, ShieldCheck } from "lucide-react";
 
 const noteFragments = [
-  "Born in Yogyakarta in 1952",
-  "Raised six children while running a small kitchen business",
-  "Known for patience, handwritten recipes, and weekend gatherings",
+  "Known as Ibu Lina by the cousins",
+  "Kept handwritten recipes in a blue notebook",
+  "Hosted Eid lunch every year until 2008",
 ];
 
-const reviewItems = ["Tone: warm", "Source notes: 3", "Family review: pending"];
+const reviewItems = ["Source notes: 3", "Draft voice: warm", "Family approval: pending"];
 
 export default function BiographySection() {
   return (
-    <section className="relative overflow-hidden bg-bg py-24 lg:py-32">
+    <section id="biography" className="relative overflow-hidden bg-bg py-24 lg:py-32">
       <div className="absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,hsl(var(--surface-soft)_/_0.72),transparent)]" />
-      <div className="relative mx-auto grid w-full max-w-[1320px] gap-14 px-4 sm:px-6 lg:grid-cols-[minmax(540px,1.08fr)_minmax(0,0.92fr)] lg:items-center lg:gap-16 xl:px-8">
+      <div className="relative mx-auto grid w-full max-w-[1320px] gap-14 px-4 sm:px-6 lg:grid-cols-[minmax(0,0.92fr)_minmax(540px,1.08fr)] lg:items-center lg:gap-16 xl:px-8">
         <motion.div
           initial={{ opacity: 0, y: 34, scale: 0.98 }}
           whileInView={{ opacity: 1, y: 0, scale: 1 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ type: "spring", stiffness: 90, damping: 20 }}
-          className="order-2 rounded-[2.25rem] border border-white/80 bg-white/35 p-1.5 shadow-[0_32px_86px_-56px_rgba(80,54,30,0.92)] ring-1 ring-stroke/50 lg:order-1"
+          className="order-2 rounded-[2.25rem] border border-white/80 bg-white/35 p-1.5 shadow-[0_32px_86px_-56px_rgba(80,54,30,0.92)] ring-1 ring-stroke/50"
         >
           <div className="overflow-hidden rounded-[calc(2.25rem-0.375rem)] border border-white/80 bg-surface/92 shadow-[inset_0_1px_1px_rgba(255,255,255,0.78)]">
             <div className="flex flex-col gap-4 border-b border-stroke bg-bg-alt/72 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-lg font-semibold text-ink">Biography studio</p>
-                <p className="mt-1 text-sm font-medium text-ink-muted">Shape short fragments into a story relatives can keep.</p>
+                <p className="mt-1 text-sm font-medium text-ink-muted">Source fragments to draft to family review.</p>
               </div>
               <span className="inline-flex w-fit items-center gap-2 rounded-full bg-primary-muted px-3 py-2 text-xs font-semibold text-primary">
                 <LockKeyhole className="h-4 w-4" strokeWidth={1.8} />
@@ -36,7 +36,7 @@ export default function BiographySection() {
             <div className="grid gap-0 lg:grid-cols-[0.78fr_1fr]">
               <div className="border-b border-stroke bg-bg-alt/56 p-5 lg:border-b-0 lg:border-r">
                 <div className="mb-4 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-ink">Source fragments</p>
+                  <p className="text-sm font-semibold text-ink">1. Source fragments</p>
                   <FileText className="h-5 w-5 text-primary" strokeWidth={1.8} />
                 </div>
                 <div className="grid gap-3">
@@ -58,7 +58,7 @@ export default function BiographySection() {
                   type="button"
                   className="group mt-5 inline-flex min-h-14 w-full items-center justify-center gap-4 rounded-full bg-primary py-2 pl-5 pr-2 text-sm font-semibold text-surface shadow-[0_18px_34px_-26px_rgba(44,80,22,0.95)] transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:bg-warm-brown active:scale-[0.98]"
                 >
-                  Generate biography
+                  Draft biography
                   <span className="grid h-9 w-9 place-items-center rounded-full bg-surface/12 transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1 group-hover:scale-105">
                     <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
                   </span>
@@ -69,8 +69,8 @@ export default function BiographySection() {
                 <div className="rounded-[1.55rem] border border-stroke bg-bg-alt/58 p-5">
                   <div className="mb-4 flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-ink">Generated biography</p>
-                      <p className="mt-1 text-xs font-medium text-ink-muted">Version 02, ready for family review</p>
+                      <p className="text-sm font-semibold text-ink">2. AI-assisted draft</p>
+                      <p className="mt-1 text-xs font-medium text-ink-muted">Version 02, waiting for family voice review</p>
                     </div>
                     <PenLine className="h-5 w-5 text-primary" strokeWidth={1.8} />
                   </div>
@@ -81,8 +81,9 @@ export default function BiographySection() {
                     transition={{ duration: 0.7, delay: 0.25 }}
                     className="text-lg font-medium leading-8 text-ink"
                   >
-                    She became the steady center of the family, remembered for the recipes she wrote by hand, the patience
-                    she carried into every room, and the weekend gatherings that made relatives feel at home.
+                    Lina Rahman, known to the younger cousins as Ibu Lina, kept a blue notebook filled with recipes and
+                    family notes. Relatives remember her Eid lunches as the place where distant branches came back into
+                    the same room.
                   </motion.p>
                 </div>
 
@@ -106,8 +107,10 @@ export default function BiographySection() {
                     <ShieldCheck className="h-5 w-5" strokeWidth={1.8} />
                   </span>
                   <div>
-                    <p className="font-semibold">Private draft protection</p>
-                    <p className="mt-1 text-sm text-surface/74">Only invited family members can read or approve this biography.</p>
+                    <p className="font-semibold">3. Family approves the final voice</p>
+                    <p className="mt-1 text-sm text-surface/74">
+                      AI helps shape the first draft. Invited relatives decide what feels accurate enough to keep.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -120,7 +123,7 @@ export default function BiographySection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.65, ease: "easeOut" }}
-          className="order-1 lg:order-2"
+          className="order-1"
         >
           <p className="max-w-[42ch] text-sm font-semibold leading-6 text-primary">
             AI helps turn fragments into readable memory while the family keeps control of the final voice.
@@ -129,12 +132,12 @@ export default function BiographySection() {
             Turn scattered notes into biographies with a human tone.
           </h2>
           <p className="mt-6 max-w-[58ch] text-base leading-8 text-ink-secondary">
-            Start with a few details, review the generated draft, and keep every biography tied to its family space,
-            source notes, and approval history.
+            Start with a few remembered details, review the generated draft, and keep every biography tied to source
+            notes, relatives who reviewed it, and the family voice that should carry forward.
           </p>
 
           <div className="mt-10 grid gap-4">
-            {["Draft from fragments", "Review before publishing", "Keep source context"].map((item, index) => (
+            {["Draft from fragments", "Family approves the voice", "Keep source context"].map((item, index) => (
               <div key={item} className="flex items-center gap-3 text-sm font-semibold text-ink-secondary">
                 <span className="grid h-8 w-8 place-items-center rounded-full bg-primary-muted text-primary">
                   {index === 0 ? <FileText className="h-4 w-4" strokeWidth={1.8} /> : index === 1 ? <Check className="h-4 w-4" strokeWidth={1.8} /> : <Clock3 className="h-4 w-4" strokeWidth={1.8} />}
