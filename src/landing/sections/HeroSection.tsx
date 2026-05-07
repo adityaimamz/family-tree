@@ -70,9 +70,7 @@ export default function HeroSection() {
             variants={fadeUp}
             className="mt-7 max-w-[62ch] text-lg leading-8 text-ink-secondary"
           >
-            WarisanAI turns scattered chats, albums, timelines, and family tree
-            records into a secure product space your relatives can contribute to
-            without making the archive public.
+            WarisanAI helps families save chats, photos, timelines, and relationship records before they disappear across generations.
           </motion.p>
 
           <motion.div

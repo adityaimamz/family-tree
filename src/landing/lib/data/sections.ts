@@ -37,26 +37,48 @@ export const events = [
 
 export const values = [
   {
-    icon: "PR",
+    icon: "lock",
     title: "Private access",
     desc: "Only invited members can view your family space.",
   },
   {
-    icon: "AI",
+    icon: "pen",
     title: "AI-assisted stories",
     desc: "Turn short notes into meaningful biographies.",
   },
   {
-    icon: "GEN",
+    icon: "branch",
     title: "Built for generations",
     desc: "Preserve family history in one organized place.",
   },
 ];
 
 export const footerLinks = [
-  { title: "Product", links: ["Family Tree", "AI Biography", "Timeline", "Relationship Explainer"] },
-  { title: "Company", links: ["About", "Security", "Contact"] },
-  { title: "Resources", links: ["Demo", "Family Guide", "Privacy"] },
+  {
+    title: "Product",
+    links: [
+      { label: "Private space", href: "#family-space" },
+      { label: "Family tree", href: "#demo" },
+      { label: "Timeline", href: "#timeline" },
+      { label: "Problems", href: "#features" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { label: "Landing", href: "/landing" },
+      { label: "Sign in", href: "/" },
+      { label: "Security", href: "#family-space" },
+    ],
+  },
+  {
+    title: "Contact",
+    links: [
+      { label: "Demo", href: "#demo" },
+      { label: "Email", href: "mailto:hello@warisan.ai" },
+      { label: "Privacy", href: "#family-space" },
+    ],
+  },
 ];
 
 export const familyTreeChips = [
