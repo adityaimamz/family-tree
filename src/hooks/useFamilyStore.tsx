@@ -69,6 +69,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const fetchFamilyData = async () => {
+      if (isMounted) setIsLoading(true);
       try {
         const [nextMembers, nextBranches, nextFamilies, nextTimeline, nextGallery] = await Promise.all([
           fetchJson<FamilyMember[]>("/api/members", []),
@@ -91,13 +92,22 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
         if (isMounted) setIsLoading(false);
       }
     };
-    
-    fetchFamilyData();
+
+    if (isAuthenticated) {
+      fetchFamilyData();
+    } else {
+      setMembers([]);
+      setBranches([]);
+      setFamilies([]);
+      setTimeline([]);
+      setGallery([]);
+      setIsLoading(false);
+    }
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isAuthenticated]);
 
   const addToast = (message: string, tone: ToastMessage["tone"] = "success") => {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
