@@ -42,7 +42,7 @@ This repository is designed to be safe as a public GitHub template:
 | Database hosting | Neon PostgreSQL |
 | File storage | Vercel Blob |
 | Image processing | Sharp |
-| Deployment | Vercel serverless functions |
+| Deployment | Google Cloud Run single-container service |
 
 ## How Configuration Works
 
@@ -296,15 +296,56 @@ All endpoints are under `/api`.
 
 Photo uploads accept JPEG, PNG, and WebP images up to 4 MB. Uploaded images are rotated, resized to fit within 1600 x 1600, converted to WebP, and stored in Vercel Blob.
 
-## Deployment
+# Cloud Run Deployment
 
-This project is prepared for Vercel.
+This project is prepared to run on Google Cloud Run as one container. Express serves API routes under `/api/*` and serves the built Vite frontend from `dist/` for all non-API routes.
 
-1. Push the repository to GitHub.
-2. Connect the repository to Vercel.
-3. Add required environment variables in Vercel.
-4. Make sure your private config strategy is ready before deploying a family-specific website.
-5. Run the database setup against your production database.
+Authenticate with Google Cloud:
+
+```bash
+gcloud auth login
+```
+
+Select your project:
+
+```bash
+gcloud config set project YOUR_PROJECT_ID
+```
+
+Enable required services:
+
+```bash
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+```
+
+Deploy from source:
+
+```bash
+gcloud run deploy warisanai --source . --region asia-southeast2 --allow-unauthenticated
+```
+
+Configure required Cloud Run environment variables:
+
+- `DATABASE_URL`: PostgreSQL connection string.
+- `BLOB_READ_WRITE_TOKEN`: required only if photo uploads are used.
+- Future AI provider variables, such as API keys, should also be configured as Cloud Run environment variables.
+
+Before deploying a family-specific website, make sure your private config strategy is ready and run the database setup against your production database.
+
+## Local Production Verification
+
+Build and run the single-service production app locally:
+
+```bash
+npm run build
+npm run start
+```
+
+Then verify:
+
+- Open `http://localhost:8080`.
+- Open `http://localhost:8080/api/health` and confirm it returns JSON.
+- Refresh a React Router page such as `http://localhost:8080/members` and confirm it still loads.
 
 For a public template release:
 
@@ -333,6 +374,7 @@ The template is intended to be public-safe, but the data you add through your ow
 | `npm run dev:frontend` | Run Vite only |
 | `npm run dev:backend` | Run Express only |
 | `npm run build` | Generate Prisma Client, type-check, and build production assets |
+| `npm run start` | Run the production Express server on `process.env.PORT` or `8080` |
 | `npm run preview` | Preview the production build |
 | `npm run db:seed` | Safe no-op seed placeholder |
 

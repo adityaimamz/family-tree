@@ -7,6 +7,7 @@ import { useFamilyStore } from "./hooks/useFamilyStore";
 import { useSiteConfigEffects } from "./hooks/useSiteConfigEffects";
 import { GalleryPage } from "./pages/GalleryPage";
 import { HomePage } from "./pages/HomePage";
+import { LandingPage } from "./pages/LandingPage";
 import { MemberProfilePage } from "./pages/MemberProfilePage";
 import { MembersPage } from "./pages/MembersPage";
 import { TimelinePage } from "./pages/TimelinePage";
@@ -27,17 +28,19 @@ export default function App() {
   const { toasts, dismissToast } = useFamilyStore();
   const auth = useAdminAuth();
   const isAdminRoute = location.pathname.startsWith("/admin");
+  const isLandingRoute = location.pathname === "/landing" || location.pathname.startsWith("/landing/");
   useSiteConfigEffects();
 
-  if (!auth.isAuthenticated) {
+  if (!auth.isAuthenticated && !isLandingRoute) {
     return <AdminLoginPage onAuthenticated={auth.refresh} />;
   }
 
   return (
     <div className="flex min-h-[100dvh] flex-col">
-      {!isAdminRoute && <Navbar />}
+      {!isAdminRoute && !isLandingRoute && <Navbar />}
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/" element={<HomePage />} />
           <Route path="/silsilah" element={<TreePage />} />
           <Route path="/anggota" element={<MembersPage />} />
@@ -55,7 +58,7 @@ export default function App() {
           </Route>
         </Routes>
       </AnimatePresence>
-      {!isAdminRoute && <Footer />}
+      {!isAdminRoute && !isLandingRoute && <Footer />}
 
       {/* Global Toast Container */}
       <div className="fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 flex-col gap-3">

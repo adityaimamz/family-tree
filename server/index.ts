@@ -1,9 +1,12 @@
-import app, { prisma } from "./app";
+import app, { prisma } from "./app.js";
 
-const PORT = Number(process.env.PORT ?? 3001);
+const isProductionStart =
+  process.env.NODE_ENV === "production" || process.env.npm_lifecycle_event === "start";
+const fallbackPort = isProductionStart ? 8080 : 3001;
+const PORT = Number(process.env.PORT ?? fallbackPort);
 
 const server = app.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });
 
 const shutdown = async () => {

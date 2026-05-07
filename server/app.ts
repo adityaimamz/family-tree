@@ -6,6 +6,7 @@ import type { Response } from "express";
 import { neonConfig } from "@neondatabase/serverless";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@prisma/client";
+import path from "node:path";
 import sharp from "sharp";
 import ws from "ws";
 
@@ -21,6 +22,8 @@ const adapter = new PrismaNeon({ connectionString });
 const prisma = new PrismaClient({ adapter });
 const app = express();
 const uploadContentTypes = ["image/jpeg", "image/png", "image/webp"];
+const distPath = path.resolve(process.cwd(), "dist");
+const indexHtmlPath = path.join(distPath, "index.html");
 
 app.use(cors());
 
@@ -406,6 +409,17 @@ app.delete("/api/gallery/:id", async (req, res) => {
   } catch (error) {
     handleError(res, error, "Failed to delete gallery item");
   }
+});
+
+app.use(express.static(distPath));
+
+app.use((req, res, next) => {
+  if (req.method !== "GET" || req.path === "/api" || req.path.startsWith("/api/")) {
+    next();
+    return;
+  }
+
+  res.sendFile(indexHtmlPath);
 });
 
 export { prisma };
