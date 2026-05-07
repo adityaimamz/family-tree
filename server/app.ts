@@ -1,5 +1,4 @@
 import "dotenv/config";
-import { put } from "@vercel/blob";
 import cors from "cors";
 import express from "express";
 import type { Response } from "express";
@@ -7,8 +6,10 @@ import { neonConfig } from "@neondatabase/serverless";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@prisma/client";
 import path from "node:path";
-import sharp from "sharp";
+import { createRouteHandler } from "uploadthing/express";
 import ws from "ws";
+import { getUserFromRequest, requireAdmin } from "./neonAuth.js";
+import { uploadContentTypes, uploadOptimizedImage, uploadRouter } from "./uploadthing.js";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -21,11 +22,19 @@ neonConfig.webSocketConstructor = ws;
 const adapter = new PrismaNeon({ connectionString });
 const prisma = new PrismaClient({ adapter });
 const app = express();
-const uploadContentTypes = ["image/jpeg", "image/png", "image/webp"];
 const distPath = path.resolve(process.cwd(), "dist");
 const indexHtmlPath = path.join(distPath, "index.html");
 
 app.use(cors());
+app.use(express.json({ limit: "2mb" }));
+app.use(
+  "/api/uploadthing",
+  requireAdmin,
+  createRouteHandler({
+    router: uploadRouter,
+    config: { token: process.env.UPLOADTHING_TOKEN },
+  }),
+);
 
 const safeFilename = (value: string) =>
   value
@@ -39,22 +48,13 @@ const safeFilename = (value: string) =>
 
 app.post(
   "/api/uploads/photos",
+  requireAdmin,
   express.raw({
     limit: "4mb",
-    type: uploadContentTypes,
+    type: [...uploadContentTypes],
   }),
   async (req, res) => {
     try {
-      console.log("Checking BLOB_READ_WRITE_TOKEN...", { 
-        hasToken: !!process.env.BLOB_READ_WRITE_TOKEN,
-        tokenPrefix: process.env.BLOB_READ_WRITE_TOKEN?.slice(0, 10) 
-      });
-
-      if (!process.env.BLOB_READ_WRITE_TOKEN) {
-        res.status(500).json({ error: "BLOB_READ_WRITE_TOKEN is not configured." });
-        return;
-      }
-
       const folder = String(req.query.folder ?? "");
       if (folder !== "members" && folder !== "gallery") {
         res.status(400).json({ error: "Invalid upload folder. Use members or gallery." });
@@ -73,37 +73,26 @@ app.post(
       }
 
       const filename = safeFilename(String(req.query.filename ?? "photo"));
-      const webp = await sharp(req.body)
-        .rotate()
-        .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
-        .webp({ quality: 82 })
-        .toBuffer();
-
-      const blob = await put(`${folder}/${Date.now()}-${filename}.webp`, webp, {
-        access: "public",
-        contentType: "image/webp",
-        addRandomSuffix: false,
+      const upload = await uploadOptimizedImage({
+        body: req.body,
+        filename,
+        folder,
       });
 
-      res.json({
-        url: blob.url,
-        pathname: blob.pathname,
-        contentType: "image/webp",
-        size: webp.length,
-      });
+      res.json(upload);
     } catch (error) {
       handleError(res, error, "Failed to upload image");
     }
   },
 );
 
-app.use(express.json({ limit: "2mb" }));
-
 const asStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 
 const asNullableString = (value: unknown): string | null =>
   typeof value === "string" && value.trim().length > 0 ? value : null;
+
+const asRouteParam = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) ?? "";
 
 const handleError = (res: Response, error: unknown, message: string) => {
   console.error(message, error);
@@ -236,6 +225,21 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, service: "silsilah-keluarga-api" });
 });
 
+app.get("/api/auth/me", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      res.status(401).json({ error: "Authentication required." });
+      return;
+    }
+
+    res.json({ user });
+  } catch {
+    res.status(401).json({ error: "Authentication required." });
+  }
+});
+
+// TODO(Sprint 3): scope and protect family data reads by FamilySpace membership.
 app.get("/api/members", async (_req, res) => {
   try {
     const members = await prisma.familyMember.findMany({
@@ -247,7 +251,7 @@ app.get("/api/members", async (_req, res) => {
   }
 });
 
-app.post("/api/members", async (req, res) => {
+app.post("/api/members", requireAdmin, async (req, res) => {
   try {
     const member = await prisma.familyMember.create({
       data: memberDataFromBody(req.body),
@@ -258,10 +262,11 @@ app.post("/api/members", async (req, res) => {
   }
 });
 
-app.put("/api/members/:id", async (req, res) => {
+app.put("/api/members/:id", requireAdmin, async (req, res) => {
   try {
+    const memberId = asRouteParam(req.params.id);
     const member = await prisma.familyMember.update({
-      where: { slugId: req.params.id },
+      where: { slugId: memberId },
       data: memberDataFromBody(req.body),
     });
     res.json(mapMember(member));
@@ -270,18 +275,19 @@ app.put("/api/members/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/members/:id", async (req, res) => {
+app.delete("/api/members/:id", requireAdmin, async (req, res) => {
   try {
+    const memberId = asRouteParam(req.params.id);
     await prisma.$transaction(async (tx) => {
       const affectedMembers = await tx.familyMember.findMany({
         where: {
           OR: [
-            { fatherId: req.params.id },
-            { motherId: req.params.id },
-            { spouseIds: { has: req.params.id } },
-            { formerSpouseIds: { has: req.params.id } },
-            { childrenIds: { has: req.params.id } },
-            { siblingIds: { has: req.params.id } },
+            { fatherId: memberId },
+            { motherId: memberId },
+            { spouseIds: { has: memberId } },
+            { formerSpouseIds: { has: memberId } },
+            { childrenIds: { has: memberId } },
+            { siblingIds: { has: memberId } },
           ],
         },
       });
@@ -291,18 +297,18 @@ app.delete("/api/members/:id", async (req, res) => {
           tx.familyMember.update({
             where: { slugId: member.slugId },
             data: {
-              fatherId: member.fatherId === req.params.id ? null : member.fatherId,
-              motherId: member.motherId === req.params.id ? null : member.motherId,
-              spouseIds: member.spouseIds.filter((item) => item !== req.params.id),
-              formerSpouseIds: member.formerSpouseIds.filter((item) => item !== req.params.id),
-              childrenIds: member.childrenIds.filter((item) => item !== req.params.id),
-              siblingIds: member.siblingIds.filter((item) => item !== req.params.id),
+              fatherId: member.fatherId === memberId ? null : member.fatherId,
+              motherId: member.motherId === memberId ? null : member.motherId,
+              spouseIds: member.spouseIds.filter((item) => item !== memberId),
+              formerSpouseIds: member.formerSpouseIds.filter((item) => item !== memberId),
+              childrenIds: member.childrenIds.filter((item) => item !== memberId),
+              siblingIds: member.siblingIds.filter((item) => item !== memberId),
             },
           }),
         ),
       );
 
-      await tx.familyMember.deleteMany({ where: { slugId: req.params.id } });
+      await tx.familyMember.deleteMany({ where: { slugId: memberId } });
     });
 
     res.json({ success: true });
@@ -311,6 +317,7 @@ app.delete("/api/members/:id", async (req, res) => {
   }
 });
 
+// TODO(Sprint 3): scope and protect family data reads by FamilySpace membership.
 app.get("/api/branches", async (_req, res) => {
   try {
     const branches = await prisma.familyBranch.findMany({ orderBy: { name: "asc" } });
@@ -320,6 +327,7 @@ app.get("/api/branches", async (_req, res) => {
   }
 });
 
+// TODO(Sprint 3): scope and protect family data reads by FamilySpace membership.
 app.get("/api/nuclear-families", async (_req, res) => {
   try {
     const families = await prisma.nuclearFamily.findMany({ orderBy: { name: "asc" } });
@@ -329,6 +337,7 @@ app.get("/api/nuclear-families", async (_req, res) => {
   }
 });
 
+// TODO(Sprint 3): scope and protect family data reads by FamilySpace membership.
 app.get("/api/timeline", async (_req, res) => {
   try {
     const events = await prisma.timelineEvent.findMany({ orderBy: { year: "asc" } });
@@ -338,7 +347,7 @@ app.get("/api/timeline", async (_req, res) => {
   }
 });
 
-app.post("/api/timeline", async (req, res) => {
+app.post("/api/timeline", requireAdmin, async (req, res) => {
   try {
     const event = await prisma.timelineEvent.create({
       data: timelineDataFromBody(req.body),
@@ -349,11 +358,12 @@ app.post("/api/timeline", async (req, res) => {
   }
 });
 
-app.put("/api/timeline/:id", async (req, res) => {
+app.put("/api/timeline/:id", requireAdmin, async (req, res) => {
   try {
+    const eventId = asRouteParam(req.params.id);
     const event = await prisma.timelineEvent.update({
-      where: { slugId: req.params.id },
-      data: timelineDataFromBody(req.body, req.params.id),
+      where: { slugId: eventId },
+      data: timelineDataFromBody(req.body, eventId),
     });
     res.json(mapTimelineEvent(event));
   } catch (error) {
@@ -361,15 +371,16 @@ app.put("/api/timeline/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/timeline/:id", async (req, res) => {
+app.delete("/api/timeline/:id", requireAdmin, async (req, res) => {
   try {
-    await prisma.timelineEvent.deleteMany({ where: { slugId: req.params.id } });
+    await prisma.timelineEvent.deleteMany({ where: { slugId: asRouteParam(req.params.id) } });
     res.json({ success: true });
   } catch (error) {
     handleError(res, error, "Failed to delete timeline event");
   }
 });
 
+// TODO(Sprint 3): scope and protect family data reads by FamilySpace membership.
 app.get("/api/gallery", async (_req, res) => {
   try {
     const items = await prisma.galleryItem.findMany({ orderBy: { year: "asc" } });
@@ -379,7 +390,7 @@ app.get("/api/gallery", async (_req, res) => {
   }
 });
 
-app.post("/api/gallery", async (req, res) => {
+app.post("/api/gallery", requireAdmin, async (req, res) => {
   try {
     const item = await prisma.galleryItem.create({
       data: galleryDataFromBody(req.body),
@@ -390,11 +401,12 @@ app.post("/api/gallery", async (req, res) => {
   }
 });
 
-app.put("/api/gallery/:id", async (req, res) => {
+app.put("/api/gallery/:id", requireAdmin, async (req, res) => {
   try {
+    const itemId = asRouteParam(req.params.id);
     const item = await prisma.galleryItem.update({
-      where: { slugId: req.params.id },
-      data: galleryDataFromBody(req.body, req.params.id),
+      where: { slugId: itemId },
+      data: galleryDataFromBody(req.body, itemId),
     });
     res.json(mapGalleryItem(item));
   } catch (error) {
@@ -402,9 +414,9 @@ app.put("/api/gallery/:id", async (req, res) => {
   }
 });
 
-app.delete("/api/gallery/:id", async (req, res) => {
+app.delete("/api/gallery/:id", requireAdmin, async (req, res) => {
   try {
-    await prisma.galleryItem.deleteMany({ where: { slugId: req.params.id } });
+    await prisma.galleryItem.deleteMany({ where: { slugId: asRouteParam(req.params.id) } });
     res.json({ success: true });
   } catch (error) {
     handleError(res, error, "Failed to delete gallery item");

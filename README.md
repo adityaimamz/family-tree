@@ -25,9 +25,9 @@ This repository is designed to be safe as a public GitHub template:
 
 - Admin dashboard with database-backed stats.
 - Member CRUD with relationship fields.
-- Gallery CRUD with optional Vercel Blob photo upload.
+- Gallery CRUD with optional UploadThing photo upload.
 - Timeline CRUD for manually curated events.
-- Simple password-protected admin access.
+- Neon Auth-protected admin access.
 
 ## Tech Stack
 
@@ -40,7 +40,7 @@ This repository is designed to be safe as a public GitHub template:
 | Backend | Express |
 | Database | PostgreSQL with Prisma |
 | Database hosting | Neon PostgreSQL |
-| File storage | Vercel Blob |
+| File storage | UploadThing |
 | Image processing | Sharp |
 | Deployment | Google Cloud Run single-container service |
 
@@ -121,18 +121,26 @@ Create `.env` in the project root:
 
 ```env
 DATABASE_URL="postgresql://user:password@host.neon.tech/dbname?sslmode=require"
-BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."
-VITE_ADMIN_PASSWORD="your-admin-password"
+NODE_ENV="production"
+APP_BASE_URL="http://localhost:8080"
+VITE_NEON_AUTH_URL="https://your-neon-auth-host/neondb/auth"
+ADMIN_EMAILS="demo@warisan.ai"
+UPLOADTHING_TOKEN="your-uploadthing-token"
 ```
 
 Required:
 
 - `DATABASE_URL`: PostgreSQL connection string.
+- `VITE_NEON_AUTH_URL`: Neon Auth URL used by the Vite client and Express JWT verifier.
+- `ADMIN_EMAILS`: comma-separated Neon Auth user emails allowed to use admin mutation routes until Sprint 3 roles/memberships.
+- `UPLOADTHING_TOKEN`: UploadThing token for image uploads.
 
 Optional:
 
-- `BLOB_READ_WRITE_TOKEN`: required only if you use photo upload.
-- `VITE_ADMIN_PASSWORD`: admin login password. If omitted, login will not validate against a useful password.
+- `NODE_ENV`: use `production` for production services.
+- `APP_BASE_URL`: public app URL used when configuring auth redirects.
+
+Do not put secrets in `VITE_*` variables. `VITE_NEON_AUTH_URL` is frontend-safe; `UPLOADTHING_TOKEN` stays server-only.
 
 ## Database Setup
 
@@ -292,9 +300,12 @@ All endpoints are under `/api`.
 |---|---|---|
 | `POST` | `/api/uploads/photos?folder=members&filename=name` | Upload, resize, convert, and store a member photo |
 | `POST` | `/api/uploads/photos?folder=gallery&filename=name` | Upload, resize, convert, and store a gallery image |
+| `POST` | `/api/uploadthing` | UploadThing route handler for `imageUploader` |
 | `GET` | `/api/health` | Health check |
 
-Photo uploads accept JPEG, PNG, and WebP images up to 4 MB. Uploaded images are rotated, resized to fit within 1600 x 1600, converted to WebP, and stored in Vercel Blob.
+Photo uploads accept JPEG, PNG, and WebP images up to 4 MB. Uploaded images are rotated, resized to fit within 1600 x 1600, converted to WebP, and stored in UploadThing.
+
+Mutation routes for members, timeline, gallery, and uploads require a verified Neon Auth JWT. Public family data reads and the landing page remain readable in this sprint. Sprint 3 will add FamilySpace and FamilyMembership scoping.
 
 # Cloud Run Deployment
 
@@ -327,8 +338,14 @@ gcloud run deploy warisanai --source . --region asia-southeast2 --allow-unauthen
 Configure required Cloud Run environment variables:
 
 - `DATABASE_URL`: PostgreSQL connection string.
-- `BLOB_READ_WRITE_TOKEN`: required only if photo uploads are used.
+- `NODE_ENV=production`: production runtime mode.
+- `APP_BASE_URL`: deployed Cloud Run URL.
+- `VITE_NEON_AUTH_URL`: Neon Auth URL.
+- `ADMIN_EMAILS`: comma-separated admin emails, for example `demo@warisan.ai`.
+- `UPLOADTHING_TOKEN`: UploadThing token for image uploads.
 - Future AI provider variables, such as API keys, should also be configured as Cloud Run environment variables.
+
+Create `demo@warisan.ai` in Neon Auth for event demos and include that email in `ADMIN_EMAILS`. Do not hardcode demo credentials in frontend code.
 
 Before deploying a family-specific website, make sure your private config strategy is ready and run the database setup against your production database.
 
@@ -364,7 +381,7 @@ Do not commit:
 - private photos or private media URLs
 - production database credentials
 
-The template is intended to be public-safe, but the data you add through your own database may still be private. Review your deployment, admin password, database permissions, and access controls before sharing a live site.
+The template is intended to be public-safe, but the data you add through your own database may still be private. Review your deployment, Neon Auth users, admin email allowlist, database permissions, and access controls before sharing a live site. Do not log tokens, token prefixes, database URLs, or API keys.
 
 ## Scripts
 

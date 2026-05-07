@@ -58,8 +58,8 @@ export default function AdminLayout() {
 
               <button
                 type="button"
-                onClick={() => {
-                  auth.logout();
+                onClick={async () => {
+                  await auth.logout();
                   navigate("/admin");
                 }}
                 className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-border-soft bg-surface px-3 py-2 text-sm font-bold text-text-primary shadow-soft transition hover:-translate-y-0.5 hover:bg-surface-soft active:translate-y-[1px]"
@@ -73,7 +73,7 @@ export default function AdminLayout() {
                   A
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-text-primary">Admin</p>
+                  <p className="truncate text-sm font-bold text-text-primary">{auth.user?.name || "Admin"}</p>
                   <p className="truncate text-xs font-semibold text-text-muted">Sesi aktif</p>
                 </div>
               </div>

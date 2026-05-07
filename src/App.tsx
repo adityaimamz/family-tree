@@ -28,18 +28,24 @@ export default function App() {
   const { toasts, dismissToast } = useFamilyStore();
   const auth = useAdminAuth();
   const isAdminRoute = location.pathname.startsWith("/admin");
+  const isAuthRoute = location.pathname.startsWith("/auth");
   const isLandingRoute = location.pathname === "/landing" || location.pathname.startsWith("/landing/");
   useSiteConfigEffects();
 
-  if (!auth.isAuthenticated && !isLandingRoute) {
-    return <AdminLoginPage onAuthenticated={auth.refresh} />;
+  if (auth.isLoading && (isAdminRoute || isAuthRoute)) {
+    return null;
+  }
+
+  if (!auth.isAuthenticated && isAdminRoute) {
+    return <AdminLoginPage />;
   }
 
   return (
     <div className="flex min-h-[100dvh] flex-col">
-      {!isAdminRoute && !isLandingRoute && <Navbar />}
+      {!isAdminRoute && !isLandingRoute && !isAuthRoute && <Navbar />}
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
+          <Route path="/auth/*" element={<AdminLoginPage />} />
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/" element={<HomePage />} />
           <Route path="/silsilah" element={<TreePage />} />
@@ -58,7 +64,7 @@ export default function App() {
           </Route>
         </Routes>
       </AnimatePresence>
-      {!isAdminRoute && !isLandingRoute && <Footer />}
+      {!isAdminRoute && !isLandingRoute && !isAuthRoute && <Footer />}
 
       {/* Global Toast Container */}
       <div className="fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 flex-col gap-3">

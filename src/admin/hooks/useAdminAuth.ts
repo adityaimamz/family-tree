@@ -1,12 +1,14 @@
-import { useFamilyStore } from "../../hooks/useFamilyStore";
+import { neonAuth } from "../../lib/auth";
 
 export const useAdminAuth = () => {
-  const { isAuthenticated, login, logout } = useFamilyStore();
+  const session = neonAuth.useSession();
+  const user = session.data?.user ?? null;
 
   return { 
-    isAuthenticated, 
-    login, 
-    logout, 
-    refresh: () => {} // Refresh is no longer needed as state is global
+    isAuthenticated: Boolean(user),
+    isLoading: session.isPending,
+    user,
+    logout: () => neonAuth.signOut(),
+    refresh: () => void session.refetch(),
   };
 };

@@ -1,34 +1,27 @@
 import { motion } from "framer-motion";
-import { LockKeyhole, Sprout } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { Sprout } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { AuthView } from "@neondatabase/neon-js/auth/react/ui";
 import { iconStroke, pageTransition } from "../../components/ui";
 import { familyConfig } from "../../config";
-import { useAdminAuth } from "../hooks/useAdminAuth";
 
-export function AdminLoginPage({ onAuthenticated }: { onAuthenticated?: () => void }) {
-  const { login } = useAdminAuth();
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+const authPathFrom = (pathname: string) => {
+  if (pathname.includes("sign-up")) return "sign-up";
+  if (pathname.includes("forgot-password")) return "forgot-password";
+  if (pathname.includes("reset-password")) return "reset-password";
+  return "sign-in";
+};
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
-
-    if (!login(password)) {
-      setError("Password admin tidak sesuai.");
-      return;
-    }
-
-    onAuthenticated?.();
-  };
-
+export function AdminLoginPage() {
+  const location = useLocation();
+  const authPath = authPathFrom(location.pathname);
+  
   return (
     <motion.main
       {...pageTransition}
       className="grid min-h-[100dvh] place-items-center bg-background px-4 py-10"
     >
-      <form
-        onSubmit={handleSubmit}
+      <section
         className="surface-grain w-full max-w-md rounded-[2rem] border border-white/75 bg-surface/95 p-6 shadow-warm ring-1 ring-border-soft/70 sm:p-8"
       >
         <div className="mb-7 flex items-center gap-3">
@@ -43,37 +36,23 @@ export function AdminLoginPage({ onAuthenticated }: { onAuthenticated?: () => vo
 
         <h1 className="text-3xl font-extrabold tracking-tight text-text-primary">Masuk ke Sistem</h1>
         <p className="mt-2 text-sm leading-6 text-text-muted">
-          Silakan masukkan password untuk mengakses silsilah, galeri, dan pengelolaan data.
+          Masuk dengan akun Neon Auth untuk mengelola silsilah, galeri, dan linimasa.
         </p>
 
-        <label className="mt-7 block">
-          <span className="mb-2 block text-sm font-semibold text-text-primary">Password</span>
-          <div className="relative">
-            <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted" strokeWidth={iconStroke} />
-            <input
-              autoFocus
-              className="min-h-12 w-full rounded-2xl border border-border-soft bg-background py-3 pl-12 pr-4 text-base font-semibold text-text-primary shadow-soft outline-none transition placeholder:text-text-muted/65 focus:border-dark-green focus:ring-4 focus:ring-sage-green/12"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Masukkan password"
-            />
-          </div>
-        </label>
+        <div className="mt-7">
+          <AuthView path={authPath} />
+        </div>
 
-        {error && (
-          <p className="mt-3 rounded-2xl border border-warning/25 bg-warning/10 px-4 py-3 text-sm font-semibold text-warning">
-            {error}
-          </p>
-        )}
-
-        <button
-          className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-dark-green px-5 py-3 text-sm font-bold text-white shadow-warm transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px]"
-          type="submit"
-        >
-          Masuk
-        </button>
-      </form>
+        <div className="mt-5 flex items-center justify-center gap-3 text-sm font-semibold text-text-muted">
+          <Link className="text-dark-green hover:text-warm-brown" to="/auth/sign-in">
+            Masuk
+          </Link>
+          <span>/</span>
+          <Link className="text-dark-green hover:text-warm-brown" to="/auth/sign-up">
+            Daftar
+          </Link>
+        </div>
+      </section>
     </motion.main>
   );
 }

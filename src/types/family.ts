@@ -60,6 +60,14 @@ export interface ToastMessage {
   tone: "success" | "warning" | "info" | "error";
 }
 
+export interface AuthUser {
+  id: string;
+  authUserId: string | null;
+  email: string;
+  name: string | null;
+  role: string;
+}
+
 export interface GalleryItem {
   id: string;
   title: string;

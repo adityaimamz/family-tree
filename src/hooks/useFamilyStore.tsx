@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { authFetch } from "../lib/api";
 import type { FamilyBranch, FamilyMember, GalleryItem, NuclearFamily, TimelineEvent, ToastMessage } from "../types/family";
 
 type FamilyContextValue = {
@@ -20,9 +21,6 @@ type FamilyContextValue = {
   importMembers: (members: FamilyMember[]) => void;
   resetData: () => void;
   isLoading: boolean;
-  isAuthenticated: boolean;
-  login: (password: string) => boolean;
-  logout: () => void;
 };
 
 const FamilyContext = createContext<FamilyContextValue | null>(null);
@@ -38,15 +36,6 @@ const slugify = (value: string) =>
 
 const idFrom = (prefix: string, value: string) => `${slugify(value) || prefix}-${Date.now()}`;
 
-const STORAGE_KEY = "admin_authenticated";
-
-const readAuthenticated = () => {
-  if (typeof window === "undefined") return false;
-  return window.sessionStorage.getItem(STORAGE_KEY) === "true";
-};
-
-const configuredPassword = () => import.meta.env.VITE_ADMIN_PASSWORD;
-
 export const FamilyProvider = ({ children }: { children: ReactNode }) => {
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [branches, setBranches] = useState<FamilyBranch[]>([]);
@@ -55,7 +44,6 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(readAuthenticated);
 
   useEffect(() => {
     let isMounted = true;
@@ -93,21 +81,12 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    if (isAuthenticated) {
-      fetchFamilyData();
-    } else {
-      setMembers([]);
-      setBranches([]);
-      setFamilies([]);
-      setTimeline([]);
-      setGallery([]);
-      setIsLoading(false);
-    }
+    fetchFamilyData();
 
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated]);
+  }, []);
 
   const addToast = (message: string, tone: ToastMessage["tone"] = "success") => {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -159,7 +138,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
       const url = isNew ? '/api/members' : `/api/members/${previousId || member.id}`;
       const method = isNew ? 'POST' : 'PUT';
 
-      const response = await fetch(url, {
+      const response = await authFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(member)
@@ -186,7 +165,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteMember = async (id: string) => {
     try {
-      const response = await fetch(`/api/members/${id}`, {
+      const response = await authFetch(`/api/members/${id}`, {
         method: 'DELETE'
       });
       
@@ -220,7 +199,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
         id: item.id || idFrom("gallery", item.title || item.year || "gallery"),
       };
       const isNew = !gallery.some((current) => current.id === (previousId || nextItem.id));
-      const response = await fetch(isNew ? "/api/gallery" : `/api/gallery/${previousId || nextItem.id}`, {
+      const response = await authFetch(isNew ? "/api/gallery" : `/api/gallery/${previousId || nextItem.id}`, {
         method: isNew ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(nextItem),
@@ -242,7 +221,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteGalleryItem = async (id: string) => {
     try {
-      const response = await fetch(`/api/gallery/${id}`, { method: "DELETE" });
+      const response = await authFetch(`/api/gallery/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Gagal menghapus galeri dari server");
 
       setGallery((current) => current.filter((item) => item.id !== id));
@@ -263,7 +242,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
         isAutomatic: event.isAutomatic ?? false,
       };
       const isNew = !timeline.some((current) => current.id === (previousId || nextEvent.id));
-      const response = await fetch(isNew ? "/api/timeline" : `/api/timeline/${previousId || nextEvent.id}`, {
+      const response = await authFetch(isNew ? "/api/timeline" : `/api/timeline/${previousId || nextEvent.id}`, {
         method: isNew ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(nextEvent),
@@ -285,7 +264,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteTimelineEvent = async (id: string) => {
     try {
-      const response = await fetch(`/api/timeline/${id}`, { method: "DELETE" });
+      const response = await authFetch(`/api/timeline/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Gagal menghapus linimasa dari server");
 
       setTimeline((current) => current.filter((event) => event.id !== id));
@@ -294,20 +273,6 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
       console.error(error);
       addToast("Terjadi kesalahan saat menghapus linimasa", "error");
     }
-  };
-
-  const login = (password: string) => {
-    const valid = password === configuredPassword();
-    if (valid) {
-      window.sessionStorage.setItem(STORAGE_KEY, "true");
-      setIsAuthenticated(true);
-    }
-    return valid;
-  };
-
-  const logout = () => {
-    window.sessionStorage.removeItem(STORAGE_KEY);
-    setIsAuthenticated(false);
   };
 
   const value = useMemo<FamilyContextValue>(
@@ -340,11 +305,8 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
         setGallery([]);
         addToast("Data berhasil dikosongkan (Lokal)", "info");
       },
-      isAuthenticated,
-      login,
-      logout,
     }),
-    [branches, families, gallery, members, timeline, toasts, isLoading, isAuthenticated]
+    [branches, families, gallery, members, timeline, toasts, isLoading]
   );
 
   return <FamilyContext.Provider value={value}>{children}</FamilyContext.Provider>;

@@ -1,6 +1,7 @@
 import { ImageUp } from "lucide-react";
 import { useId, useState } from "react";
 import { iconStroke } from "../../components/ui";
+import { authFetch } from "../../lib/api";
 
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxUploadBytes = 4 * 1024 * 1024;
@@ -39,7 +40,7 @@ export function PhotoUploadField({ folder, label, value, onChange }: PhotoUpload
         folder,
         filename: file.name,
       });
-      const response = await fetch(`/api/uploads/photos?${params.toString()}`, {
+      const response = await authFetch(`/api/uploads/photos?${params.toString()}`, {
         method: "POST",
         headers: {
           "Content-Type": file.type,
