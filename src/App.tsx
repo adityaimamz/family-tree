@@ -21,6 +21,7 @@ import { PlatformSpacesPage } from "./pages/platform/PlatformSpacesPage";
 import { PlatformStatsPage } from "./pages/platform/PlatformStatsPage";
 import { PlatformSystemPage } from "./pages/platform/PlatformSystemPage";
 import { PlatformUsersPage } from "./pages/platform/PlatformUsersPage";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export default function App() {
   const location = useLocation();
@@ -41,13 +42,22 @@ export default function App() {
           <Route path="/auth/*" element={<AuthPage />} />
 
           {/* Private routes - app/workspace */}
-          <Route path="/app" element={<SpaceListPage />} />
+          <Route
+            path="/app"
+            element={
+              <ProtectedRoute>
+                <SpaceListPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/app/:spaceSlug/*"
             element={
-              <SpaceProvider>
-                <SpaceLayout />
-              </SpaceProvider>
+              <ProtectedRoute>
+                <SpaceProvider>
+                  <SpaceLayout />
+                </SpaceProvider>
+              </ProtectedRoute>
             }
           >
             <Route index element={<SpaceDashboard />} />
@@ -61,7 +71,14 @@ export default function App() {
           </Route>
 
           {/* Platform operator console */}
-          <Route path="/platform" element={<PlatformLayout />}>
+          <Route
+            path="/platform"
+            element={
+              <ProtectedRoute>
+                <PlatformLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<PlatformDashboard />} />
             <Route path="stats" element={<PlatformStatsPage />} />
             <Route path="users" element={<PlatformUsersPage />} />

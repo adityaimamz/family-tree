@@ -1,7 +1,8 @@
 import "dotenv/config";
 import cors from "cors";
 import express from "express";
-import type { Response } from "express";
+import type { RequestHandler, Response } from "express";
+import rateLimit from "express-rate-limit";
 import path from "node:path";
 import { createRouteHandler } from "uploadthing/express";
 import { requireAuth } from "./neonAuth.js";
@@ -19,7 +20,53 @@ const app = express();
 const distPath = path.resolve(process.cwd(), "dist");
 const indexHtmlPath = path.join(distPath, "index.html");
 
-app.use(cors());
+const allowedOrigins = [
+  process.env.APP_BASE_URL,
+  "https://warisan-ai-558467708906.asia-southeast2.run.app",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+].filter(Boolean) as string[];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  }),
+);
+
+// Security headers
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
+
+const globalLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 60,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again later." },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many auth requests. Please try again later." },
+});
+
+app.use("/api", globalLimiter);
+app.use("/api/auth", authLimiter);
+
 app.use(express.json({ limit: "2mb" }));
 app.use(
   "/api/uploadthing",
@@ -29,6 +76,13 @@ app.use(
     config: { token: process.env.UPLOADTHING_TOKEN },
   }),
 );
+
+const spaceSlugFromQuery: RequestHandler = (req, _res, next) => {
+  if (!req.params.spaceSlug && req.query.spaceSlug) {
+    req.params.spaceSlug = String(req.query.spaceSlug);
+  }
+  next();
+};
 
 const safeFilename = (value: string) =>
   value
@@ -44,33 +98,14 @@ app.post(
   "/api/uploads/photos",
   requireAuth,
   loadAppUser,
+  spaceSlugFromQuery,
+  requireSpaceMembership,
   express.raw({
     limit: "4mb",
     type: [...uploadContentTypes],
   }),
   async (req, res) => {
     try {
-      if (!req.appUser) {
-        res.status(500).json({ error: "User context not loaded." });
-        return;
-      }
-
-      const spaceSlug = String(req.query.spaceSlug ?? "");
-      if (!spaceSlug) {
-        res.status(400).json({ error: "Missing spaceSlug." });
-        return;
-      }
-
-      const { familySpace, membership } = await getFamilySpaceBySlug(spaceSlug, req.appUser.id);
-      if (!familySpace) {
-        res.status(404).json({ error: "FamilySpace not found." });
-        return;
-      }
-      if (!membership) {
-        res.status(403).json({ error: "FamilySpace membership required." });
-        return;
-      }
-
       const folder = String(req.query.folder ?? "");
       if (folder !== "members" && folder !== "gallery") {
         res.status(400).json({ error: "Invalid upload folder. Use members or gallery." });

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 import { EmptyState, iconStroke, pageTransition } from "../components/ui";
 import { authFetch } from "../lib/api";
-import { neonAuth } from "../lib/auth";
+import { performSignOut } from "../lib/signOut";
 import type { AppUser } from "../types/family";
 import { cx, getInitials } from "../utils/family";
 
@@ -183,7 +183,7 @@ export const PlatformLayout = () => {
               </div>
               <button
                 type="button"
-                onClick={() => void neonAuth.signOut()}
+                onClick={() => void performSignOut()}
                 className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-border-soft bg-surface px-3 py-2 text-sm font-bold text-text-primary shadow-soft transition hover:-translate-y-0.5 hover:bg-surface-soft active:translate-y-[1px]"
               >
                 <LogOut className="h-4 w-4" strokeWidth={iconStroke} />

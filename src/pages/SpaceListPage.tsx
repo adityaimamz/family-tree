@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { EmptyState, LoadingState, PageShell, PrimaryButton, SectionHeader, pageTransition } from "../components/ui";
 import { apiErrorMessage, authFetch } from "../lib/api";
 import { getNeonAuthToken } from "../lib/auth";
-import type { FamilyMembership } from "../types/family";
+import type { AppUser, FamilyMembership } from "../types/family";
 
 export const SpaceListPage = () => {
   const navigate = useNavigate();
@@ -17,31 +17,55 @@ export const SpaceListPage = () => {
   const [description, setDescription] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadSpaces = async () => {
       try {
-        const token = await getNeonAuthToken();
+        // Give Neon Auth session time to settle after sign-up/sign-in redirect.
+        // Default getNeonAuthToken retries 6×180ms which is too short for sign-up flow.
+        const token = await getNeonAuthToken({ retries: 12, delayMs: 400 });
+        if (cancelled) return;
+
         if (!token) {
-          navigate("/auth/sign-in");
+          navigate("/auth/sign-in", { replace: true });
+          return;
+        }
+
+        const meResponse = await authFetch("/api/auth/me");
+        if (cancelled) return;
+
+        if (meResponse.status === 401) {
+          navigate("/auth/sign-in", { replace: true });
+          return;
+        }
+        if (!meResponse.ok) throw new Error(await apiErrorMessage(meResponse, "Failed to load current user"));
+
+        const meData = (await meResponse.json()) as { user?: AppUser };
+        if (meData.user?.platformRole === "platform_admin") {
+          navigate("/platform", { replace: true });
           return;
         }
 
         const response = await authFetch("/api/spaces");
+        if (cancelled) return;
+
         if (response.status === 401) {
-          navigate("/auth/sign-in");
+          navigate("/auth/sign-in", { replace: true });
           return;
         }
         if (!response.ok) throw new Error(await apiErrorMessage(response, "Failed to load spaces"));
         const data = await response.json();
-        setMemberships(data);
+        if (!cancelled) setMemberships(data);
       } catch (err) {
         console.error(err);
-        setError(err instanceof Error ? err.message : "Failed to load family spaces");
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load family spaces");
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     loadSpaces();
+    return () => { cancelled = true; };
   }, [navigate]);
 
   const createSpace = async (event: FormEvent<HTMLFormElement>) => {
@@ -54,7 +78,7 @@ export const SpaceListPage = () => {
     try {
       const token = await getNeonAuthToken();
       if (!token) {
-        navigate("/auth/sign-in");
+        navigate("/auth/sign-in", { replace: true });
         return;
       }
 
@@ -68,7 +92,7 @@ export const SpaceListPage = () => {
       });
 
       if (response.status === 401) {
-        navigate("/auth/sign-in");
+        navigate("/auth/sign-in", { replace: true });
         return;
       }
       if (!response.ok) throw new Error(await apiErrorMessage(response, "Failed to create space"));

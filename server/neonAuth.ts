@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import { randomUUID } from "node:crypto";
+import { createRemoteJWKSet, decodeJwt, decodeProtectedHeader, jwtVerify, type JWTPayload } from "jose";
 
 export type AuthUser = {
   id: string;
@@ -16,6 +17,14 @@ declare global {
 }
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+let jwksUrl: string | null = null;
+
+const shouldLogAuthDebug = () => process.env.NODE_ENV !== "production" && process.env.AUTH_DEBUG !== "0";
+
+const authLog = (event: string, data: Record<string, unknown>, level: "info" | "warn" | "error" = "info") => {
+  if (level === "info" && !shouldLogAuthDebug()) return;
+  console[level](`[auth] ${event}`, data);
+};
 
 const getNeonAuthUrl = () => {
   const authUrl = process.env.VITE_NEON_AUTH_URL;
@@ -25,8 +34,14 @@ const getNeonAuthUrl = () => {
   return authUrl.endsWith("/") ? authUrl : `${authUrl}/`;
 };
 
+const getJwksUrl = () => new URL(".well-known/jwks.json", getNeonAuthUrl()).toString();
+
 const getJwks = () => {
-  jwks ??= createRemoteJWKSet(new URL("jwt", getNeonAuthUrl()));
+  if (!jwks) {
+    jwksUrl = getJwksUrl();
+    authLog("jwks_configured", { jwksUrl });
+    jwks = createRemoteJWKSet(new URL(jwksUrl));
+  }
   return jwks;
 };
 
@@ -41,14 +56,95 @@ const stringClaim = (payload: JWTPayload, key: string) => {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
 };
 
+const requestContext = (req: Request) => ({
+  requestId: typeof req.headers["x-request-id"] === "string" ? req.headers["x-request-id"] : randomUUID(),
+  method: req.method,
+  path: req.originalUrl || req.path,
+});
+
+const isJwtLike = (token: string) => token.split(".").length === 3;
+
+const tokenShape = (token: string | null) => ({
+  present: Boolean(token),
+  length: token?.length ?? 0,
+  segments: token ? token.split(".").length : 0,
+});
+
+const jwtHeaderSummary = (token: string) => {
+  try {
+    const header = decodeProtectedHeader(token);
+    return {
+      alg: header.alg,
+      kid: header.kid,
+      typ: header.typ,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const jwtPayloadSummary = (token: string) => {
+  try {
+    const payload = decodeJwt(token);
+    const exp = typeof payload.exp === "number" ? new Date(payload.exp * 1000).toISOString() : null;
+    return {
+      sub: payload.sub,
+      email: stringClaim(payload, "email"),
+      iss: payload.iss,
+      aud: payload.aud,
+      exp,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const errorSummary = (error: unknown) => {
+  if (!(error instanceof Error)) return { message: String(error) };
+  return {
+    name: error.name,
+    message: error.message,
+    code: "code" in error ? (error as { code?: unknown }).code : undefined,
+  };
+};
+
 export const getUserFromRequest = async (req: Request): Promise<AuthUser | null> => {
+  const context = requestContext(req);
   const token = bearerTokenFrom(req);
-  if (!token) return null;
+  if (!token) {
+    authLog("missing_bearer", { ...context, token: tokenShape(token) }, "warn");
+    return null;
+  }
+
+  if (!isJwtLike(token)) {
+    authLog("token_not_jwt", { ...context, token: tokenShape(token) }, "warn");
+    return null;
+  }
+
+  authLog("verify_start", {
+    ...context,
+    jwksUrl: jwksUrl ?? getJwksUrl(),
+    token: tokenShape(token),
+    header: jwtHeaderSummary(token),
+    claims: jwtPayloadSummary(token),
+  });
 
   const { payload } = await jwtVerify(token, getJwks());
-  if (!payload.sub) return null;
+  if (!payload.sub) {
+    authLog("missing_subject", { ...context, claims: jwtPayloadSummary(token) }, "warn");
+    return null;
+  }
 
   const email = stringClaim(payload, "email");
+  authLog("verify_success", {
+    ...context,
+    user: {
+      id: payload.sub,
+      email: shouldLogAuthDebug() ? email : "***",
+      name: shouldLogAuthDebug() ? stringClaim(payload, "name") : "***",
+    },
+  });
+
   return {
     id: payload.sub,
     email,
@@ -67,11 +163,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     req.user = user;
     next();
   } catch (error) {
-    console.error("Backend auth verification failed", {
-      path: req.path,
-      method: req.method,
-      error,
-    });
+    authLog("verify_failed", { ...requestContext(req), error: errorSummary(error) }, "error");
     res.status(401).json({ error: "Authentication required." });
   }
 };

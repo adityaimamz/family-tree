@@ -20,6 +20,13 @@ const unauthorized = (res: Parameters<RequestHandler>[1], message: string) => {
   res.status(401).json({ error: message });
 };
 
+const shouldLogAuthzDebug = () => process.env.NODE_ENV !== "production" && process.env.AUTH_DEBUG !== "0";
+
+const authzLog = (event: string, data: Record<string, unknown>, level: "info" | "warn" = "info") => {
+  if (level === "info" && !shouldLogAuthzDebug()) return;
+  console[level](`[authz] ${event}`, data);
+};
+
 export const loadAppUser: RequestHandler = async (req, res, next) => {
   if (!req.user) {
     unauthorized(res, "Authentication required.");
@@ -38,21 +45,33 @@ export const loadAppUser: RequestHandler = async (req, res, next) => {
 
     const appUser = await (async () => {
       if (byAuthId) {
+        // Only update if email or name actually changed
+        const emailChanged = byAuthId.email !== email;
+        const nameChanged = req.user?.name && byAuthId.name !== req.user.name;
+
+        if (!emailChanged && !nameChanged) return byAuthId;
+
         return prisma.appUser.update({
           where: { id: byAuthId.id },
           data: {
-            email,
-            name: req.user?.name ?? undefined,
+            ...(emailChanged ? { email } : {}),
+            ...(nameChanged ? { name: req.user!.name } : {}),
           },
         });
       }
 
       if (byEmail) {
+        // Only update if name changed or we are linking authUserId
+        const nameChanged = req.user?.name && byEmail.name !== req.user.name;
+        const authIdChanged = byEmail.authUserId !== req.user!.id;
+
+        if (!nameChanged && !authIdChanged) return byEmail;
+
         return prisma.appUser.update({
           where: { id: byEmail.id },
           data: {
             authUserId: req.user!.id,
-            name: req.user?.name ?? undefined,
+            ...(nameChanged ? { name: req.user!.name } : {}),
           },
         });
       }
@@ -67,6 +86,14 @@ export const loadAppUser: RequestHandler = async (req, res, next) => {
     })();
 
     req.appUser = appUser;
+    authzLog("app_user_loaded", {
+      method: req.method,
+      path: req.originalUrl || req.path,
+      authUserId: req.user.id,
+      appUserId: appUser.id,
+      email: appUser.email,
+      platformRole: appUser.platformRole,
+    });
     next();
   } catch (error) {
     console.error("Failed to load AppUser", error);
@@ -81,10 +108,24 @@ export const requirePlatformAdmin: RequestHandler = (req, res, next) => {
   }
 
   if (req.appUser.platformRole !== "platform_admin") {
+    authzLog("platform_admin_denied", {
+      method: req.method,
+      path: req.originalUrl || req.path,
+      appUserId: req.appUser.id,
+      email: req.appUser.email,
+      platformRole: req.appUser.platformRole,
+    }, "warn");
     forbidden(res, "Platform admin role required.");
     return;
   }
 
+  authzLog("platform_admin_allowed", {
+    method: req.method,
+    path: req.originalUrl || req.path,
+    appUserId: req.appUser.id,
+    email: req.appUser.email,
+    platformRole: req.appUser.platformRole,
+  });
   next();
 };
 
@@ -125,12 +166,28 @@ export const requireSpaceMembership: RequestHandler = async (req, res, next) => 
     }
 
     if (!membership) {
+      authzLog("space_membership_denied", {
+        method: req.method,
+        path: req.originalUrl || req.path,
+        appUserId: req.appUser.id,
+        email: req.appUser.email,
+        spaceSlug,
+      }, "warn");
       forbidden(res, "FamilySpace membership required.");
       return;
     }
 
     req.familySpace = familySpace;
     req.membership = membership;
+    authzLog("space_membership_allowed", {
+      method: req.method,
+      path: req.originalUrl || req.path,
+      appUserId: req.appUser.id,
+      email: req.appUser.email,
+      spaceSlug,
+      familySpaceId: familySpace.id,
+      role: membership.role,
+    });
     next();
   } catch (error) {
     console.error("Failed to load FamilySpace membership", error);
