@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { BookOpen, FileText, Plus, ScrollText, Users } from "lucide-react";
+import { BookOpen, CheckCircle2, Clock3, FileText, Inbox, Plus, ScrollText, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Badge, EmptyState, LoadingState, PageShell, SectionHeader, iconStroke, pageTransition } from "../components/ui";
@@ -31,6 +31,8 @@ const statusLabel = (status: StoryStatus) => {
   return status;
 };
 
+const noteTypeLabel = (type: SourceNoteType) => type.replace("_", " ");
+
 const noteTypeOptions: SourceNoteType[] = ["note", "photo_context", "interview", "document", "chat"];
 
 export const StoriesPage = () => {
@@ -56,6 +58,14 @@ export const StoriesPage = () => {
   });
 
   const membersMap = useMemo(() => memberById(members), [members]);
+  const statusCounts = useMemo(
+    () => ({
+      draft: stories.filter((story) => story.status === "draft").length,
+      inReview: stories.filter((story) => story.status === "in_review").length,
+      approved: stories.filter((story) => story.status === "approved").length,
+    }),
+    [stories],
+  );
 
   const loadStories = async () => {
     if (!spaceSlug) return;
@@ -163,9 +173,9 @@ export const StoriesPage = () => {
     <motion.div {...pageTransition}>
       <PageShell>
         <SectionHeader
-          eyebrow="Memory"
-          title="Stories"
-          description="Draft family narratives, connect them to relatives, and keep source notes close to the story they support."
+          eyebrow="Stories and Memory Inbox"
+          title="Family Stories"
+          description="Turn raw memories, interview notes, photo context, and document snippets into reviewed family narratives."
           action={
             !canEdit() ? (
               <span className="rounded-2xl border border-sage-green/20 bg-sage-green/10 px-4 py-3 text-sm font-bold text-dark-green">
@@ -181,21 +191,26 @@ export const StoriesPage = () => {
           </div>
         )}
 
-        <section className="mb-8 grid gap-4 md:grid-cols-3">
+        <section className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-[1.45rem] border border-white/75 bg-surface/92 p-5 shadow-soft ring-1 ring-border-soft/60">
             <BookOpen className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
             <p className="mt-4 font-display text-3xl font-bold text-text-primary">{stories.length}</p>
             <p className="mt-1 text-sm font-semibold text-text-muted">Stories</p>
           </div>
           <div className="rounded-[1.45rem] border border-white/75 bg-surface/92 p-5 shadow-soft ring-1 ring-border-soft/60">
-            <FileText className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
+            <Inbox className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
             <p className="mt-4 font-display text-3xl font-bold text-text-primary">{sourceNotes.length}</p>
-            <p className="mt-1 text-sm font-semibold text-text-muted">Source notes</p>
+            <p className="mt-1 text-sm font-semibold text-text-muted">Memory Inbox notes</p>
           </div>
           <div className="rounded-[1.45rem] border border-white/75 bg-surface/92 p-5 shadow-soft ring-1 ring-border-soft/60">
-            <Users className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
-            <p className="mt-4 font-display text-3xl font-bold text-text-primary">{members.length}</p>
-            <p className="mt-1 text-sm font-semibold text-text-muted">Related members available</p>
+            <Clock3 className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
+            <p className="mt-4 font-display text-3xl font-bold text-text-primary">{statusCounts.draft + statusCounts.inReview}</p>
+            <p className="mt-1 text-sm font-semibold text-text-muted">Drafts in progress</p>
+          </div>
+          <div className="rounded-[1.45rem] border border-white/75 bg-surface/92 p-5 shadow-soft ring-1 ring-border-soft/60">
+            <CheckCircle2 className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
+            <p className="mt-4 font-display text-3xl font-bold text-text-primary">{statusCounts.approved}</p>
+            <p className="mt-1 text-sm font-semibold text-text-muted">Approved stories</p>
           </div>
         </section>
 
@@ -204,7 +219,7 @@ export const StoriesPage = () => {
             <div className="rounded-[1.6rem] border border-white/75 bg-surface/94 p-5 shadow-soft ring-1 ring-border-soft/60">
               <h2 className="flex items-center gap-2 text-xl font-extrabold text-text-primary">
                 <Plus className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
-                Create story
+                Create story draft
               </h2>
               <div className="mt-5 grid gap-4">
                 <input
@@ -249,7 +264,7 @@ export const StoriesPage = () => {
                     </div>
                   </div>
                   <div>
-                    <p className="mb-2 text-sm font-bold text-text-primary">Source notes</p>
+                    <p className="mb-2 text-sm font-bold text-text-primary">Memory Inbox notes</p>
                     <div className="max-h-52 overflow-y-auto rounded-2xl border border-border-soft bg-background p-2">
                       {sourceNotes.length ? (
                         sourceNotes.map((note) => (
@@ -267,7 +282,7 @@ export const StoriesPage = () => {
                           </button>
                         ))
                       ) : (
-                        <p className="px-3 py-2 text-sm font-semibold text-text-muted">No notes yet.</p>
+                        <p className="px-3 py-2 text-sm font-semibold text-text-muted">No memory notes yet.</p>
                       )}
                     </div>
                   </div>
@@ -285,19 +300,22 @@ export const StoriesPage = () => {
             <div className="rounded-[1.6rem] border border-white/75 bg-surface/94 p-5 shadow-soft ring-1 ring-border-soft/60">
               <h2 className="flex items-center gap-2 text-xl font-extrabold text-text-primary">
                 <ScrollText className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
-                Add source note
+                Add to Memory Inbox
               </h2>
+              <p className="mt-2 text-sm font-semibold leading-6 text-text-muted">
+                Store raw memories first, then connect them to members and story drafts when they are ready.
+              </p>
               <div className="mt-5 grid gap-4">
                 <input
                   className={inputClass}
                   value={noteForm.title}
-                  placeholder="Source note title"
+                  placeholder="Memory note title"
                   onChange={(event) => setNoteForm((current) => ({ ...current, title: event.target.value }))}
                 />
                 <textarea
                   className={`${inputClass} min-h-28 resize-y`}
                   value={noteForm.content}
-                  placeholder="Interview details, document context, or photo notes"
+                  placeholder="Interview details, document context, photo notes, chat snippets, or raw memories"
                   onChange={(event) => setNoteForm((current) => ({ ...current, content: event.target.value }))}
                 />
                 <select
@@ -307,7 +325,7 @@ export const StoriesPage = () => {
                 >
                   {noteTypeOptions.map((type) => (
                     <option key={type} value={type}>
-                      {type.replace("_", " ")}
+                      {noteTypeLabel(type)}
                     </option>
                   ))}
                 </select>
@@ -354,7 +372,7 @@ export const StoriesPage = () => {
                   className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-border-soft bg-surface px-5 py-3 text-sm font-bold text-text-primary shadow-soft transition hover:-translate-y-0.5 hover:bg-surface-soft active:translate-y-[1px]"
                   onClick={() => void createSourceNote()}
                 >
-                  Save source note
+                  Save to Memory Inbox
                 </button>
               </div>
             </div>
@@ -372,7 +390,10 @@ export const StoriesPage = () => {
                 <article key={story.id} className="rounded-[1.6rem] border border-white/75 bg-surface/94 p-5 shadow-soft ring-1 ring-border-soft/60">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                      <Badge tone={statusTone(story.status)}>{statusLabel(story.status)}</Badge>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge tone={statusTone(story.status)}>Status: {statusLabel(story.status)}</Badge>
+                        <Badge tone="muted">{story.sourceNoteIds.length} inbox notes</Badge>
+                      </div>
                       <h2 className="mt-3 font-display text-2xl font-bold leading-tight text-text-primary">{story.title}</h2>
                       <p className="mt-3 max-w-[76ch] whitespace-pre-line text-sm leading-7 text-text-muted">
                         {story.content || "No story draft has been written yet."}
@@ -399,7 +420,7 @@ export const StoriesPage = () => {
                       </div>
                     </div>
                     <div>
-                      <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-text-muted">Source notes</p>
+                      <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-text-muted">Memory Inbox notes</p>
                       <div className="grid gap-2">
                         {linkedNotes.length ? (
                           linkedNotes.map((note) => (
@@ -409,7 +430,7 @@ export const StoriesPage = () => {
                             </div>
                           ))
                         ) : (
-                          <span className="text-sm font-semibold text-text-muted">No source notes linked.</span>
+                          <span className="text-sm font-semibold text-text-muted">No Memory Inbox notes linked.</span>
                         )}
                       </div>
                     </div>
@@ -421,8 +442,63 @@ export const StoriesPage = () => {
         ) : (
           <EmptyState
             title="No stories yet"
-            description={canEdit() ? "Create the first story draft and connect it to members or source notes." : "Owners and admins have not published family stories yet."}
+            description={canEdit() ? "Create the first story draft and connect it to members or Memory Inbox notes." : "Owners and admins have not published family stories yet."}
           />
+        )}
+
+        {!isLoading && (
+          <section className="mt-8 rounded-[1.8rem] border border-white/75 bg-surface/94 p-5 shadow-soft ring-1 ring-border-soft/60 sm:p-6">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-sage-green">Memory Inbox</p>
+                <h2 className="mt-2 font-display text-3xl font-bold text-text-primary">Raw memories waiting to become stories.</h2>
+              </div>
+              <p className="max-w-md text-sm font-semibold leading-6 text-text-muted">
+                Interview notes, photo context, document notes, chat snippets, and remembered fragments stay here until they are connected to a family story.
+              </p>
+            </div>
+
+            {sourceNotes.length ? (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {sourceNotes.map((note) => {
+                  const relatedMembers = note.relatedMemberIds.map((id) => membersMap[id]).filter(Boolean);
+                  const linkedStories = stories.filter((story) => note.storyIds.includes(story.id) || story.sourceNoteIds.includes(note.id));
+
+                  return (
+                    <article key={note.id} className="rounded-[1.35rem] border border-border-soft bg-background/82 p-4 shadow-soft">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <Badge tone="blue">{noteTypeLabel(note.type)}</Badge>
+                          <h3 className="mt-3 text-base font-extrabold leading-snug text-text-primary">{note.title}</h3>
+                        </div>
+                        <FileText className="h-5 w-5 shrink-0 text-sage-green" strokeWidth={iconStroke} />
+                      </div>
+                      <p className="mt-3 line-clamp-4 text-sm font-semibold leading-6 text-text-muted">{note.content}</p>
+                      <div className="mt-4 grid gap-2 border-t border-border-soft/70 pt-4">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">
+                          {relatedMembers.length} members / {linkedStories.length} stories linked
+                        </p>
+                        {!!relatedMembers.length && (
+                          <div className="flex flex-wrap gap-2">
+                            {relatedMembers.slice(0, 3).map((member) => (
+                              <span key={member.id} className="rounded-full bg-sage-green/10 px-3 py-1 text-xs font-bold text-dark-green">
+                                {member.displayName || member.fullName}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                title="Memory Inbox is empty"
+                description={canEdit() ? "Add an interview note, photo context, document note, chat snippet, or raw memory to begin the story pipeline." : "No raw memories have been added yet."}
+              />
+            )}
+          </section>
         )}
       </PageShell>
     </motion.div>

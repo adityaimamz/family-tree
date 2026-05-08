@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Baby, Edit3, Flower2, Heart, Plus } from "lucide-react";
+import { Baby, Camera, Edit3, Flower2, Heart, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { TimelineFormModal } from "../components/forms/TimelineFormModal";
 import { TimelineItem } from "../components/GalleryTimeline";
@@ -56,6 +56,7 @@ export const TimelinePage = () => {
       kelahiran: allEvents.filter((e) => e.type === "Kelahiran").length,
       pernikahan: allEvents.filter((e) => e.type === "Pernikahan").length,
       wafat: allEvents.filter((e) => e.type === "Wafat").length,
+      photoContext: allEvents.filter((e) => Boolean(e.photo)).length,
     }),
     [allEvents],
   );
@@ -66,19 +67,20 @@ export const TimelinePage = () => {
         <section className="surface-grain relative mb-8 overflow-hidden rounded-[2rem] border border-white/75 bg-[linear-gradient(135deg,hsl(var(--surface))_0%,hsl(var(--background))_58%,hsl(var(--surface-soft))_100%)] p-5 shadow-[0_30px_80px_-50px_rgba(80,54,30,0.85)] ring-1 ring-border-soft/70 sm:p-8 lg:p-10">
           <div className="relative grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.72fr)] lg:items-end">
             <div>
-              <p className="mb-4 text-sm font-extrabold uppercase tracking-[0.18em] text-sage-green">Cerita keluarga</p>
+              <p className="mb-4 text-sm font-extrabold uppercase tracking-[0.18em] text-sage-green">Living family history</p>
               <h1 className="max-w-6xl font-display text-5xl font-bold leading-[0.96] text-text-primary sm:text-6xl lg:text-7xl">
-                {familyConfig.site.timelineTitle}
+                Family Timeline
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-8 text-text-muted sm:text-lg">
-                {familyConfig.site.timelineDescription}
+                Connect milestones, photos, biographies, and memories into a timeline that tells the story of your family across generations.
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
               {[
                 { Icon: Baby, value: stats.kelahiran, label: "Kelahiran" },
                 { Icon: Heart, value: stats.pernikahan, label: "Pernikahan" },
                 { Icon: Flower2, value: stats.wafat, label: "Wafat" },
+                { Icon: Camera, value: stats.photoContext, label: "Photo context" },
               ].map(({ Icon, value, label }) => (
                 <div key={label} className="rounded-[1.35rem] border border-white/75 bg-surface/92 p-4 shadow-soft ring-1 ring-border-soft/60">
                   <Icon className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
@@ -114,7 +116,7 @@ export const TimelinePage = () => {
               onClick={() => setCreateOpen(true)}
             >
               <Plus className="h-4 w-4" strokeWidth={iconStroke} />
-              Tambah Event
+              Add memory event
             </button>
           )}
         </div>
@@ -148,7 +150,10 @@ export const TimelinePage = () => {
             })}
           </div>
         ) : (
-          <EmptyState title={familyConfig.labels.emptyTimelineTitle} description={familyConfig.labels.emptyTimelineDescription} />
+          <EmptyState
+            title={familyConfig.labels.emptyTimelineTitle}
+            description="Add births, weddings, moves, reunions, and photo-backed milestones so the archive can tell a family journey."
+          />
         )}
         <TimelineFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
         <TimelineFormModal open={Boolean(eventToEdit)} event={eventToEdit} onClose={() => setEventToEdit(null)} />

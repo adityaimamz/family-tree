@@ -75,11 +75,19 @@ export interface FamilySpace {
   slug: string;
   name: string;
   description: string | null;
+  recordCounts?: SpaceRecordCounts;
 }
 
 export interface FamilyMembership {
   role: "owner" | "admin" | "member";
   space: FamilySpace;
+}
+
+export interface SpaceRecordCounts {
+  members: number;
+  timeline: number;
+  photos: number;
+  stories: number;
 }
 
 export interface SpaceSummary {

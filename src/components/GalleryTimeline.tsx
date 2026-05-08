@@ -226,6 +226,25 @@ export const TimelineItem = ({
           )}
         </div>
         <p className="mt-2 text-sm leading-7 text-text-muted">{event.description}</p>
+        {event.photo && (
+          <div className="mt-5 overflow-hidden rounded-[1.25rem] border border-white/75 bg-surface shadow-soft">
+            <div className="grid gap-0 sm:grid-cols-[8rem_minmax(0,1fr)]">
+              <div className="h-32 overflow-hidden bg-surface-soft sm:h-full">
+                <img
+                  alt={`Photo context for ${event.title}`}
+                  className="h-full w-full object-cover contrast-105 sepia-[0.12] transition duration-700 group-hover:scale-105"
+                  src={event.photo}
+                />
+              </div>
+              <div className="p-4">
+                <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-sage-green">Photo context</p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-text-muted">
+                  This milestone includes visual context from the archive.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         {!!relatedMembers.length ? (
           <div className="mt-5 flex flex-wrap gap-3">
             {relatedMembers.map((member) => (

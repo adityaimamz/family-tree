@@ -49,6 +49,7 @@ export const FamilyTreeCanvas = ({
   const [pulseMemberId, setPulseMemberId] = useState<string | null>(null);
   const [focusMode, setFocusMode] = useState<FocusMode>("all");
   const [focusMemberId, setFocusMemberId] = useState(TREE_HOME_MEMBER_ID);
+  const [activeBranch, setActiveBranch] = useState("all");
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const pulseTimerRef = useRef<number | null>(null);
@@ -69,7 +70,14 @@ export const FamilyTreeCanvas = ({
 
   const { families } = useSpaceStore();
   const memberMap = useMemo(() => memberById(members), [members]);
-  const visibleTreeMembers = members;
+  const branchOptions = useMemo(
+    () => Array.from(new Set(members.map((member) => member.familyBranch).filter(Boolean))).sort(),
+    [members],
+  );
+  const visibleTreeMembers = useMemo(
+    () => (activeBranch === "all" ? members : members.filter((member) => member.familyBranch === activeBranch)),
+    [activeBranch, members],
+  );
 
   const layout = useMemo(
     () => buildTreeLayout(visibleTreeMembers, memberMap, families),
@@ -415,19 +423,42 @@ export const FamilyTreeCanvas = ({
   return (
     <div className="grid min-w-0 gap-5">
       <div className="grid gap-4 lg:grid-cols-[minmax(260px,0.8fr)_minmax(360px,1.35fr)]">
-        <BranchSummaryCard branchName="Semua Cabang" members={members} />
+        <BranchSummaryCard branchName={activeBranch === "all" ? "Semua Cabang" : activeBranch} members={visibleTreeMembers} />
         <div className="rounded-[1.6rem] border border-white/75 bg-surface/95 p-4 shadow-[0_20px_44px_-34px_rgba(80,54,30,0.72)] ring-1 ring-border-soft/60">
-          <p className="mb-3 flex items-center gap-2 text-sm font-bold text-text-primary">
-            <Search className="h-4 w-4 text-sage-green" strokeWidth={1.8} />
-            Cari Anggota Keluarga
-          </p>
-          <FocusSearchCombobox
-            members={focusOptions}
-            query={query}
-            selectedId={activeFocusMemberId}
-            onQueryChange={setQuery}
-            onSelect={handleFocusResultChange}
-          />
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+            <div>
+              <p className="mb-3 flex items-center gap-2 text-sm font-bold text-text-primary">
+                <Search className="h-4 w-4 text-sage-green" strokeWidth={1.8} />
+                Search family member
+              </p>
+              <FocusSearchCombobox
+                members={focusOptions}
+                query={query}
+                selectedId={activeFocusMemberId}
+                onQueryChange={setQuery}
+                onSelect={handleFocusResultChange}
+              />
+            </div>
+            <label className="block">
+              <span className="mb-3 block text-sm font-bold text-text-primary">Branch filter</span>
+              <select
+                className="min-h-12 w-full rounded-2xl border border-border-soft bg-background px-4 py-3 text-sm font-bold text-text-primary shadow-soft outline-none transition focus:border-dark-green focus:ring-4 focus:ring-sage-green/12"
+                value={activeBranch}
+                onChange={(event) => {
+                  setActiveBranch(event.target.value);
+                  setQuery("");
+                  setFocusMode("all");
+                }}
+              >
+                <option value="all">All branches</option>
+                {branchOptions.map((branch) => (
+                  <option key={branch} value={branch}>
+                    {branch}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <div className="mt-4 grid grid-cols-2 gap-2 xl:grid-cols-4">
             {(
               [

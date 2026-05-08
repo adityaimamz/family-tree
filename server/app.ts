@@ -352,9 +352,21 @@ const mapFamilySpace = (space: any) => ({
   description: space.description ?? null,
 });
 
+const mapSpaceRecordCounts = (space: any) => ({
+  members: space._count?.members ?? 0,
+  timeline: space._count?.timelineEvents ?? 0,
+  photos: space._count?.galleryItems ?? 0,
+  stories: space._count?.stories ?? 0,
+});
+
+const mapFamilySpaceWithCounts = (space: any) => ({
+  ...mapFamilySpace(space),
+  recordCounts: mapSpaceRecordCounts(space),
+});
+
 const mapMembership = (membership: any) => ({
   role: membership.role,
-  space: mapFamilySpace(membership.familySpace),
+  space: mapFamilySpaceWithCounts(membership.familySpace),
 });
 
 const mapCurrentMembership = (membership: any, familySpace: any) => ({
@@ -388,7 +400,20 @@ app.get("/api/spaces", requireAuth, loadAppUser, async (req, res) => {
 
     const memberships = await prisma.familyMembership.findMany({
       where: { userId: req.appUser.id },
-      include: { familySpace: true },
+      include: {
+        familySpace: {
+          include: {
+            _count: {
+              select: {
+                members: true,
+                timelineEvents: true,
+                galleryItems: true,
+                stories: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: [{ createdAt: "asc" }],
     });
 

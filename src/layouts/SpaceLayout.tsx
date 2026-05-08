@@ -41,7 +41,7 @@ const spaceNavGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Memory",
+    label: "Memories",
     items: [
       { label: "Timeline", to: "/timeline", icon: Calendar },
       { label: "Gallery", to: "/gallery", icon: Images },
