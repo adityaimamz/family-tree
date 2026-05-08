@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
-import { Baby, Heart, Flower2 } from "lucide-react";
+import { Baby, Edit3, Flower2, Heart, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { AdminTimelineFormModal } from "../admin/components/AdminTimelineFormModal";
 import { TimelineItem } from "../components/GalleryTimeline";
 import { EmptyState, PageShell, iconStroke, pageTransition } from "../components/ui";
 import { familyConfig } from "../config";
-import { useFamilyStore } from "../hooks/useFamilyStore";
+import { useSpaceStore } from "../hooks/useSpaceStore";
 import type { TimelineEvent } from "../types/family";
 import { memberById } from "../utils/family";
 import { deriveTimelineEvents, sortTimelineEvents } from "../utils/timeline";
@@ -24,8 +25,10 @@ const eventMatchesFilter = (event: TimelineEvent, filter: TimelineFilter) => {
 };
 
 export const TimelinePage = () => {
-  const { members, timeline } = useFamilyStore();
+  const { members, timeline, canEdit } = useSpaceStore();
   const [activeFilter, setActiveFilter] = useState<TimelineFilter>("Semua");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState<TimelineEvent | null>(null);
   const map = memberById(members);
 
   const automaticEvents = useMemo<TimelineCardEvent[]>(
@@ -87,21 +90,33 @@ export const TimelinePage = () => {
           </div>
         </section>
 
-        <div className="mb-7 flex flex-wrap gap-2 rounded-[1.6rem] border border-white/75 bg-surface/92 p-2 shadow-soft ring-1 ring-border-soft/60">
-          {filterOptions.map((filter) => (
+        <div className="mb-7 flex flex-col gap-3 rounded-[1.6rem] border border-white/75 bg-surface/92 p-2 shadow-soft ring-1 ring-border-soft/60 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap gap-2">
+            {filterOptions.map((filter) => (
+              <button
+                key={filter}
+                className={`min-h-11 rounded-full border px-4 py-2 text-sm font-bold transition active:translate-y-[1px] ${
+                  activeFilter === filter
+                    ? "border-dark-green bg-dark-green text-white shadow-warm"
+                    : "border-transparent bg-transparent text-text-muted hover:bg-surface-soft hover:text-text-primary"
+                }`}
+                type="button"
+                onClick={() => setActiveFilter(filter)}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+          {canEdit() && (
             <button
-              key={filter}
-              className={`min-h-11 rounded-full border px-4 py-2 text-sm font-bold transition active:translate-y-[1px] ${
-                activeFilter === filter
-                  ? "border-dark-green bg-dark-green text-white shadow-warm"
-                  : "border-transparent bg-transparent text-text-muted hover:bg-surface-soft hover:text-text-primary"
-              }`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-dark-green px-5 py-3 text-sm font-bold text-white shadow-warm transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px]"
               type="button"
-              onClick={() => setActiveFilter(filter)}
+              onClick={() => setCreateOpen(true)}
             >
-              {filter}
+              <Plus className="h-4 w-4" strokeWidth={iconStroke} />
+              Tambah Event
             </button>
-          ))}
+          )}
         </div>
 
         {filteredEvents.length ? (
@@ -111,19 +126,32 @@ export const TimelinePage = () => {
               const relatedMembers = relatedIds.map((id) => map[id]).filter(Boolean);
 
               return (
-                <TimelineItem
-                  key={event.id}
-                  event={event}
-                  memberNames={relatedMembers.map((member) => member.displayName ?? member.fullName)}
-                  relatedMembers={relatedMembers}
-                  sourceLabel={event.source === "default" ? "Admin" : "Otomatis"}
-                />
+                <div key={`${event.source}-${event.id}`}>
+                  <TimelineItem
+                    event={event}
+                    memberNames={relatedMembers.map((member) => member.displayName ?? member.fullName)}
+                    relatedMembers={relatedMembers}
+                    sourceLabel={event.source === "default" ? "Admin" : "Otomatis"}
+                  />
+                  {canEdit() && event.source === "default" && (
+                    <button
+                      className="ml-0 mt-3 inline-flex min-h-10 items-center gap-2 rounded-2xl border border-border-soft bg-surface px-4 py-2 text-sm font-bold text-text-primary shadow-soft transition hover:bg-surface-soft md:ml-[190px]"
+                      type="button"
+                      onClick={() => setEventToEdit(event)}
+                    >
+                      <Edit3 className="h-4 w-4 text-sage-green" strokeWidth={iconStroke} />
+                      Edit Event
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
         ) : (
           <EmptyState title={familyConfig.labels.emptyTimelineTitle} description={familyConfig.labels.emptyTimelineDescription} />
         )}
+        <AdminTimelineFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
+        <AdminTimelineFormModal open={Boolean(eventToEdit)} event={eventToEdit} onClose={() => setEventToEdit(null)} />
       </PageShell>
     </motion.div>
   );

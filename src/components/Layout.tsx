@@ -6,10 +6,7 @@ import { familyConfig } from "../config";
 
 const links = [
   { label: familyConfig.labels.navHome, to: "/", enabled: true },
-  { label: familyConfig.labels.navTree, to: "/silsilah", enabled: true },
-  { label: familyConfig.labels.navMembers, to: "/anggota", enabled: true },
-  { label: familyConfig.labels.navGallery, to: "/galeri", enabled: familyConfig.features.gallery },
-  { label: familyConfig.labels.navTimeline, to: "/linimasa", enabled: familyConfig.features.timeline },
+  { label: "FamilySpaces", to: "/app", enabled: true },
 ].filter((link) => link.enabled);
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -45,10 +42,10 @@ export const Navbar = () => {
                 isActive ? "bg-warm-brown text-white" : "bg-dark-green text-white hover:bg-warm-brown"
               }`
             }
-            to="/admin"
+            to="/app"
           >
             <Settings className="h-4 w-4" strokeWidth={1.8} />
-            {familyConfig.labels.navAdmin}
+            Masuk Arsip
           </NavLink>
         </div>
 
@@ -77,11 +74,11 @@ export const Navbar = () => {
               ))}
               <NavLink
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-dark-green px-4 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-warm-brown active:translate-y-[1px]"
-                to="/admin"
+                to="/app"
                 onClick={() => setOpen(false)}
               >
                 <Settings className="h-4 w-4" strokeWidth={1.8} />
-                {familyConfig.labels.navAdmin}
+                Masuk Arsip
               </NavLink>
             </div>
           </motion.div>

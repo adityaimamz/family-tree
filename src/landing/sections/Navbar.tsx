@@ -77,13 +77,13 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-2 lg:flex">
           <Link
-            to="/"
+            to="/auth/sign-in"
             className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-stroke bg-surface px-4 text-sm font-semibold text-ink outline-none transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-bg-alt active:translate-y-[1px] focus-visible:ring-4 focus-visible:ring-sage-light"
           >
             Sign in
           </Link>
           <Link
-            to="/"
+            to="/auth/sign-up"
             className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-surface shadow-[0_18px_34px_-26px_rgba(44,80,22,0.95)] outline-none transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px] focus-visible:ring-4 focus-visible:ring-sage-light"
           >
             Create archive
@@ -167,14 +167,14 @@ export default function Navbar() {
 
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <Link
-                  to="/"
+                  to="/auth/sign-in"
                   className="inline-flex min-h-12 items-center justify-center rounded-[1.25rem] border border-stroke bg-surface px-4 text-sm font-semibold text-ink shadow-[0_14px_34px_-28px_rgba(80,54,30,0.72)]"
                   onClick={closeMenu}
                 >
                   Sign in
                 </Link>
                 <Link
-                  to="/"
+                  to="/auth/sign-up"
                   className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-[1.25rem] bg-primary px-4 text-sm font-semibold text-surface shadow-[0_18px_38px_-28px_rgba(44,80,22,0.95)]"
                   onClick={closeMenu}
                 >

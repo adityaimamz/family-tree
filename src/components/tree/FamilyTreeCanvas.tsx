@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent, Touch, TouchEvent, WheelEvent } from "react";
 import { TREE_NODE_HEIGHT, TREE_NODE_WIDTH, TREE_SPOUSE_GAP } from "../../constants/treeLayout";
 import { familyConfig } from "../../config";
-import { useFamilyStore } from "../../hooks/useFamilyStore";
+import { useSpaceStore } from "../../hooks/useSpaceStore";
 import type { FamilyMember } from "../../types/family";
 import type { FocusMode } from "../../types/tree";
 import { getAncestorIds, getDescendantIds, memberById } from "../../utils/family";
@@ -67,7 +67,7 @@ export const FamilyTreeCanvas = ({
     startZoom: number;
   } | null>(null);
 
-  const { families } = useFamilyStore();
+  const { families } = useSpaceStore();
   const memberMap = useMemo(() => memberById(members), [members]);
   const visibleTreeMembers = members;
 

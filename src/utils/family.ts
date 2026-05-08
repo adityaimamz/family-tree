@@ -1,5 +1,8 @@
 import type { FamilyMember, NuclearFamily } from "../types/family";
 
+export const cx = (...classes: (string | undefined | null | boolean)[]): string =>
+  classes.filter(Boolean).join(" ");
+
 export const memberById = (members: FamilyMember[]) =>
   members.reduce<Record<string, FamilyMember>>((acc, member) => {
     acc[member.id] = member;

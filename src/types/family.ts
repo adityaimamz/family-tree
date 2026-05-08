@@ -60,12 +60,26 @@ export interface ToastMessage {
   tone: "success" | "warning" | "info" | "error";
 }
 
-export interface AuthUser {
+export type PlatformRole = "user" | "platform_admin";
+
+export interface AppUser {
   id: string;
-  authUserId: string | null;
   email: string;
   name: string | null;
-  role: string;
+  avatarUrl: string | null;
+  platformRole: PlatformRole;
+}
+
+export interface FamilySpace {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+}
+
+export interface FamilyMembership {
+  role: "owner" | "admin" | "member";
+  space: FamilySpace;
 }
 
 export interface GalleryItem {

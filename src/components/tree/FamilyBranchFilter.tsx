@@ -1,5 +1,5 @@
 import { Filter } from "lucide-react";
-import { useFamilyStore } from "../../hooks/useFamilyStore";
+import { useSpaceStore } from "../../hooks/useSpaceStore";
 import { FilterSelect } from "../ui";
 
 export const FamilyBranchFilter = ({
@@ -9,7 +9,7 @@ export const FamilyBranchFilter = ({
   value: string;
   onChange: (branchName: string) => void;
 }) => {
-  const { branches } = useFamilyStore();
+  const { branches } = useSpaceStore();
   const branchOptions = ["Semua Cabang", ...branches.map((branch) => branch.name)];
 
   return (

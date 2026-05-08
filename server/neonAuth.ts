@@ -5,7 +5,6 @@ export type AuthUser = {
   id: string;
   email: string | null;
   name: string | null;
-  role: string;
 };
 
 declare global {
@@ -31,14 +30,6 @@ const getJwks = () => {
   return jwks;
 };
 
-const adminEmails = () =>
-  new Set(
-    (process.env.ADMIN_EMAILS ?? "")
-      .split(",")
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean),
-  );
-
 const bearerTokenFrom = (req: Request) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) return null;
@@ -48,22 +39,6 @@ const bearerTokenFrom = (req: Request) => {
 const stringClaim = (payload: JWTPayload, key: string) => {
   const value = payload[key];
   return typeof value === "string" && value.trim().length > 0 ? value : null;
-};
-
-const roleFrom = (payload: JWTPayload, email: string | null) => {
-  const role = stringClaim(payload, "role");
-  if (role) return role;
-
-  const roles = payload.roles;
-  if (Array.isArray(roles) && roles.some((item) => item === "admin" || item === "owner")) {
-    return "admin";
-  }
-
-  if (email && adminEmails().has(email.toLowerCase())) {
-    return "admin";
-  }
-
-  return "member";
 };
 
 export const getUserFromRequest = async (req: Request): Promise<AuthUser | null> => {
@@ -78,7 +53,6 @@ export const getUserFromRequest = async (req: Request): Promise<AuthUser | null>
     id: payload.sub,
     email,
     name: stringClaim(payload, "name"),
-    role: roleFrom(payload, email),
   };
 };
 
@@ -87,26 +61,6 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     const user = await getUserFromRequest(req);
     if (!user) {
       res.status(401).json({ error: "Authentication required." });
-      return;
-    }
-
-    req.user = user;
-    next();
-  } catch {
-    res.status(401).json({ error: "Authentication required." });
-  }
-};
-
-export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const user = await getUserFromRequest(req);
-    if (!user) {
-      res.status(401).json({ error: "Authentication required." });
-      return;
-    }
-
-    if (user.role !== "admin" && user.role !== "owner") {
-      res.status(403).json({ error: "Admin role required." });
       return;
     }
 

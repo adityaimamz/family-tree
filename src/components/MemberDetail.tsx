@@ -1,8 +1,9 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Edit3, Eye, Network, Users, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Edit3, Eye, X } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { useSpaceStore } from "../hooks/useSpaceStore";
 import type { FamilyMember } from "../types/family";
-import { displayStatus, generationLabel, getParents, relationDetails, relationNames } from "../utils/family";
+import { displayStatus, generationLabel, getParents, relationDetails } from "../utils/family";
 import { Badge, InitialsAvatar, PrimaryButton, SecondaryButton } from "./ui";
 
 const emptyLabel = "Belum tercatat";
@@ -15,6 +16,7 @@ const hasDetailValue = (value: any) => {
 };
 
 const Field = ({ label, value }: { label: string; value: string | { id: string; name: string } | (string | { id: string; name: string })[] | null | undefined }) => {
+  const { spaceSlug } = useParams<{ spaceSlug: string }>();
   if (!hasDetailValue(value)) return null;
 
   const items = Array.isArray(value) ? value : [value as any];
@@ -27,7 +29,7 @@ const Field = ({ label, value }: { label: string; value: string | { id: string; 
           if (typeof item === "string") return <p key={index}>{item}</p>;
           if (item && item.id) {
             return (
-              <Link key={item.id} to={`/anggota/${item.id}`} className="block text-dark-green transition hover:text-sage-green hover:underline">
+              <Link key={item.id} to={`/app/${spaceSlug}/members/${item.id}`} className="block text-dark-green transition hover:text-sage-green hover:underline">
                 {item.name}
               </Link>
             );
@@ -40,6 +42,8 @@ const Field = ({ label, value }: { label: string; value: string | { id: string; 
 };
 
 const DetailContent = ({ member, members, onClose }: { member: FamilyMember; members: FamilyMember[]; onClose: () => void }) => {
+  const { spaceSlug } = useParams<{ spaceSlug: string }>();
+  const { canEdit } = useSpaceStore();
   const parents = getParents(member, members);
   const spouses = relationDetails(member.spouseIds, members);
   const formerSpouses = relationDetails(member.formerSpouseIds, members);
@@ -109,13 +113,15 @@ const DetailContent = ({ member, members, onClose }: { member: FamilyMember; mem
             <Users className="h-4 w-4" strokeWidth={1.8} />
             Lihat Keluarga Inti
           </SecondaryButton> */}
-          <PrimaryButton to="/admin/members">
-            <Edit3 className="h-4 w-4" strokeWidth={1.8} />
-            Edit Data
-          </PrimaryButton>
+          {canEdit() && (
+            <PrimaryButton to={`/app/${spaceSlug}/members`}>
+              <Edit3 className="h-4 w-4" strokeWidth={1.8} />
+              Edit Data
+            </PrimaryButton>
+          )}
           <Link
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl text-sm font-bold text-dark-green transition hover:bg-sage-green/12 active:translate-y-[1px]"
-            to={`/anggota/${member.id}`}
+            to={`/app/${spaceSlug}/members/${member.id}`}
           >
             <Eye className="h-4 w-4" strokeWidth={1.8} />
             Lihat Profil Lengkap

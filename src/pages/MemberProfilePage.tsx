@@ -2,8 +2,8 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Edit3, Network, Users } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Badge, InitialsAvatar, PageShell, PrimaryButton, SecondaryButton, SectionHeader, pageTransition } from "../components/ui";
-import { useFamilyStore } from "../hooks/useFamilyStore";
-import { displayStatus, generationLabel, getParents, relationDetails, relationNames } from "../utils/family";
+import { useSpaceStore } from "../hooks/useSpaceStore";
+import { displayStatus, generationLabel, getParents, relationDetails } from "../utils/family";
 
 const emptyLabel = "Belum tercatat";
 
@@ -15,6 +15,7 @@ const hasValue = (value: any) => {
 };
 
 const InfoCard = ({ label, value }: { label: string; value: string | { id: string; name: string } | (string | { id: string; name: string })[] | null | undefined }) => {
+  const { spaceSlug } = useParams<{ spaceSlug: string }>();
   if (!hasValue(value)) return null;
   const items = Array.isArray(value) ? value : [value as any];
   return (
@@ -25,7 +26,7 @@ const InfoCard = ({ label, value }: { label: string; value: string | { id: strin
           if (typeof item === "string") return <p key={index}>{item}</p>;
           if (item && item.id) {
             return (
-              <Link key={item.id} to={`/anggota/${item.id}`} className="block text-dark-green transition hover:text-sage-green hover:underline">
+              <Link key={item.id} to={`/app/${spaceSlug}/members/${item.id}`} className="block text-dark-green transition hover:text-sage-green hover:underline">
                 {item.name}
               </Link>
             );
@@ -38,9 +39,9 @@ const InfoCard = ({ label, value }: { label: string; value: string | { id: strin
 };
 
 export const MemberProfilePage = () => {
-  const { id } = useParams();
-  const { members } = useFamilyStore();
-  const member = members.find((item) => item.id === id);
+  const { memberId, spaceSlug } = useParams<{ memberId: string; spaceSlug: string }>();
+  const { members, canEdit } = useSpaceStore();
+  const member = members.find((item) => item.id === memberId);
 
   if (!member) {
     return (
@@ -49,7 +50,7 @@ export const MemberProfilePage = () => {
           title="Data keluarga tidak ditemukan" 
           description="Data anggota yang dibuka belum tersedia di arsip lokal." 
         />
-        <SecondaryButton to="/anggota">Kembali ke Anggota</SecondaryButton>
+        <SecondaryButton to={`/app/${spaceSlug}/members`}>Kembali ke Anggota</SecondaryButton>
       </PageShell>
     );
   }
@@ -65,7 +66,7 @@ export const MemberProfilePage = () => {
       <PageShell>
         <Link 
           className="mb-5 inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold text-text-muted hover:bg-surface-soft" 
-          to="/anggota"
+          to={`/app/${spaceSlug}/members`}
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={1.8} />
           Kembali ke Anggota
@@ -86,18 +87,20 @@ export const MemberProfilePage = () => {
                 {member.relationshipToRoot}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <PrimaryButton to="/silsilah">
+                <PrimaryButton to={`/app/${spaceSlug}/tree`}>
                   <Network className="h-4 w-4" strokeWidth={1.8} />
                   Lihat di Pohon
                 </PrimaryButton>
-                <SecondaryButton to="/silsilah">
+                <SecondaryButton to={`/app/${spaceSlug}/tree`}>
                   <Users className="h-4 w-4" strokeWidth={1.8} />
                   Lihat Keluarga Dekat
                 </SecondaryButton>
-                <SecondaryButton to="/admin/members">
-                  <Edit3 className="h-4 w-4" strokeWidth={1.8} />
-                  Edit Data
-                </SecondaryButton>
+                {canEdit() && (
+                  <SecondaryButton to={`/app/${spaceSlug}/members`}>
+                    <Edit3 className="h-4 w-4" strokeWidth={1.8} />
+                    Edit Data
+                  </SecondaryButton>
+                )}
               </div>
             </div>
           </div>

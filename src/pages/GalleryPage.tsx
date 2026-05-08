@@ -1,12 +1,17 @@
 import { motion } from "framer-motion";
-import { Camera, Images, Layers3 } from "lucide-react";
+import { Camera, Edit3, Images, Layers3, Plus } from "lucide-react";
+import { useState } from "react";
+import { AdminGalleryFormModal } from "../admin/components/AdminGalleryFormModal";
 import { GalleryGrid } from "../components/GalleryTimeline";
 import { PageShell, iconStroke, pageTransition } from "../components/ui";
 import { familyConfig } from "../config";
-import { useFamilyStore } from "../hooks/useFamilyStore";
+import { useSpaceStore } from "../hooks/useSpaceStore";
+import type { GalleryItem } from "../types/family";
 
 export const GalleryPage = () => {
-  const { gallery } = useFamilyStore();
+  const { gallery, canEdit } = useSpaceStore();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [itemToEdit, setItemToEdit] = useState<GalleryItem | null>(null);
 
   return (
     <motion.div {...pageTransition}>
@@ -57,11 +62,39 @@ export const GalleryPage = () => {
               Album yang siap diperluas.
             </h2>
           </div>
-          <div className="hidden h-12 w-12 place-items-center rounded-2xl border border-border-soft bg-surface text-warm-brown shadow-soft sm:grid">
-            <Camera className="h-5 w-5" strokeWidth={iconStroke} />
-          </div>
+          {canEdit() ? (
+            <button
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-dark-green px-5 py-3 text-sm font-bold text-white shadow-warm transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px]"
+              type="button"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="h-4 w-4" strokeWidth={iconStroke} />
+              Tambah Foto
+            </button>
+          ) : (
+            <div className="hidden h-12 w-12 place-items-center rounded-2xl border border-border-soft bg-surface text-warm-brown shadow-soft sm:grid">
+              <Camera className="h-5 w-5" strokeWidth={iconStroke} />
+            </div>
+          )}
         </section>
         <GalleryGrid items={gallery} />
+        {canEdit() && gallery.length > 0 && (
+          <div className="mt-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {gallery.map((item) => (
+              <button
+                key={item.id}
+                className="inline-flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-border-soft bg-surface px-4 py-3 text-left text-sm font-bold text-text-primary shadow-soft transition hover:bg-surface-soft"
+                type="button"
+                onClick={() => setItemToEdit(item)}
+              >
+                <span className="min-w-0 truncate">{item.title}</span>
+                <Edit3 className="h-4 w-4 shrink-0 text-sage-green" strokeWidth={iconStroke} />
+              </button>
+            ))}
+          </div>
+        )}
+        <AdminGalleryFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
+        <AdminGalleryFormModal open={Boolean(itemToEdit)} item={itemToEdit} onClose={() => setItemToEdit(null)} />
       </PageShell>
     </motion.div>
   );

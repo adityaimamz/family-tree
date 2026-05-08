@@ -1,19 +1,23 @@
 import { motion } from "framer-motion";
+import { Edit3, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { AdminMemberFormModal } from "../admin/components/AdminMemberFormModal";
 import { EmptyState, FilterSelect, LoadingState, MemberCard, PageShell, SearchBar, SectionHeader, pageTransition } from "../components/ui";
 import { familyConfig } from "../config";
-import { useFamilyStore } from "../hooks/useFamilyStore";
+import { useSpaceStore } from "../hooks/useSpaceStore";
+import type { FamilyMember } from "../types/family";
 import { memberById } from "../utils/family";
 
 const generationOptions = [familyConfig.labels.allGenerations, "Generasi 0", "Generasi 1", "Generasi 2", "Generasi 3", "Generasi 4", "Generasi 5"];
 
 export const MembersPage = () => {
-  const { members } = useFamilyStore();
+  const { members, isLoading, canEdit } = useSpaceStore();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState(familyConfig.labels.allMembers);
   const [generation, setGeneration] = useState(familyConfig.labels.allGenerations);
   const [branch, setBranch] = useState(familyConfig.labels.allBranches);
-  const [loading] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [memberToEdit, setMemberToEdit] = useState<FamilyMember | null>(null);
 
   const map = useMemo(() => memberById(members), [members]);
   const statusOptions = useMemo(
@@ -61,6 +65,18 @@ export const MembersPage = () => {
           eyebrow="Direktori" 
           title="Anggota Keluarga" 
           description="Cari anggota keluarga berdasarkan nama, gelar, pasangan, orang tua, atau cabang keluarga." 
+          action={
+            canEdit() ? (
+              <button
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-dark-green px-5 py-3 text-sm font-bold text-white shadow-warm transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px]"
+                type="button"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="h-4 w-4" strokeWidth={1.8} />
+                Tambah Anggota
+              </button>
+            ) : null
+          }
         />
         <div className="mb-7 rounded-[2rem] border border-white/75 bg-surface/92 p-3 shadow-[0_24px_54px_-38px_rgba(80,54,30,0.75)] ring-1 ring-border-soft/60 sm:p-4">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_220px_220px_240px]">
@@ -78,12 +94,24 @@ export const MembersPage = () => {
             {query && <span className="rounded-full bg-soft-gold/14 px-3 py-1.5 text-warm-brown">Kata kunci: {query}</span>}
           </div>
         </div>
-        {loading ? (
+        {isLoading ? (
           <LoadingState />
         ) : filtered.length ? (
           <motion.div layout className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {filtered.map((member) => (
-              <MemberCard key={member.id} member={member} />
+              <div key={member.id} className="grid gap-2">
+                <MemberCard member={member} />
+                {canEdit() && (
+                  <button
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-border-soft bg-surface px-4 py-2 text-sm font-bold text-text-primary shadow-soft transition hover:bg-surface-soft"
+                    type="button"
+                    onClick={() => setMemberToEdit(member)}
+                  >
+                    <Edit3 className="h-4 w-4" strokeWidth={1.8} />
+                    Edit
+                  </button>
+                )}
+              </div>
             ))}
           </motion.div>
         ) : (
@@ -92,6 +120,8 @@ export const MembersPage = () => {
             description="Coba ketik nama lain atau pilih keluarga yang berbeda." 
           />
         )}
+        <AdminMemberFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
+        <AdminMemberFormModal open={Boolean(memberToEdit)} member={memberToEdit} onClose={() => setMemberToEdit(null)} />
       </PageShell>
     </motion.div>
   );

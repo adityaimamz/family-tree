@@ -1,7 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { FilterSelect, SecondaryButton, iconStroke } from "../../components/ui";
-import { useFamilyStore } from "../../hooks/useFamilyStore";
+import { useSpaceStore } from "../../hooks/useSpaceStore";
 import type { TimelineEvent, TimelineEventType } from "../../types/family";
 import { AdminModal } from "./AdminModal";
 
@@ -48,7 +48,7 @@ export function AdminTimelineFormModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { members, saveTimelineEvent, deleteTimelineEvent } = useFamilyStore();
+  const { members, saveTimelineEvent, deleteTimelineEvent } = useSpaceStore();
   const [form, setForm] = useState<TimelineEvent>(() => event ?? emptyTimelineEvent);
 
   useEffect(() => {

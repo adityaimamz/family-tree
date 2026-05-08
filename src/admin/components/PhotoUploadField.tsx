@@ -1,5 +1,6 @@
 import { ImageUp } from "lucide-react";
 import { useId, useState } from "react";
+import { useParams } from "react-router-dom";
 import { iconStroke } from "../../components/ui";
 import { authFetch } from "../../lib/api";
 
@@ -17,6 +18,7 @@ type PhotoUploadFieldProps = {
 };
 
 export function PhotoUploadField({ folder, label, value, onChange }: PhotoUploadFieldProps) {
+  const { spaceSlug } = useParams<{ spaceSlug?: string }>();
   const inputId = useId();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -40,6 +42,7 @@ export function PhotoUploadField({ folder, label, value, onChange }: PhotoUpload
         folder,
         filename: file.name,
       });
+      if (spaceSlug) params.set("spaceSlug", spaceSlug);
       const response = await authFetch(`/api/uploads/photos?${params.toString()}`, {
         method: "POST",
         headers: {

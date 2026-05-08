@@ -1,0 +1,3 @@
+# Prisma Migrate lockfile
+# Keep this in sync with the datasource provider.
+provider = "postgresql"

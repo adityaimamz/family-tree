@@ -1,7 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { SecondaryButton, iconStroke } from "../../components/ui";
-import { useFamilyStore } from "../../hooks/useFamilyStore";
+import { useSpaceStore } from "../../hooks/useSpaceStore";
 import type { GalleryItem } from "../../types/family";
 import { AdminModal } from "./AdminModal";
 import { PhotoUploadField } from "./PhotoUploadField";
@@ -36,7 +36,7 @@ export function AdminGalleryFormModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { saveGalleryItem, deleteGalleryItem } = useFamilyStore();
+  const { saveGalleryItem, deleteGalleryItem } = useSpaceStore();
   const [form, setForm] = useState<GalleryItem>(() => item ?? emptyGalleryItem);
 
   useEffect(() => {

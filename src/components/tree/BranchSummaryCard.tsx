@@ -1,6 +1,6 @@
 import { Users } from "lucide-react";
 import { familyConfig } from "../../config";
-import { useFamilyStore } from "../../hooks/useFamilyStore";
+import { useSpaceStore } from "../../hooks/useSpaceStore";
 import type { FamilyMember } from "../../types/family";
 
 export const BranchSummaryCard = ({
@@ -10,7 +10,7 @@ export const BranchSummaryCard = ({
   branchName: string;
   members: FamilyMember[];
 }) => {
-  const { branches } = useFamilyStore();
+  const { branches } = useSpaceStore();
   const branch = branches.find((item) => item.name === branchName);
   const descendants = members.filter((member) => member.generation >= 3).length;
 

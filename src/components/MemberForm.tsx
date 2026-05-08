@@ -181,7 +181,7 @@ export const MemberForm = ({
   onDelete,
   onImport,
   onCancel,
-  cancelTo = "/anggota",
+  cancelTo = "/app",
 }: {
   members: FamilyMember[];
   initial?: FamilyMember;

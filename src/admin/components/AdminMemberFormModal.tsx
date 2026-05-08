@@ -1,5 +1,5 @@
 import { MemberForm } from "../../components/MemberForm";
-import { useFamilyStore } from "../../hooks/useFamilyStore";
+import { useSpaceStore } from "../../hooks/useSpaceStore";
 import type { FamilyMember } from "../../types/family";
 import { AdminModal } from "./AdminModal";
 
@@ -12,7 +12,7 @@ export function AdminMemberFormModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { members, saveMember, deleteMember } = useFamilyStore();
+  const { members, saveMember, deleteMember } = useSpaceStore();
 
   return (
     <AdminModal

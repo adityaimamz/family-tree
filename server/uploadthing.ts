@@ -143,7 +143,7 @@ export const uploadRouter = {
         throw new Error("Authentication required.");
       }
 
-      return { userId: req.user.id, role: req.user.role };
+      return { authUserId: req.user.id };
     })
     .onUploadComplete(async ({ file }) => optimizeUploadedFile(file)),
 } satisfies FileRouter;

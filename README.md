@@ -1,33 +1,16 @@
-# Family Tree Website Template
+# WarisanAI FamilySpace Archive
 
-A reusable full-stack family archive and family tree website. The app provides a public family archive, an interactive tree, member profiles, gallery and timeline pages, plus an admin panel backed by a database API.
-
-This repository is designed to be safe as a public GitHub template:
-
-- Site identity lives in configuration.
-- Private local configuration is ignored by Git.
-- Runtime family data comes from the database/API.
-- No real family dataset is required in tracked source files.
+WarisanAI is a full-stack private family archive built around `FamilySpace`, a tenant boundary for SaaS-lite multi-family usage. The public landing page lives at `/`; authenticated users work inside `/app/:spaceSlug/*`.
 
 ## Features
 
-### Public Website
-
-- Homepage with configurable family identity, hero copy, visual assets, and stats.
-- Interactive family tree with pan, zoom, search, focus mode, branch filtering, and optional minimap.
-- Member directory with search, generation filter, status filter, and branch filter.
-- Member profile pages with biography, dates, notes, photos, and family relationships.
-- Optional gallery page for family photos and albums.
-- Optional timeline page with automatic and manually curated events.
-- Responsive public layout with configurable metadata and theme tokens.
-
-### Admin Panel
-
-- Admin dashboard with database-backed stats.
-- Member CRUD with relationship fields.
-- Gallery CRUD with optional UploadThing photo upload.
-- Timeline CRUD for manually curated events.
-- Neon Auth-protected admin access.
+- Public landing page for WarisanAI.
+- Authenticated FamilySpace list and create flow at `/app`.
+- Space-scoped dashboard, tree, members, timeline, and gallery routes.
+- Owner/admin mutation UI for members, timeline events, gallery items, and uploads.
+- Member-only read access for private family data.
+- Two-tier roles: platform roles for WarisanAI operations, and family roles for one FamilySpace.
+- PostgreSQL schema managed by Prisma with demo seed data.
 
 ## Tech Stack
 
@@ -39,81 +22,44 @@ This repository is designed to be safe as a public GitHub template:
 | Icons | Lucide React |
 | Backend | Express |
 | Database | PostgreSQL with Prisma |
-| Database hosting | Neon PostgreSQL |
+| Auth | Neon Auth JWT |
 | File storage | UploadThing |
-| Image processing | Sharp |
 | Deployment | Google Cloud Run single-container service |
 
-## How Configuration Works
+## Routes
 
-The app imports site configuration from `src/config`.
+Public:
 
-```text
-src/config/
-  defaultLabels.ts
-  family.config.example.ts
-  family.config.ts          # local only, ignored by Git
-  index.ts                  # resolver
-src/types/
-  config.ts
-```
+| Route | Purpose |
+|---|---|
+| `/` | Landing page |
+| `/landing` | Landing page alias |
+| `/auth/*` | Neon Auth screen |
 
-Resolution order:
+Authenticated:
 
-1. If `src/config/family.config.ts` exists locally, it is used.
-2. If it does not exist, `src/config/family.config.example.ts` is used.
+| Route | Purpose |
+|---|---|
+| `/app` | User's FamilySpaces and create-space form |
+| `/app/:spaceSlug` | Space dashboard |
+| `/app/:spaceSlug/tree` | Family tree |
+| `/app/:spaceSlug/members` | Member directory and owner/admin member editing |
+| `/app/:spaceSlug/members/:memberId` | Member profile |
+| `/app/:spaceSlug/timeline` | Timeline and owner/admin event editing |
+| `/app/:spaceSlug/gallery` | Gallery and owner/admin item editing |
 
-`family.config.ts` is intentionally listed in `.gitignore`, so every user can keep their own private identity/config without committing it.
+Old Indonesian public archive routes such as `/silsilah`, `/anggota`, `/galeri`, and `/linimasa` are no longer first-class app routes. Old `/admin/*` routes are removed from the router; editing is role-based inside FamilySpace pages.
 
-Config controls:
+## Role Model
 
-- app name and family name
-- homepage, tree, gallery, and timeline copy
-- metadata title and description
-- default home/root member id
-- default branch id
-- gallery/timeline/minimap feature flags
-- tree zoom limits
-- optional theme tokens
-- optional UI wording labels
-- homepage and gallery visual assets
+WarisanAI uses two separate role layers:
 
-Runtime family data is not stored in config. Members, branches, nuclear families, timeline events, and gallery items are loaded from the database through the API.
+| Layer | Stored In | Values | Meaning |
+|---|---|---|---|
+| Platform | `AppUser.platformRole` | `user`, `platform_admin` | WarisanAI operator access for `/api/platform/*` |
+| FamilySpace | `FamilyMembership.role` | `owner`, `admin`, `member` | Access inside one FamilySpace |
 
-## Quick Start
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Create your local config:
-
-```bash
-cp src/config/family.config.example.ts src/config/family.config.ts
-```
-
-On Windows PowerShell:
-
-```powershell
-Copy-Item src/config/family.config.example.ts src/config/family.config.ts
-```
-
-Edit `src/config/family.config.ts` with your own identity, text, feature flags, metadata, theme values, visual assets, and tree defaults.
-
-Run the app:
-
-```bash
-npm run dev
-```
-
-The dev command starts both:
-
-- Vite frontend at `http://localhost:5173`
-- Express backend at `http://localhost:3001`
-
-Vite proxies `/api/*` requests to the local backend.
+Important rule: `platform_admin` does not bypass FamilySpace membership. A platform admin still needs a `FamilyMembership` to read or mutate family data.
 
 ## Environment Variables
 
@@ -124,7 +70,7 @@ DATABASE_URL="postgresql://user:password@host.neon.tech/dbname?sslmode=require"
 NODE_ENV="production"
 APP_BASE_URL="http://localhost:8080"
 VITE_NEON_AUTH_URL="https://your-neon-auth-host/neondb/auth"
-ADMIN_EMAILS="demo@warisan.ai"
+DEMO_AUTH_USER_ID="neon-auth-user-id-for-demo"
 UPLOADTHING_TOKEN="your-uploadthing-token"
 ```
 
@@ -132,256 +78,138 @@ Required:
 
 - `DATABASE_URL`: PostgreSQL connection string.
 - `VITE_NEON_AUTH_URL`: Neon Auth URL used by the Vite client and Express JWT verifier.
-- `ADMIN_EMAILS`: comma-separated Neon Auth user emails allowed to use admin mutation routes until Sprint 3 roles/memberships.
 - `UPLOADTHING_TOKEN`: UploadThing token for image uploads.
 
 Optional:
 
 - `NODE_ENV`: use `production` for production services.
 - `APP_BASE_URL`: public app URL used when configuring auth redirects.
+- `DEMO_AUTH_USER_ID`: auth user id used by the demo seed. If omitted, the seed uses a placeholder.
 
-Do not put secrets in `VITE_*` variables. `VITE_NEON_AUTH_URL` is frontend-safe; `UPLOADTHING_TOKEN` stays server-only.
+Do not put secrets in `VITE_*` variables.
 
 ## Database Setup
 
-Generate Prisma Client:
+This sprint assumes a fresh development database reset.
 
 ```bash
 npx prisma generate
-```
-
-Push the schema to your database:
-
-```bash
-npx prisma db push
-```
-
-The bundled seed command is a safe no-op placeholder:
-
-```bash
+npx prisma migrate reset --force
 npm run db:seed
 ```
 
-Use the admin panel, API, database tools, or your own private seed script to add real family data.
+The seed creates:
 
-## Data Model Overview
+- demo `AppUser` with `platformRole: platform_admin`
+- `FamilySpace` with slug `rahman-archive`
+- owner membership for the demo user
+- demo members, branches, nuclear families, timeline events, gallery items, stories, and source notes
 
-The app uses these main database-backed resources:
+## Data Model
 
-| Resource | Purpose |
+Main tenant and identity models:
+
+| Model | Purpose |
 |---|---|
-| `FamilyMember` | People in the family archive |
-| `FamilyBranch` | Branch/group definitions for filtering and summaries |
-| `NuclearFamily` | Parent-child family units used by the tree layout |
+| `AppUser` | App-level user mapped from Neon Auth |
+| `FamilySpace` | Tenant boundary |
+| `FamilyMembership` | User-to-space membership and family role |
+
+Space-scoped family resources:
+
+| Model | Purpose |
+|---|---|
+| `FamilyMember` | People in a FamilySpace |
+| `FamilyBranch` | Branch/group definitions |
+| `NuclearFamily` | Parent-child family units used by the tree |
 | `TimelineEvent` | Manual timeline entries |
 | `GalleryItem` | Gallery albums/photos |
+| `Story` | Narrative content |
+| `SourceNote` | Source/evidence notes |
 
-Important relationship fields on members include:
+Most human-facing ids use `slugId`, unique only inside one `familySpaceId`.
 
-- `fatherId`
-- `motherId`
-- `spouseIds`
-- `formerSpouseIds`
-- `childrenIds`
-- `siblingIds`
-- `parentFamilyId`
-- `nuclearFamilyIds`
+## API
 
-The tree layout reads these relationships from API data. It does not require a tracked data file.
+Public:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | Public health check |
+
+Auth:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/auth/me` | Current `AppUser` |
+
+Spaces:
+
+| Method | Endpoint | Role |
+|---|---|---|
+| `GET` | `/api/spaces` | authenticated |
+| `POST` | `/api/spaces` | authenticated, creates owner membership |
+| `GET` | `/api/spaces/:spaceSlug` | member+ |
+| `PATCH` | `/api/spaces/:spaceSlug` | owner/admin |
+| `GET` | `/api/spaces/:spaceSlug/membership` | member+ |
+
+Space-scoped resources:
+
+| Resource | Read | Write |
+|---|---|---|
+| Members | `GET /api/spaces/:spaceSlug/members` | `POST`, `PUT`, `DELETE` owner/admin |
+| Branches | `GET /api/spaces/:spaceSlug/branches` | `POST`, `PUT`, `DELETE` owner/admin |
+| Nuclear families | `GET /api/spaces/:spaceSlug/nuclear-families` | read-only this sprint |
+| Timeline | `GET /api/spaces/:spaceSlug/timeline` | `POST`, `PUT`, `DELETE` owner/admin |
+| Gallery | `GET /api/spaces/:spaceSlug/gallery` | `POST`, `PUT`, `DELETE` owner/admin |
+| Stories | `GET /api/spaces/:spaceSlug/stories` | `POST` owner/admin |
+| Source notes | `GET /api/spaces/:spaceSlug/source-notes` | `POST` owner/admin |
+
+Uploads:
+
+| Method | Endpoint | Role |
+|---|---|---|
+| `POST` | `/api/uploads/photos?spaceSlug=:spaceSlug&folder=members&filename=name` | member+ |
+| `POST` | `/api/uploads/photos?spaceSlug=:spaceSlug&folder=gallery&filename=name` | member+ |
+
+Platform:
+
+| Method | Endpoint | Role |
+|---|---|---|
+| `GET` | `/api/platform/health` | platform_admin |
+| `GET` | `/api/platform/spaces` | platform_admin, returns 501 this sprint |
+| `GET` | `/api/platform/users` | platform_admin, returns 501 this sprint |
+
+Old global endpoints (`/api/members`, `/api/branches`, `/api/nuclear-families`, `/api/timeline`, `/api/gallery`) return `410 Gone`.
 
 ## Project Structure
 
 ```text
-api/
-  [...path].ts              # Vercel serverless entrypoint
-
 prisma/
-  migrations/               # Prisma migration history
-  schema.prisma             # Database schema
-  seed.ts                   # Safe no-op template seed
+  schema.prisma
+  seed.ts
+  migrations/
 
 server/
-  app.ts                    # Express app and API routes
-  index.ts                  # Local backend entrypoint
+  app.ts
+  authorization.ts
+  db.ts
+  neonAuth.ts
+  uploadthing.ts
 
 src/
-  App.tsx                   # Routes and global app shell
-  main.tsx                  # React entrypoint
-  index.css                 # CSS variables and global styles
-
-  admin/
-    components/             # Admin sidebar, modals, upload field, stats
-    hooks/                  # Admin auth hook
-    layouts/                # Admin layout wrapper
-    pages/                  # Admin dashboard, login, and CRUD pages
-
-  components/
-    FamilyTree.tsx          # Public tree wrapper
-    GalleryTimeline.tsx     # Gallery and timeline shared components
-    Layout.tsx              # Public layout and footer
-    MemberDetail.tsx        # Member detail modal/sheet
-    MemberForm.tsx          # Member CRUD form
-    Navbar.tsx              # Public navigation
-    tree/                   # Tree canvas, controls, minimap, cards
-    ui.tsx                  # Shared UI components
-
-  config/
-    defaultLabels.ts
-    family.config.example.ts
-    index.ts
-
-  constants/
-    treeLayout.ts           # Tree layout constants
-
-  hooks/
-    useFamilyStore.tsx      # Data fetching, CRUD actions, auth state, toasts
-    useSiteConfigEffects.ts # Runtime metadata/theme effects
-
-  pages/
-    HomePage.tsx
-    TreePage.tsx
-    MembersPage.tsx
-    MemberProfilePage.tsx
-    GalleryPage.tsx
-    TimelinePage.tsx
-
-  types/
-    config.ts
-    family.ts
-    tree.ts
-
-  utils/
-    family.ts
-    timeline.ts
-    treeLayout.ts
+  App.tsx
+  hooks/useSpaceStore.tsx
+  layouts/SpaceLayout.tsx
+  pages/SpaceListPage.tsx
+  pages/SpaceDashboard.tsx
+  pages/TreePage.tsx
+  pages/MembersPage.tsx
+  pages/MemberProfilePage.tsx
+  pages/TimelinePage.tsx
+  pages/GalleryPage.tsx
+  types/family.ts
 ```
-
-## API Endpoints
-
-All endpoints are under `/api`.
-
-### Members
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/members` | List members |
-| `POST` | `/api/members` | Create a member |
-| `PUT` | `/api/members/:id` | Update a member |
-| `DELETE` | `/api/members/:id` | Delete a member and clean relationship references |
-
-### Branches and Nuclear Families
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/branches` | List family branches |
-| `GET` | `/api/nuclear-families` | List nuclear families |
-
-### Timeline
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/timeline` | List timeline events |
-| `POST` | `/api/timeline` | Create a timeline event |
-| `PUT` | `/api/timeline/:id` | Update a timeline event |
-| `DELETE` | `/api/timeline/:id` | Delete a timeline event |
-
-### Gallery
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/gallery` | List gallery items |
-| `POST` | `/api/gallery` | Create a gallery item |
-| `PUT` | `/api/gallery/:id` | Update a gallery item |
-| `DELETE` | `/api/gallery/:id` | Delete a gallery item |
-
-### Uploads and Health
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/uploads/photos?folder=members&filename=name` | Upload, resize, convert, and store a member photo |
-| `POST` | `/api/uploads/photos?folder=gallery&filename=name` | Upload, resize, convert, and store a gallery image |
-| `POST` | `/api/uploadthing` | UploadThing route handler for `imageUploader` |
-| `GET` | `/api/health` | Health check |
-
-Photo uploads accept JPEG, PNG, and WebP images up to 4 MB. Uploaded images are rotated, resized to fit within 1600 x 1600, converted to WebP, and stored in UploadThing.
-
-Mutation routes for members, timeline, gallery, and uploads require a verified Neon Auth JWT. Public family data reads and the landing page remain readable in this sprint. Sprint 3 will add FamilySpace and FamilyMembership scoping.
-
-# Cloud Run Deployment
-
-This project is prepared to run on Google Cloud Run as one container. Express serves API routes under `/api/*` and serves the built Vite frontend from `dist/` for all non-API routes.
-
-Authenticate with Google Cloud:
-
-```bash
-gcloud auth login
-```
-
-Select your project:
-
-```bash
-gcloud config set project YOUR_PROJECT_ID
-```
-
-Enable required services:
-
-```bash
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
-```
-
-Deploy from source:
-
-```bash
-gcloud run deploy warisanai --source . --region asia-southeast2 --allow-unauthenticated
-```
-
-Configure required Cloud Run environment variables:
-
-- `DATABASE_URL`: PostgreSQL connection string.
-- `NODE_ENV=production`: production runtime mode.
-- `APP_BASE_URL`: deployed Cloud Run URL.
-- `VITE_NEON_AUTH_URL`: Neon Auth URL.
-- `ADMIN_EMAILS`: comma-separated admin emails, for example `demo@warisan.ai`.
-- `UPLOADTHING_TOKEN`: UploadThing token for image uploads.
-- Future AI provider variables, such as API keys, should also be configured as Cloud Run environment variables.
-
-Create `demo@warisan.ai` in Neon Auth for event demos and include that email in `ADMIN_EMAILS`. Do not hardcode demo credentials in frontend code.
-
-Before deploying a family-specific website, make sure your private config strategy is ready and run the database setup against your production database.
-
-## Local Production Verification
-
-Build and run the single-service production app locally:
-
-```bash
-npm run build
-npm run start
-```
-
-Then verify:
-
-- Open `http://localhost:8080`.
-- Open `http://localhost:8080/api/health` and confirm it returns JSON.
-- Refresh a React Router page such as `http://localhost:8080/members` and confirm it still loads.
-
-For a public template release:
-
-- Keep `family.config.example.ts` tracked.
-- Keep `family.config.ts` ignored.
-- Do not commit private names, descriptions, images, or database seed data.
-
-## Privacy Rules
-
-Do not commit:
-
-- `src/config/family.config.ts`
-- `.env`
-- private seed scripts
-- exported family datasets
-- private photos or private media URLs
-- production database credentials
-
-The template is intended to be public-safe, but the data you add through your own database may still be private. Review your deployment, Neon Auth users, admin email allowlist, database permissions, and access controls before sharing a live site. Do not log tokens, token prefixes, database URLs, or API keys.
 
 ## Scripts
 
@@ -393,19 +221,22 @@ The template is intended to be public-safe, but the data you add through your ow
 | `npm run build` | Generate Prisma Client, type-check, and build production assets |
 | `npm run start` | Run the production Express server on `process.env.PORT` or `8080` |
 | `npm run preview` | Preview the production build |
-| `npm run db:seed` | Safe no-op seed placeholder |
+| `npm run db:seed` | Seed demo FamilySpace data |
 
-## Public Release Checklist
+## Verification
 
-Before publishing this as a GitHub template:
+```bash
+npx prisma validate
+npm run build
+```
 
-- Confirm `src/config/family.config.ts` is ignored.
-- Run `git status --short --untracked-files=all` and make sure private config is absent.
-- Search tracked files for private family names, real biographies, private photos, or production URLs.
-- Confirm README and example config are generic.
-- Confirm `.env` and private seed scripts are not tracked.
-- Run `npm run build`.
+For full local database verification:
 
-## License
+```bash
+npx prisma migrate reset --force
+npm run db:seed
+npm run build
+npm run start
+```
 
-Add your preferred license before publishing the repository as a reusable template.
+Then verify `/api/health`, `/app`, `/app/rahman-archive`, `/app/rahman-archive/tree`, and old API endpoints returning `410`.

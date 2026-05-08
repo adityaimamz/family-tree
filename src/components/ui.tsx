@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useId, useState } from "react";
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import type { FamilyMember } from "../types/family";
 import { displayStatus, generationLabel, getInitials } from "../utils/family";
 
@@ -157,7 +157,9 @@ export const Badge = ({ children, tone = "sage" }: { children: ReactNode; tone?:
 };
 
 export const MemberCard = ({ member, compact = false }: { member: FamilyMember; compact?: boolean }) => {
+  const { spaceSlug } = useParams<{ spaceSlug?: string }>();
   const initials = getInitials(member.displayName || member.fullName).toUpperCase();
+  const detailTo = spaceSlug ? `/app/${spaceSlug}/members/${member.id}` : "/app";
 
   return (
     <motion.article
@@ -208,7 +210,7 @@ export const MemberCard = ({ member, compact = false }: { member: FamilyMember; 
           </span>
           <Link
             className="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-sm font-bold text-dark-green transition hover:bg-sage-green/12 active:translate-y-[1px]"
-            to={`/anggota/${member.id}`}
+            to={detailTo}
           >
             Lihat Detail
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" strokeWidth={iconStroke} />

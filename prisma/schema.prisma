@@ -6,9 +6,82 @@ datasource db {
   provider = "postgresql"
 }
 
+enum PlatformRole {
+  user
+  platform_admin
+}
+
+enum FamilyRole {
+  owner
+  admin
+  member
+}
+
+enum StoryStatus {
+  draft
+  in_review
+  approved
+}
+
+enum SourceType {
+  note
+  photo_context
+  interview
+  document
+  chat
+}
+
+model AppUser {
+  id           String       @id @default(uuid())
+  authUserId   String       @unique
+  email        String       @unique
+  name         String?
+  avatarUrl    String?
+  platformRole PlatformRole @default(user)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  memberships          FamilyMembership[]
+  uploadedGalleryItems GalleryItem[]      @relation("GalleryUploadedBy")
+}
+
+model FamilySpace {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships    FamilyMembership[]
+  members        FamilyMember[]
+  branches       FamilyBranch[]
+  nuclearFamilies NuclearFamily[]
+  timelineEvents TimelineEvent[]
+  galleryItems   GalleryItem[]
+  stories        Story[]
+  sourceNotes    SourceNote[]
+}
+
+model FamilyMembership {
+  id            String     @id @default(uuid())
+  userId        String
+  familySpaceId String
+  role          FamilyRole @default(member)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user       AppUser     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  familySpace FamilySpace @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, familySpaceId])
+  @@index([familySpaceId])
+}
+
 model FamilyMember {
   id                 String         @id @default(uuid())
-  slugId             String         @unique
+  familySpaceId      String
+  slugId             String
   fullName           String
   displayName        String
   gender             String
@@ -33,17 +106,21 @@ model FamilyMember {
   statusLabel        String
   relationshipToRoot String
   childrenIds        String[]       @default([])
-  branch             FamilyBranch   @relation(fields: [familyBranchId], references: [slugId])
-  father             FamilyMember?  @relation("FatherToChildren", fields: [fatherId], references: [slugId])
-  childrenAsFather   FamilyMember[] @relation("FatherToChildren")
-  mother             FamilyMember?  @relation("MotherToChildren", fields: [motherId], references: [slugId])
-  childrenAsMother   FamilyMember[] @relation("MotherToChildren")
-  parentFamily       NuclearFamily? @relation("ChildOfNuclearFamily", fields: [parentFamilyId], references: [slugId])
+
+  familySpace FamilySpace @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+  branch      FamilyBranch @relation(fields: [familySpaceId, familyBranchId], references: [familySpaceId, slugId])
+
+  storyMembers      StoryMember[]
+  sourceNoteMembers SourceNoteMember[]
+
+  @@unique([familySpaceId, slugId])
+  @@index([familySpaceId, familyBranchId])
 }
 
 model FamilyBranch {
   id            String          @id @default(uuid())
-  slugId        String          @unique
+  familySpaceId String
+  slugId        String
   name          String
   headMemberIds String[]        @default([])
   spouseId      String?
@@ -51,26 +128,37 @@ model FamilyBranch {
   summary       String?
   memberIds     String[]        @default([])
   color         String?
-  members       FamilyMember[]
-  families      NuclearFamily[]
+
+  familySpace FamilySpace   @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+  members     FamilyMember[]
+  families    NuclearFamily[]
+
+  @@unique([familySpaceId, slugId])
+  @@index([familySpaceId])
 }
 
 model NuclearFamily {
   id              String         @id @default(uuid())
-  slugId          String         @unique
+  familySpaceId   String
+  slugId          String
   name            String
   parentIds       String[]       @default([])
   childIds        String[]       @default([])
   childrenIds     String[]       @default([])
   branchId        String
   summary         String
-  childrenMembers FamilyMember[] @relation("ChildOfNuclearFamily")
-  branch          FamilyBranch   @relation(fields: [branchId], references: [slugId])
+
+  familySpace FamilySpace @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+  branch      FamilyBranch @relation(fields: [familySpaceId, branchId], references: [familySpaceId, slugId])
+
+  @@unique([familySpaceId, slugId])
+  @@index([familySpaceId, branchId])
 }
 
 model TimelineEvent {
   id               String   @id @default(uuid())
-  slugId           String   @unique
+  familySpaceId    String
+  slugId           String
   year             String
   type             String
   title            String
@@ -79,11 +167,20 @@ model TimelineEvent {
   memberIds        String[] @default([])
   photo            String?
   isAutomatic      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  familySpace FamilySpace @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+
+  @@unique([familySpaceId, slugId])
+  @@index([familySpaceId])
 }
 
 model GalleryItem {
   id          String  @id @default(uuid())
-  slugId      String  @unique
+  familySpaceId String
+  slugId      String
   title       String
   date        String
   year        String
@@ -91,4 +188,87 @@ model GalleryItem {
   familyGroup String
   description String
   image       String
+
+  memberId        String?
+  timelineEventId String?
+  uploadedById    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  familySpace FamilySpace @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+  uploadedBy  AppUser?    @relation("GalleryUploadedBy", fields: [uploadedById], references: [id])
+
+  @@unique([familySpaceId, slugId])
+  @@index([familySpaceId])
+}
+
+model Story {
+  id            String      @id @default(uuid())
+  familySpaceId String
+  slugId        String
+  title         String
+  content       String
+  status        StoryStatus @default(draft)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  familySpace FamilySpace @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+
+  members     StoryMember[]
+  sourceNotes StorySourceNote[]
+
+  @@unique([familySpaceId, slugId])
+  @@index([familySpaceId])
+}
+
+model SourceNote {
+  id            String     @id @default(uuid())
+  familySpaceId String
+  slugId        String
+  title         String
+  content       String
+  type          SourceType @default(note)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  familySpace FamilySpace @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+
+  memberLinks SourceNoteMember[]
+  storyLinks  StorySourceNote[]
+
+  @@unique([familySpaceId, slugId])
+  @@index([familySpaceId])
+}
+
+model StoryMember {
+  storyId  String
+  memberId String
+
+  story  Story       @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  member FamilyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, memberId])
+  @@index([memberId])
+}
+
+model SourceNoteMember {
+  sourceNoteId String
+  memberId     String
+
+  sourceNote SourceNote  @relation(fields: [sourceNoteId], references: [id], onDelete: Cascade)
+  member     FamilyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([sourceNoteId, memberId])
+  @@index([memberId])
+}
+
+model StorySourceNote {
+  storyId      String
+  sourceNoteId String
+
+  story      Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  sourceNote SourceNote @relation(fields: [sourceNoteId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, sourceNoteId])
+  @@index([sourceNoteId])
 }

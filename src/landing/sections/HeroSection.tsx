@@ -79,7 +79,7 @@ export default function HeroSection() {
             className="mt-9 flex flex-col gap-3 sm:flex-row"
           >
             <Link
-              to="/"
+              to="/auth/sign-up"
               className="group inline-flex min-h-14 items-center justify-center gap-4 rounded-full bg-primary py-2 pl-6 pr-2 text-base font-semibold text-surface shadow-[0_22px_42px_-30px_rgba(44,80,22,0.95)] outline-none transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:bg-warm-brown active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-sage-light"
             >
               Create your family archive

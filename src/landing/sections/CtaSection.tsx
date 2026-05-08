@@ -40,7 +40,7 @@ export default function CtaSection() {
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Link
-              to="/"
+              to="/auth/sign-up"
               className="group inline-flex min-h-14 items-center justify-center gap-4 rounded-full bg-accent py-2 pl-6 pr-2 text-base font-semibold text-ink shadow-[0_24px_48px_-32px_rgba(210,181,110,0.92)] outline-none transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:bg-surface active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-surface/25"
             >
               Create your family archive
