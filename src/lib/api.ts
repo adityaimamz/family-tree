@@ -31,3 +31,8 @@ export const spaceFetch = async (spaceSlug: string, path: string, init: RequestI
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return authFetch(`/api/spaces/${spaceSlug}${normalizedPath}`, init);
 };
+
+export const platformFetch = async (path: string, init: RequestInit = {}) => {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return authFetch(`/api/platform${normalizedPath}`, init);
+};

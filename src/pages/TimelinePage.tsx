@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Baby, Edit3, Flower2, Heart, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { AdminTimelineFormModal } from "../admin/components/AdminTimelineFormModal";
+import { TimelineFormModal } from "../components/forms/TimelineFormModal";
 import { TimelineItem } from "../components/GalleryTimeline";
 import { EmptyState, PageShell, iconStroke, pageTransition } from "../components/ui";
 import { familyConfig } from "../config";
@@ -150,8 +150,8 @@ export const TimelinePage = () => {
         ) : (
           <EmptyState title={familyConfig.labels.emptyTimelineTitle} description={familyConfig.labels.emptyTimelineDescription} />
         )}
-        <AdminTimelineFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
-        <AdminTimelineFormModal open={Boolean(eventToEdit)} event={eventToEdit} onClose={() => setEventToEdit(null)} />
+        <TimelineFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
+        <TimelineFormModal open={Boolean(eventToEdit)} event={eventToEdit} onClose={() => setEventToEdit(null)} />
       </PageShell>
     </motion.div>
   );

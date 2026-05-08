@@ -1,8 +1,8 @@
 import { ImageUp } from "lucide-react";
 import { useId, useState } from "react";
 import { useParams } from "react-router-dom";
-import { iconStroke } from "../../components/ui";
 import { authFetch } from "../../lib/api";
+import { iconStroke } from "../ui";
 
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp"];
 const maxUploadBytes = 4 * 1024 * 1024;
@@ -27,12 +27,12 @@ export function PhotoUploadField({ folder, label, value, onChange }: PhotoUpload
     setError("");
 
     if (!acceptedTypes.includes(file.type)) {
-      setError("Format harus JPG, PNG, atau WebP.");
+      setError("Format must be JPG, PNG, or WebP.");
       return;
     }
 
     if (file.size > maxUploadBytes) {
-      setError("Ukuran foto maksimal 4 MB.");
+      setError("Photo size must be 4 MB or less.");
       return;
     }
 
@@ -56,17 +56,17 @@ export function PhotoUploadField({ folder, label, value, onChange }: PhotoUpload
         ? (JSON.parse(responseText) as { url?: string; error?: string })
         : {
             error: responseText.trim().startsWith("<!DOCTYPE")
-              ? "Endpoint upload belum aktif. Restart backend dev server atau cek routing /api/uploads/photos."
-              : responseText || "Upload foto gagal.",
+              ? "Upload endpoint is not active. Restart the backend dev server or check /api/uploads/photos routing."
+              : responseText || "Photo upload failed.",
           };
 
       if (!response.ok || !result.url) {
-        throw new Error(result.error || "Upload foto gagal.");
+        throw new Error(result.error || "Photo upload failed.");
       }
 
       onChange(result.url);
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : "Upload foto gagal.");
+      setError(uploadError instanceof Error ? uploadError.message : "Photo upload failed.");
     } finally {
       setUploading(false);
     }
@@ -81,7 +81,7 @@ export function PhotoUploadField({ folder, label, value, onChange }: PhotoUpload
             className={photoInputClass}
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            placeholder="URL foto atau hasil upload WebP"
+            placeholder="Photo URL or uploaded WebP"
           />
         </label>
         <div>
@@ -104,14 +104,14 @@ export function PhotoUploadField({ folder, label, value, onChange }: PhotoUpload
             }`}
           >
             <ImageUp className="h-4 w-4 text-sage-green" strokeWidth={iconStroke} />
-            {uploading ? "Mengupload..." : "Upload Foto"}
+            {uploading ? "Uploading..." : "Upload Photo"}
           </label>
         </div>
       </div>
 
       {value && (
         <div className="overflow-hidden rounded-[1.35rem] border border-border-soft bg-background shadow-soft">
-          <img className="h-48 w-full object-cover" src={value} alt="Preview foto upload" />
+          <img className="h-48 w-full object-cover" src={value} alt="Uploaded preview" />
         </div>
       )}
 

@@ -115,3 +115,72 @@ export interface TimelineEvent {
   photo?: string | null;
   isAutomatic?: boolean;
 }
+
+export type StoryStatus = "draft" | "in_review" | "approved";
+
+export interface Story {
+  id: string;
+  title: string;
+  content: string;
+  status: StoryStatus;
+  relatedMemberIds: string[];
+  sourceNoteIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SourceNoteType = "note" | "photo_context" | "interview" | "document" | "chat";
+
+export interface SourceNote {
+  id: string;
+  title: string;
+  content: string;
+  type: SourceNoteType;
+  relatedMemberIds: string[];
+  storyIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlatformStats {
+  totalUsers: number;
+  totalSpaces: number;
+  totalMembers: number;
+  totalGalleryItems: number;
+  totalTimelineEvents: number;
+  totalStories: number;
+  totalSourceNotes: number;
+}
+
+export interface PlatformUser {
+  id: string;
+  email: string;
+  name: string | null;
+  platformRole: string;
+  spacesCount: number;
+  createdAt: string;
+}
+
+export interface PlatformSpace {
+  id: string;
+  slug: string;
+  name: string;
+  ownerCount: number;
+  memberCount: number;
+  recordCounts: {
+    members: number;
+    timeline: number;
+    gallery: number;
+  };
+  createdAt: string;
+}
+
+export interface PlatformSystemInfo {
+  apiHealth: boolean;
+  databaseConnected: boolean;
+  uploadThingConfigured: boolean;
+  neonAuthConfigured: boolean;
+  environment: string;
+  nodeVersion: string;
+  uptime: number;
+}

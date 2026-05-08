@@ -1,14 +1,44 @@
 import { motion } from "framer-motion";
-import { ArrowRight, BookOpen, Camera, GitBranch, Users } from "lucide-react";
-import { useMemo } from "react";
-import { Link } from "react-router-dom";
-import { PageShell, SectionHeader, StatCard, iconStroke, pageTransition } from "../components/ui";
+import { ArrowRight, BookOpen, Calendar, Camera, GitBranch, Images, Settings, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { StatsCard } from "../components/dashboard/StatsCard";
+import { PageShell, SectionHeader, iconStroke, pageTransition } from "../components/ui";
 import { useSpaceStore } from "../hooks/useSpaceStore";
+import { spaceFetch } from "../lib/api";
 
 export const SpaceDashboard = () => {
   const { currentSpace, members, gallery, timeline } = useSpaceStore();
+  const { spaceSlug } = useParams<{ spaceSlug: string }>();
+  const [storiesCount, setStoriesCount] = useState(0);
 
   const generations = useMemo(() => new Set(members.map((member) => member.generation)).size, [members]);
+
+  useEffect(() => {
+    if (!spaceSlug) return;
+    let mounted = true;
+    spaceFetch(spaceSlug, "/stories")
+      .then((response) => (response.ok ? response.json() : []))
+      .then((stories) => {
+        if (mounted && Array.isArray(stories)) setStoriesCount(stories.length);
+      })
+      .catch(() => {
+        if (mounted) setStoriesCount(0);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [spaceSlug]);
+
+  const quickActions = [
+    { title: "Overview", to: ".", icon: BookOpen },
+    { title: "Family Tree", to: "tree", icon: GitBranch },
+    { title: "Members", to: "members", icon: Users },
+    { title: "Timeline", to: "timeline", icon: Calendar },
+    { title: "Gallery", to: "gallery", icon: Images },
+    { title: "Stories", to: "stories", icon: BookOpen },
+    { title: "Settings", to: "settings", icon: Settings },
+  ];
 
   if (!currentSpace) return null;
 
@@ -23,11 +53,48 @@ export const SpaceDashboard = () => {
 
         {members.length ? (
           <>
-            <section className="mb-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              <StatCard icon={<Users className="h-5 w-5" strokeWidth={1.8} />} value={String(members.length)} label="Total Anggota" />
-              <StatCard icon={<GitBranch className="h-5 w-5" strokeWidth={1.8} />} value={String(generations)} label="Jumlah Generasi" />
-              <StatCard icon={<BookOpen className="h-5 w-5" strokeWidth={1.8} />} value={String(timeline.length)} label="Peristiwa Linimasa" />
-              <StatCard icon={<Camera className="h-5 w-5" strokeWidth={1.8} />} value={String(gallery.length)} label="Foto Keluarga" />
+            <section className="mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
+              <StatsCard icon={Users} value={members.length} title="Members" description="Family records" />
+              <StatsCard icon={GitBranch} value={generations} title="Generations" description="Distinct levels" />
+              <StatsCard icon={Calendar} value={timeline.length} title="Timeline" description="Manual events" />
+              <StatsCard icon={Camera} value={gallery.length} title="Gallery" description="Photo entries" />
+              <StatsCard icon={BookOpen} value={storiesCount} title="Stories" description="Narrative drafts" />
+            </section>
+
+            <section className="mb-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="rounded-[1.6rem] border border-white/75 bg-surface/94 p-5 shadow-soft ring-1 ring-border-soft/60">
+                <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-sage-green">Quick actions</p>
+                <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {quickActions.map(({ title, to, icon: Icon }) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      className="group flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-border-soft bg-background px-4 py-3 text-sm font-bold text-text-primary shadow-soft transition hover:-translate-y-0.5 hover:bg-surface-soft active:translate-y-[1px]"
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <Icon className="h-4 w-4 shrink-0 text-sage-green" strokeWidth={iconStroke} />
+                        <span className="truncate">{title}</span>
+                      </span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-text-muted transition group-hover:translate-x-0.5" strokeWidth={iconStroke} />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[1.6rem] border border-white/75 bg-surface/94 p-5 shadow-soft ring-1 ring-border-soft/60">
+                <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-sage-green">Recent activity</p>
+                <div className="mt-5 grid gap-3">
+                  {[
+                    `${members.length} member records available`,
+                    `${timeline.length} timeline events tracked`,
+                    `${storiesCount} stories drafted`,
+                  ].map((item) => (
+                    <div key={item} className="rounded-2xl border border-border-soft bg-background px-4 py-3 text-sm font-semibold text-text-muted">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </section>
 
             <section className="grid gap-5 lg:grid-cols-2">

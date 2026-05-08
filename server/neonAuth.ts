@@ -66,7 +66,12 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 
     req.user = user;
     next();
-  } catch {
+  } catch (error) {
+    console.error("Backend auth verification failed", {
+      path: req.path,
+      method: req.method,
+      error,
+    });
     res.status(401).json({ error: "Authentication required." });
   }
 };

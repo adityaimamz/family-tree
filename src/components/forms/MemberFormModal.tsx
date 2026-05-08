@@ -1,9 +1,9 @@
-import { MemberForm } from "../../components/MemberForm";
+import { MemberForm } from "../MemberForm";
+import { AppModal } from "../ui/AppModal";
 import { useSpaceStore } from "../../hooks/useSpaceStore";
 import type { FamilyMember } from "../../types/family";
-import { AdminModal } from "./AdminModal";
 
-export function AdminMemberFormModal({
+export function MemberFormModal({
   member,
   open,
   onClose,
@@ -15,10 +15,10 @@ export function AdminMemberFormModal({
   const { members, saveMember, deleteMember } = useSpaceStore();
 
   return (
-    <AdminModal
+    <AppModal
       open={open}
-      title={member ? `Edit ${member.displayName || member.fullName}` : "Tambah Anggota"}
-      description="Lengkapi data anggota dan relasi keluarga. Perubahan disimpan ke database."
+      title={member ? `Edit ${member.displayName || member.fullName}` : "Add Member"}
+      description="Fill in member details and family relations."
       size="xl"
       onClose={onClose}
     >
@@ -40,6 +40,6 @@ export function AdminMemberFormModal({
             : undefined
         }
       />
-    </AdminModal>
+    </AppModal>
   );
 }

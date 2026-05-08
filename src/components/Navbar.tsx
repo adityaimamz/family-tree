@@ -41,7 +41,7 @@ export const Navbar = () => {
             </NavLink>
           ))}
           <NavLink
-            to="/admin"
+            to="/app"
             className={({ isActive }) =>
               cx(
                 "ml-2 inline-flex min-h-10 items-center gap-2 rounded-full px-4 py-2 text-sm font-bold text-white shadow-soft transition active:translate-y-[1px]",
@@ -73,7 +73,7 @@ export const Navbar = () => {
                 </NavLink>
               ))}
               <NavLink
-                to="/admin"
+                to="/app"
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-dark-green px-4 py-3 text-sm font-bold text-white shadow-soft transition hover:bg-warm-brown active:translate-y-[1px]"
                 onClick={() => setOpen(false)}
               >

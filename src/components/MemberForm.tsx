@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, ClipboardList, FileJson, Save, Trash2, UserRound, UsersRound } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { PhotoUploadField } from "../admin/components/PhotoUploadField";
+import { PhotoUploadField } from "./ui/PhotoUploadField";
 import { familyConfig } from "../config";
 import type { FamilyMember, FamilyStatus, Gender } from "../types/family";
 import { validateMember } from "../utils/family";

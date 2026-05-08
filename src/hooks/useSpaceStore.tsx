@@ -40,6 +40,7 @@ type SpaceContextValue = {
   deleteGalleryItem: (id: string) => Promise<void>;
   saveTimelineEvent: (event: TimelineEvent, previousId?: string) => Promise<void>;
   deleteTimelineEvent: (id: string) => Promise<void>;
+  updateSpace: (data: { name?: string; description?: string | null }) => Promise<void>;
   
   // Helpers
   canEdit: () => boolean;
@@ -353,6 +354,27 @@ export const SpaceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateSpace = async (data: { name?: string; description?: string | null }) => {
+    if (!spaceSlug) return;
+    try {
+      const response = await spaceFetch(spaceSlug, "", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error("Failed to update FamilySpace");
+
+      const result = await response.json();
+      setCurrentSpace(result.space);
+      setMembership((current) => (current && result.space ? { ...current, space: result.space } : current));
+      addToast("FamilySpace settings saved successfully");
+    } catch (error) {
+      console.error(error);
+      addToast("Failed to save FamilySpace settings", "error");
+    }
+  };
+
   const value = useMemo<SpaceContextValue>(
     () => ({
       currentSpace,
@@ -373,6 +395,7 @@ export const SpaceProvider = ({ children }: { children: ReactNode }) => {
       deleteGalleryItem,
       saveTimelineEvent,
       deleteTimelineEvent,
+      updateSpace,
       canEdit,
       canDelete,
     }),

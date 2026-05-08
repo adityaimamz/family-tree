@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Edit3, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { AdminMemberFormModal } from "../admin/components/AdminMemberFormModal";
+import { MemberFormModal } from "../components/forms/MemberFormModal";
 import { EmptyState, FilterSelect, LoadingState, MemberCard, PageShell, SearchBar, SectionHeader, pageTransition } from "../components/ui";
 import { familyConfig } from "../config";
 import { useSpaceStore } from "../hooks/useSpaceStore";
@@ -120,8 +120,8 @@ export const MembersPage = () => {
             description="Coba ketik nama lain atau pilih keluarga yang berbeda." 
           />
         )}
-        <AdminMemberFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
-        <AdminMemberFormModal open={Boolean(memberToEdit)} member={memberToEdit} onClose={() => setMemberToEdit(null)} />
+        <MemberFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
+        <MemberFormModal open={Boolean(memberToEdit)} member={memberToEdit} onClose={() => setMemberToEdit(null)} />
       </PageShell>
     </motion.div>
   );

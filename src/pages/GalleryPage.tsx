@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Camera, Edit3, Images, Layers3, Plus } from "lucide-react";
 import { useState } from "react";
-import { AdminGalleryFormModal } from "../admin/components/AdminGalleryFormModal";
+import { GalleryFormModal } from "../components/forms/GalleryFormModal";
 import { GalleryGrid } from "../components/GalleryTimeline";
 import { PageShell, iconStroke, pageTransition } from "../components/ui";
 import { familyConfig } from "../config";
@@ -93,8 +93,8 @@ export const GalleryPage = () => {
             ))}
           </div>
         )}
-        <AdminGalleryFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
-        <AdminGalleryFormModal open={Boolean(itemToEdit)} item={itemToEdit} onClose={() => setItemToEdit(null)} />
+        <GalleryFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
+        <GalleryFormModal open={Boolean(itemToEdit)} item={itemToEdit} onClose={() => setItemToEdit(null)} />
       </PageShell>
     </motion.div>
   );

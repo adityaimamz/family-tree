@@ -2,9 +2,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect, useId } from "react";
 import type { ReactNode } from "react";
-import { iconStroke } from "../../components/ui";
+import { iconStroke } from "../ui";
 
-export type AdminModalProps = {
+export type AppModalProps = {
   open: boolean;
   title?: string;
   description?: string;
@@ -13,7 +13,7 @@ export type AdminModalProps = {
   onClose: () => void;
 };
 
-export function AdminModal({ open, title, description, size = "md", children, onClose }: AdminModalProps) {
+export function AppModal({ open, title, description, size = "md", children, onClose }: AppModalProps) {
   const titleId = useId();
   const descriptionId = useId();
   const sizeClass = size === "xl" ? "sm:max-w-6xl" : size === "lg" ? "sm:max-w-4xl" : "sm:max-w-2xl";
@@ -71,7 +71,7 @@ export function AdminModal({ open, title, description, size = "md", children, on
               </div>
               <button
                 type="button"
-                aria-label="Tutup modal"
+                aria-label="Close modal"
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-border-soft bg-background text-text-primary shadow-soft transition hover:bg-surface-soft active:translate-y-[1px] sm:h-11 sm:w-11"
                 onClick={onClose}
               >

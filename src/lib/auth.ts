@@ -11,7 +11,32 @@ export const neonAuth: any = createAuthClient(authUrl ?? "http://localhost/auth"
   adapter: BetterAuthReactAdapter(),
 });
 
-export const getNeonAuthToken = async () => {
-  const tokenResponse = await neonAuth.token();
-  return tokenResponse.data?.token ?? null;
+const wait = (delayMs: number) => new Promise((resolve) => window.setTimeout(resolve, delayMs));
+
+export const getNeonAuthToken = async ({
+  retries = 6,
+  delayMs = 180,
+}: {
+  retries?: number;
+  delayMs?: number;
+} = {}) => {
+  let lastError: unknown = null;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const tokenResponse = await neonAuth.token();
+      const token = tokenResponse.data?.token ?? null;
+      if (token) return token;
+    } catch (error) {
+      lastError = error;
+    }
+
+    if (attempt < retries) await wait(delayMs);
+  }
+
+  if (lastError) {
+    console.error("[auth token]", lastError);
+  }
+
+  return null;
 };

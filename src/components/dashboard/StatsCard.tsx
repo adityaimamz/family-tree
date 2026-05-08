@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { iconStroke } from "../../components/ui";
+import { iconStroke } from "../ui";
 
 export type StatsCardProps = {
   title: string;
@@ -39,7 +39,7 @@ export function StatsCard({ title, value, description, icon: Icon, trend, classN
       {trend && (
         <p className={"mt-3 text-xs font-semibold " + trendTone}>
           {trend.isPositive ? "+" : "-"}
-          {Math.abs(trend.value)}% dari periode lalu
+          {Math.abs(trend.value)}% from last period
         </p>
       )}
     </section>

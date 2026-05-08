@@ -189,6 +189,28 @@ const mapGalleryItem = (item: any) => ({
   image: item.image,
 });
 
+const mapStory = (story: any) => ({
+  id: story.slugId,
+  title: story.title,
+  content: story.content,
+  status: story.status,
+  relatedMemberIds: (story.members ?? []).map((link: any) => link.member?.slugId).filter(Boolean),
+  sourceNoteIds: (story.sourceNotes ?? []).map((link: any) => link.sourceNote?.slugId).filter(Boolean),
+  createdAt: story.createdAt,
+  updatedAt: story.updatedAt,
+});
+
+const mapSourceNote = (note: any) => ({
+  id: note.slugId,
+  title: note.title,
+  content: note.content,
+  type: note.type,
+  relatedMemberIds: (note.memberLinks ?? []).map((link: any) => link.member?.slugId).filter(Boolean),
+  storyIds: (note.storyLinks ?? []).map((link: any) => link.story?.slugId).filter(Boolean),
+  createdAt: note.createdAt,
+  updatedAt: note.updatedAt,
+});
+
 const timelineDataFromBody = (event: any, fallbackId?: string) => ({
   slugId: event.id || fallbackId,
   year: event.year ?? "",
@@ -256,6 +278,8 @@ const storyDataFromBody = (story: any, fallbackId?: string) => ({
   title: story.title ?? "",
   content: story.content ?? "",
   status: story.status ?? "draft",
+  relatedMemberIds: asStringArray(story.relatedMemberIds),
+  sourceNoteIds: asStringArray(story.sourceNoteIds),
 });
 
 const sourceNoteDataFromBody = (note: any, fallbackId?: string) => ({
@@ -263,6 +287,8 @@ const sourceNoteDataFromBody = (note: any, fallbackId?: string) => ({
   title: note.title ?? "",
   content: note.content ?? "",
   type: note.type ?? "note",
+  relatedMemberIds: asStringArray(note.relatedMemberIds),
+  storyIds: asStringArray(note.storyIds),
 });
 
 const mapFamilySpace = (space: any) => ({
@@ -883,17 +909,13 @@ app.get("/api/spaces/:spaceSlug/stories", ...requireSpaceRead, async (req, res) 
 
     const stories = await prisma.story.findMany({
       where: { familySpaceId: req.familySpace.id },
+      include: {
+        members: { include: { member: true } },
+        sourceNotes: { include: { sourceNote: true } },
+      },
       orderBy: { updatedAt: "desc" },
     });
-    res.json(
-      stories.map((story) => ({
-        id: story.slugId,
-        title: story.title,
-        status: story.status,
-        createdAt: story.createdAt,
-        updatedAt: story.updatedAt,
-      })),
-    );
+    res.json(stories.map(mapStory));
   } catch (error) {
     handleError(res, error, "Failed to fetch stories");
   }
@@ -912,20 +934,65 @@ app.post("/api/spaces/:spaceSlug/stories", ...requireSpaceWrite, async (req, res
       return;
     }
 
-    const story = await prisma.story.create({
-      data: {
-        familySpaceId: req.familySpace.id,
-        ...data,
-      },
+    const story = await prisma.$transaction(async (tx) => {
+      const created = await tx.story.create({
+        data: {
+          familySpaceId: req.familySpace!.id,
+          slugId: data.slugId,
+          title: data.title,
+          content: data.content,
+          status: data.status,
+        },
+      });
+
+      if (data.relatedMemberIds.length) {
+        const relatedMembers = await tx.familyMember.findMany({
+          where: {
+            familySpaceId: req.familySpace!.id,
+            slugId: { in: data.relatedMemberIds },
+          },
+          select: { id: true },
+        });
+        if (relatedMembers.length) {
+          await tx.storyMember.createMany({
+            data: relatedMembers.map((member) => ({
+              storyId: created.id,
+              memberId: member.id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      if (data.sourceNoteIds.length) {
+        const sourceNotes = await tx.sourceNote.findMany({
+          where: {
+            familySpaceId: req.familySpace!.id,
+            slugId: { in: data.sourceNoteIds },
+          },
+          select: { id: true },
+        });
+        if (sourceNotes.length) {
+          await tx.storySourceNote.createMany({
+            data: sourceNotes.map((note) => ({
+              storyId: created.id,
+              sourceNoteId: note.id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      return tx.story.findUniqueOrThrow({
+        where: { id: created.id },
+        include: {
+          members: { include: { member: true } },
+          sourceNotes: { include: { sourceNote: true } },
+        },
+      });
     });
 
-    res.status(201).json({
-      id: story.slugId,
-      title: story.title,
-      status: story.status,
-      createdAt: story.createdAt,
-      updatedAt: story.updatedAt,
-    });
+    res.status(201).json(mapStory(story));
   } catch (error) {
     handleError(res, error, "Failed to create story");
   }
@@ -940,17 +1007,13 @@ app.get("/api/spaces/:spaceSlug/source-notes", ...requireSpaceRead, async (req, 
 
     const notes = await prisma.sourceNote.findMany({
       where: { familySpaceId: req.familySpace.id },
+      include: {
+        memberLinks: { include: { member: true } },
+        storyLinks: { include: { story: true } },
+      },
       orderBy: { updatedAt: "desc" },
     });
-    res.json(
-      notes.map((note) => ({
-        id: note.slugId,
-        title: note.title,
-        type: note.type,
-        createdAt: note.createdAt,
-        updatedAt: note.updatedAt,
-      })),
-    );
+    res.json(notes.map(mapSourceNote));
   } catch (error) {
     handleError(res, error, "Failed to fetch source notes");
   }
@@ -969,20 +1032,65 @@ app.post("/api/spaces/:spaceSlug/source-notes", ...requireSpaceWrite, async (req
       return;
     }
 
-    const note = await prisma.sourceNote.create({
-      data: {
-        familySpaceId: req.familySpace.id,
-        ...data,
-      },
+    const note = await prisma.$transaction(async (tx) => {
+      const created = await tx.sourceNote.create({
+        data: {
+          familySpaceId: req.familySpace!.id,
+          slugId: data.slugId,
+          title: data.title,
+          content: data.content,
+          type: data.type,
+        },
+      });
+
+      if (data.relatedMemberIds.length) {
+        const relatedMembers = await tx.familyMember.findMany({
+          where: {
+            familySpaceId: req.familySpace!.id,
+            slugId: { in: data.relatedMemberIds },
+          },
+          select: { id: true },
+        });
+        if (relatedMembers.length) {
+          await tx.sourceNoteMember.createMany({
+            data: relatedMembers.map((member) => ({
+              sourceNoteId: created.id,
+              memberId: member.id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      if (data.storyIds.length) {
+        const stories = await tx.story.findMany({
+          where: {
+            familySpaceId: req.familySpace!.id,
+            slugId: { in: data.storyIds },
+          },
+          select: { id: true },
+        });
+        if (stories.length) {
+          await tx.storySourceNote.createMany({
+            data: stories.map((story) => ({
+              storyId: story.id,
+              sourceNoteId: created.id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      return tx.sourceNote.findUniqueOrThrow({
+        where: { id: created.id },
+        include: {
+          memberLinks: { include: { member: true } },
+          storyLinks: { include: { story: true } },
+        },
+      });
     });
 
-    res.status(201).json({
-      id: note.slugId,
-      title: note.title,
-      type: note.type,
-      createdAt: note.createdAt,
-      updatedAt: note.updatedAt,
-    });
+    res.status(201).json(mapSourceNote(note));
   } catch (error) {
     handleError(res, error, "Failed to create source note");
   }
@@ -992,12 +1100,121 @@ app.get("/api/platform/health", requireAuth, loadAppUser, requirePlatformAdmin, 
   res.json({ ok: true, service: "warisanai-platform", timestamp: new Date().toISOString() });
 });
 
-app.get("/api/platform/spaces", requireAuth, loadAppUser, requirePlatformAdmin, (_req, res) => {
-  res.status(501).json({ error: "Not Implemented" });
+app.get("/api/platform/stats", requireAuth, loadAppUser, requirePlatformAdmin, async (_req, res) => {
+  try {
+    const [
+      totalUsers,
+      totalSpaces,
+      totalMembers,
+      totalGalleryItems,
+      totalTimelineEvents,
+      totalStories,
+      totalSourceNotes,
+    ] = await Promise.all([
+      prisma.appUser.count(),
+      prisma.familySpace.count(),
+      prisma.familyMember.count(),
+      prisma.galleryItem.count(),
+      prisma.timelineEvent.count(),
+      prisma.story.count(),
+      prisma.sourceNote.count(),
+    ]);
+
+    res.json({
+      totalUsers,
+      totalSpaces,
+      totalMembers,
+      totalGalleryItems,
+      totalTimelineEvents,
+      totalStories,
+      totalSourceNotes,
+    });
+  } catch (error) {
+    handleError(res, error, "Failed to fetch platform stats");
+  }
 });
 
-app.get("/api/platform/users", requireAuth, loadAppUser, requirePlatformAdmin, (_req, res) => {
-  res.status(501).json({ error: "Not Implemented" });
+app.get("/api/platform/spaces", requireAuth, loadAppUser, requirePlatformAdmin, async (_req, res) => {
+  try {
+    const spaces = await prisma.familySpace.findMany({
+      include: {
+        _count: {
+          select: {
+            members: true,
+            timelineEvents: true,
+            galleryItems: true,
+          },
+        },
+        memberships: {
+          select: { role: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(
+      spaces.map((space) => ({
+        id: space.id,
+        slug: space.slug,
+        name: space.name,
+        ownerCount: space.memberships.filter((membership) => membership.role === "owner").length,
+        memberCount: space.memberships.length,
+        recordCounts: {
+          members: space._count.members,
+          timeline: space._count.timelineEvents,
+          gallery: space._count.galleryItems,
+        },
+        createdAt: space.createdAt,
+      })),
+    );
+  } catch (error) {
+    handleError(res, error, "Failed to fetch platform spaces");
+  }
+});
+
+app.get("/api/platform/users", requireAuth, loadAppUser, requirePlatformAdmin, async (_req, res) => {
+  try {
+    const users = await prisma.appUser.findMany({
+      include: {
+        _count: {
+          select: { memberships: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(
+      users.map((user) => ({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        platformRole: user.platformRole,
+        spacesCount: user._count.memberships,
+        createdAt: user.createdAt,
+      })),
+    );
+  } catch (error) {
+    handleError(res, error, "Failed to fetch platform users");
+  }
+});
+
+app.get("/api/platform/system", requireAuth, loadAppUser, requirePlatformAdmin, async (_req, res) => {
+  let databaseConnected = true;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch {
+    databaseConnected = false;
+  }
+
+  res.json({
+    apiHealth: true,
+    databaseConnected,
+    uploadThingConfigured: Boolean(process.env.UPLOADTHING_TOKEN),
+    neonAuthConfigured: Boolean(process.env.VITE_NEON_AUTH_URL),
+    environment: process.env.NODE_ENV || "development",
+    nodeVersion: process.version,
+    uptime: Math.round(process.uptime()),
+  });
 });
 
 const gone = (_req: express.Request, res: Response) => {
