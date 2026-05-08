@@ -40,17 +40,26 @@ export const loadAppUser: RequestHandler = async (req, res, next) => {
   }
 
   try {
+    console.log("[debug] loadAppUser: fetching byAuthId for", req.user.id);
     const byAuthId = await prisma.appUser.findUnique({ where: { authUserId: req.user.id } });
+    console.log("[debug] loadAppUser: byAuthId result", !!byAuthId);
+
     const byEmail = byAuthId ? null : await prisma.appUser.findUnique({ where: { email } });
+    if (!byAuthId) console.log("[debug] loadAppUser: byEmail result", !!byEmail);
+
 
     const appUser = await (async () => {
       if (byAuthId) {
-        // Only update if email or name actually changed
+        console.log("[debug] loadAppUser: checking changes for byAuthId");
         const emailChanged = byAuthId.email !== email;
         const nameChanged = req.user?.name && byAuthId.name !== req.user.name;
 
-        if (!emailChanged && !nameChanged) return byAuthId;
+        if (!emailChanged && !nameChanged) {
+          console.log("[debug] loadAppUser: no changes, returning byAuthId");
+          return byAuthId;
+        }
 
+        console.log("[debug] loadAppUser: updating byAuthId", { emailChanged, nameChanged });
         return prisma.appUser.update({
           where: { id: byAuthId.id },
           data: {
@@ -61,7 +70,7 @@ export const loadAppUser: RequestHandler = async (req, res, next) => {
       }
 
       if (byEmail) {
-        // Only update if name changed or we are linking authUserId
+        console.log("[debug] loadAppUser: linking byEmail");
         const nameChanged = req.user?.name && byEmail.name !== req.user.name;
         const authIdChanged = byEmail.authUserId !== req.user!.id;
 
@@ -76,6 +85,7 @@ export const loadAppUser: RequestHandler = async (req, res, next) => {
         });
       }
 
+      console.log("[debug] loadAppUser: creating new user");
       return prisma.appUser.create({
         data: {
           authUserId: req.user!.id,
@@ -84,6 +94,8 @@ export const loadAppUser: RequestHandler = async (req, res, next) => {
         },
       });
     })();
+    console.log("[debug] loadAppUser: success, appUserId", appUser.id);
+
 
     req.appUser = appUser;
     authzLog("app_user_loaded", {

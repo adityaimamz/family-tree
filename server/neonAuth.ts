@@ -161,9 +161,10 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     }
 
     req.user = user;
-    next();
+    console.log("[debug] requireAuth: success, calling next() for", req.path);
+    return next();
   } catch (error) {
     authLog("verify_failed", { ...requestContext(req), error: errorSummary(error) }, "error");
-    res.status(401).json({ error: "Authentication required." });
+    return res.status(401).json({ error: "Authentication required." });
   }
 };

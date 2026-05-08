@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { authFetch, spaceFetch } from "../lib/api";
 import type {
   AppUser,
@@ -10,6 +10,7 @@ import type {
   FamilySpace,
   GalleryItem,
   NuclearFamily,
+  SpaceSummary,
   TimelineEvent,
   ToastMessage,
 } from "../types/family";
@@ -26,6 +27,7 @@ type SpaceContextValue = {
   families: NuclearFamily[];
   timeline: TimelineEvent[];
   gallery: GalleryItem[];
+  summary: SpaceSummary | null;
   
   // UI state
   toasts: ToastMessage[];
@@ -63,6 +65,9 @@ const idFrom = (prefix: string, value: string) => {
 
 export const SpaceProvider = ({ children }: { children: ReactNode }) => {
   const { spaceSlug } = useParams<{ spaceSlug: string }>();
+  const location = useLocation();
+  const dashboardPath = spaceSlug ? `/app/${spaceSlug}` : "";
+  const shouldLoadSummaryOnly = Boolean(spaceSlug && location.pathname.replace(/\/$/, "") === dashboardPath);
   
   const [currentSpace, setCurrentSpace] = useState<FamilySpace | null>(null);
   const [membership, setMembership] = useState<FamilyMembership | null>(null);
@@ -72,6 +77,7 @@ export const SpaceProvider = ({ children }: { children: ReactNode }) => {
   const [families, setFamilies] = useState<NuclearFamily[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [summary, setSummary] = useState<SpaceSummary | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -87,15 +93,16 @@ export const SpaceProvider = ({ children }: { children: ReactNode }) => {
 
       setIsLoading(true);
       try {
-        // Get current user
-        const meResponse = await authFetch("/api/auth/me");
+        const [meResponse, spaceResponse] = await Promise.all([
+          authFetch("/api/auth/me"),
+          spaceFetch(spaceSlug, ""),
+        ]);
+
         if (meResponse.ok) {
           const data = await meResponse.json();
           if (isMounted) setCurrentUser(data.user ?? null);
         }
 
-        // Get space info + membership
-        const spaceResponse = await spaceFetch(spaceSlug, "");
         if (!spaceResponse.ok) {
           if (isMounted) setIsLoading(false);
           return;
@@ -107,7 +114,21 @@ export const SpaceProvider = ({ children }: { children: ReactNode }) => {
           setMembership(spaceData.membership);
         }
 
-        // Fetch all space data in parallel
+        if (shouldLoadSummaryOnly) {
+          const summaryResponse = await spaceFetch(spaceSlug, "/summary");
+          if (isMounted && summaryResponse.ok) setSummary(await summaryResponse.json());
+          if (isMounted) {
+            setMembers([]);
+            setBranches([]);
+            setFamilies([]);
+            setTimeline([]);
+            setGallery([]);
+          }
+          return;
+        }
+
+        setSummary(null);
+
         const [membersRes, branchesRes, familiesRes, timelineRes, galleryRes] = await Promise.all([
           spaceFetch(spaceSlug, "/members"),
           spaceFetch(spaceSlug, "/branches"),
@@ -150,7 +171,7 @@ export const SpaceProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       isMounted = false;
     };
-  }, [spaceSlug]);
+  }, [shouldLoadSummaryOnly, spaceSlug]);
 
   const addToast = (message: string, tone: ToastMessage["tone"] = "success") => {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -385,6 +406,7 @@ export const SpaceProvider = ({ children }: { children: ReactNode }) => {
       families,
       timeline,
       gallery,
+      summary,
       toasts,
       isLoading,
       addToast,
@@ -399,7 +421,7 @@ export const SpaceProvider = ({ children }: { children: ReactNode }) => {
       canEdit,
       canDelete,
     }),
-    [currentSpace, membership, currentUser, members, branches, families, timeline, gallery, toasts, isLoading]
+    [currentSpace, membership, currentUser, members, branches, families, timeline, gallery, summary, toasts, isLoading]
   );
 
   return <SpaceContext.Provider value={value}>{children}</SpaceContext.Provider>;

@@ -82,6 +82,16 @@ export interface FamilyMembership {
   space: FamilySpace;
 }
 
+export interface SpaceSummary {
+  membersCount: number;
+  generationsCount: number;
+  branchesCount: number;
+  nuclearFamiliesCount: number;
+  timelineCount: number;
+  galleryCount: number;
+  storiesCount: number;
+}
+
 export interface GalleryItem {
   id: string;
   title: string;

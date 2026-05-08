@@ -1,6 +1,8 @@
-import { neonAuth } from "./auth";
+import { clearNeonAuthTokenCache, neonAuth } from "./auth";
 
 export const performSignOut = async (): Promise<void> => {
+  clearNeonAuthTokenCache();
+
   try {
     await neonAuth.signOut();
   } catch (error) {

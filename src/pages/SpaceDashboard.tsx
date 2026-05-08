@@ -1,34 +1,22 @@
 import { motion } from "framer-motion";
 import { ArrowRight, BookOpen, Calendar, Camera, GitBranch, Images, Settings, Users } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { StatsCard } from "../components/dashboard/StatsCard";
 import { PageShell, SectionHeader, iconStroke, pageTransition } from "../components/ui";
 import { useSpaceStore } from "../hooks/useSpaceStore";
-import { spaceFetch } from "../lib/api";
 
 export const SpaceDashboard = () => {
-  const { currentSpace, members, gallery, timeline } = useSpaceStore();
-  const { spaceSlug } = useParams<{ spaceSlug: string }>();
-  const [storiesCount, setStoriesCount] = useState(0);
+  const { currentSpace, members, gallery, timeline, summary } = useSpaceStore();
 
-  const generations = useMemo(() => new Set(members.map((member) => member.generation)).size, [members]);
-
-  useEffect(() => {
-    if (!spaceSlug) return;
-    let mounted = true;
-    spaceFetch(spaceSlug, "/stories")
-      .then((response) => (response.ok ? response.json() : []))
-      .then((stories) => {
-        if (mounted && Array.isArray(stories)) setStoriesCount(stories.length);
-      })
-      .catch(() => {
-        if (mounted) setStoriesCount(0);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [spaceSlug]);
+  const generations = useMemo(
+    () => summary?.generationsCount ?? new Set(members.map((member) => member.generation)).size,
+    [members, summary?.generationsCount],
+  );
+  const membersCount = summary?.membersCount ?? members.length;
+  const timelineCount = summary?.timelineCount ?? timeline.length;
+  const galleryCount = summary?.galleryCount ?? gallery.length;
+  const storiesCount = summary?.storiesCount ?? 0;
 
   const quickActions = [
     { title: "Overview", to: ".", icon: BookOpen },
@@ -51,13 +39,13 @@ export const SpaceDashboard = () => {
           description={currentSpace.description || "Kelola silsilah keluarga, anggota, dan dokumentasi Anda."}
         />
 
-        {members.length ? (
+        {membersCount ? (
           <>
             <section className="mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-              <StatsCard icon={Users} value={members.length} title="Members" description="Family records" />
+              <StatsCard icon={Users} value={membersCount} title="Members" description="Family records" />
               <StatsCard icon={GitBranch} value={generations} title="Generations" description="Distinct levels" />
-              <StatsCard icon={Calendar} value={timeline.length} title="Timeline" description="Manual events" />
-              <StatsCard icon={Camera} value={gallery.length} title="Gallery" description="Photo entries" />
+              <StatsCard icon={Calendar} value={timelineCount} title="Timeline" description="Manual events" />
+              <StatsCard icon={Camera} value={galleryCount} title="Gallery" description="Photo entries" />
               <StatsCard icon={BookOpen} value={storiesCount} title="Stories" description="Narrative drafts" />
             </section>
 
@@ -85,8 +73,8 @@ export const SpaceDashboard = () => {
                 <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-sage-green">Recent activity</p>
                 <div className="mt-5 grid gap-3">
                   {[
-                    `${members.length} member records available`,
-                    `${timeline.length} timeline events tracked`,
+                    `${membersCount} member records available`,
+                    `${timelineCount} timeline events tracked`,
                     `${storiesCount} stories drafted`,
                   ].map((item) => (
                     <div key={item} className="rounded-2xl border border-border-soft bg-background px-4 py-3 text-sm font-semibold text-text-muted">
@@ -128,7 +116,7 @@ export const SpaceDashboard = () => {
                 </Link>
               </div>
 
-              {timeline.length > 0 && (
+              {timelineCount > 0 && (
                 <div className="rounded-[1.5rem] border border-border-soft bg-surface p-5 shadow-soft sm:rounded-[2rem] sm:p-6">
                   <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-soft-gold/12 text-warm-brown">
                     <BookOpen className="h-5 w-5" strokeWidth={1.8} />
@@ -145,7 +133,7 @@ export const SpaceDashboard = () => {
                 </div>
               )}
 
-              {gallery.length > 0 && (
+              {galleryCount > 0 && (
                 <div className="rounded-[1.5rem] border border-border-soft bg-surface p-5 shadow-soft sm:rounded-[2rem] sm:p-6">
                   <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-soft-blue/12 text-text-primary">
                     <Camera className="h-5 w-5" strokeWidth={1.8} />

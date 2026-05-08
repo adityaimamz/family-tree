@@ -1,4 +1,3 @@
-import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { Analytics } from "@vercel/analytics/react";
@@ -26,12 +25,10 @@ const handleAuthToast = ({ message, variant = "default" }: NeonToastPayload) => 
 };
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <NeonAuthUIProvider authClient={neonAuth} redirectTo="/app" toast={handleAuthToast}>
-        <App />
-        <Analytics />
-      </NeonAuthUIProvider>
-    </BrowserRouter>
-  </React.StrictMode>,
+  <BrowserRouter>
+    <NeonAuthUIProvider authClient={neonAuth} redirectTo="/app" toast={handleAuthToast}>
+      <App />
+      <Analytics />
+    </NeonAuthUIProvider>
+  </BrowserRouter>,
 );

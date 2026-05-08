@@ -67,6 +67,25 @@ const authLimiter = rateLimit({
 app.use("/api", globalLimiter);
 app.use("/api/auth", authLimiter);
 
+app.use("/api", (req, res, next) => {
+  const startedAt = performance.now();
+
+  res.on("finish", () => {
+    if (process.env.NODE_ENV === "production" && process.env.API_DEBUG !== "1") return;
+
+    const durationMs = Math.round(performance.now() - startedAt);
+    const level = durationMs > 1_000 || res.statusCode >= 500 ? "warn" : "info";
+    console[level]("[api]", {
+      method: req.method,
+      path: req.originalUrl || req.path,
+      status: res.statusCode,
+      durationMs,
+    });
+  });
+
+  next();
+});
+
 app.use(express.json({ limit: "2mb" }));
 app.use(
   "/api/uploadthing",
@@ -439,6 +458,53 @@ app.get("/api/spaces/:spaceSlug", requireAuth, loadAppUser, requireSpaceMembersh
   });
 });
 
+const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
+const requireSpaceWrite = [requireAuth, loadAppUser, requireSpaceMembership, requireSpaceRole(["owner", "admin"])];
+
+app.get("/api/spaces/:spaceSlug/summary", ...requireSpaceRead, async (req, res) => {
+  try {
+    if (!req.familySpace) {
+      res.status(500).json({ error: "FamilySpace context not loaded." });
+      return;
+    }
+
+    const familySpaceId = req.familySpace.id;
+    const [
+      membersCount,
+      generationRows,
+      branchesCount,
+      nuclearFamiliesCount,
+      timelineCount,
+      galleryCount,
+      storiesCount,
+    ] = await prisma.$transaction([
+      prisma.familyMember.count({ where: { familySpaceId } }),
+      prisma.familyMember.findMany({
+        where: { familySpaceId },
+        select: { generation: true },
+        distinct: ["generation"],
+      }),
+      prisma.familyBranch.count({ where: { familySpaceId } }),
+      prisma.nuclearFamily.count({ where: { familySpaceId } }),
+      prisma.timelineEvent.count({ where: { familySpaceId } }),
+      prisma.galleryItem.count({ where: { familySpaceId } }),
+      prisma.story.count({ where: { familySpaceId } }),
+    ]);
+
+    res.json({
+      membersCount,
+      generationsCount: generationRows.length,
+      branchesCount,
+      nuclearFamiliesCount,
+      timelineCount,
+      galleryCount,
+      storiesCount,
+    });
+  } catch (error) {
+    handleError(res, error, "Failed to fetch space summary");
+  }
+});
+
 app.patch(
   "/api/spaces/:spaceSlug",
   requireAuth,
@@ -484,9 +550,6 @@ app.get(
     });
   },
 );
-
-const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
-const requireSpaceWrite = [requireAuth, loadAppUser, requireSpaceMembership, requireSpaceRole(["owner", "admin"])];
 
 app.get("/api/spaces/:spaceSlug/members", ...requireSpaceRead, async (req, res) => {
   try {

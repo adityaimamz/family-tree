@@ -13,22 +13,56 @@ export const neonAuth = createAuthClient(authUrl ?? "http://localhost/auth", {
 
 const wait = (delayMs: number) => new Promise((resolve) => window.setTimeout(resolve, delayMs));
 
-const isTokenExpired = (token: string): boolean => {
+type CachedJwt = {
+  token: string;
+  expiresAtMs: number;
+};
+
+let cachedJwt: CachedJwt | null = null;
+let inFlightToken: Promise<string | null> | null = null;
+
+const decodeBase64Url = (value: string) => {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  return atob(padded);
+};
+
+const jwtExpiryMs = (token: string): number => {
   try {
     const [, payloadB64] = token.split(".");
-    const payload = JSON.parse(atob(payloadB64)) as { exp?: number };
-    if (typeof payload.exp !== "number") return false;
-    // Consider expired if less than 30 seconds remaining
-    return payload.exp * 1000 < Date.now() + 30_000;
+    const payload = JSON.parse(decodeBase64Url(payloadB64)) as { exp?: unknown };
+    return typeof payload.exp === "number" ? payload.exp * 1000 : 0;
   } catch {
-    return false;
+    return 0;
   }
+};
+
+const isTokenExpired = (token: string): boolean => {
+  const expiresAtMs = jwtExpiryMs(token);
+  if (!expiresAtMs) return false;
+  // Consider expired if less than 30 seconds remaining
+  return expiresAtMs < Date.now() + 30_000;
 };
 
 const isJwt = (token: unknown): token is string =>
   typeof token === "string" && token.split(".").length === 3;
 
 const isValidToken = (token: unknown): token is string => isJwt(token) && !isTokenExpired(token);
+
+const cachedValidJwt = () => {
+  if (!cachedJwt) return null;
+  if (cachedJwt.expiresAtMs < Date.now() + 30_000) {
+    cachedJwt = null;
+    return null;
+  }
+  return cachedJwt.token;
+};
+
+const rememberJwt = (token: string) => {
+  const expiresAtMs = jwtExpiryMs(token);
+  if (expiresAtMs > Date.now() + 30_000) cachedJwt = { token, expiresAtMs };
+  return token;
+};
 
 const tokenFromSession = async () => {
   if (typeof (neonAuth as any).getSession !== "function") return null;
@@ -51,12 +85,18 @@ export const getNeonAuthToken = async ({
   retries?: number;
   delayMs?: number;
 } = {}) => {
+  const cached = cachedValidJwt();
+  if (cached) return cached;
+
+  if (inFlightToken) return inFlightToken;
+
+  inFlightToken = (async () => {
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
       const token = (await tokenFromSession()) ?? (await tokenFromEndpoint());
-      if (token) return token;
+      if (token) return rememberJwt(token);
     } catch (error) {
       lastError = error;
     }
@@ -69,4 +109,16 @@ export const getNeonAuthToken = async ({
   }
 
   return null;
+  })();
+
+  try {
+    return await inFlightToken;
+  } finally {
+    inFlightToken = null;
+  }
+};
+
+export const clearNeonAuthTokenCache = () => {
+  cachedJwt = null;
+  inFlightToken = null;
 };
