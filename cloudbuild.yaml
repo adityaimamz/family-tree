@@ -1,12 +1,42 @@
 steps:
+  - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        if [ -z "${_VITE_NEON_AUTH_URL}" ]; then
+          echo "ERROR: _VITE_NEON_AUTH_URL is empty"
+          exit 1
+        fi
+        echo "_VITE_NEON_AUTH_URL is provided"
+
   - name: "gcr.io/cloud-builders/docker"
     args:
       - "build"
       - "-t"
-      - "asia-southeast2-docker.pkg.dev/$PROJECT_ID/warisanai/warisanai:$COMMIT_SHA"
+      - "${_AR_HOSTNAME}/$PROJECT_ID/${_AR_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA"
       - "--build-arg"
       - "VITE_NEON_AUTH_URL=${_VITE_NEON_AUTH_URL}"
       - "."
 
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "${_AR_HOSTNAME}/$PROJECT_ID/${_AR_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA"
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "${_SERVICE_NAME}"
+      - "--image"
+      - "${_AR_HOSTNAME}/$PROJECT_ID/${_AR_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA"
+      - "--region"
+      - "${_DEPLOY_REGION}"
+      - "--platform"
+      - "${_PLATFORM}"
+      - "--allow-unauthenticated"
+
 images:
-  - "asia-southeast2-docker.pkg.dev/$PROJECT_ID/warisanai/warisanai:$COMMIT_SHA"
+  - "${_AR_HOSTNAME}/$PROJECT_ID/${_AR_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA"
