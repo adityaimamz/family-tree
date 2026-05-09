@@ -79,6 +79,7 @@ export function AuthPage() {
             Sign up
           </Link>
         </div>
+        <div className="mt-5 text-sm font-semibold flex items-center justify-center gap-3 text-text-muted"><Link className="text-dark-green hover:text-warm-brown" to="/">Back to homepage</Link></div>
       </section>
 
       <AnimatePresence>

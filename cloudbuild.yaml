@@ -1,0 +1,12 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "asia-southeast2-docker.pkg.dev/$PROJECT_ID/warisanai/warisanai:$COMMIT_SHA"
+      - "--build-arg"
+      - "VITE_NEON_AUTH_URL=${_VITE_NEON_AUTH_URL}"
+      - "."
+
+images:
+  - "asia-southeast2-docker.pkg.dev/$PROJECT_ID/warisanai/warisanai:$COMMIT_SHA"

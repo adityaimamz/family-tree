@@ -10,6 +10,9 @@ RUN npx prisma generate
 
 COPY . .
 
+ARG VITE_NEON_AUTH_URL
+ENV VITE_NEON_AUTH_URL=$VITE_NEON_AUTH_URL
+
 RUN npm run build
 RUN npm prune --omit=dev
 
