@@ -6,192 +6,56 @@ import {
   Camera,
   Check,
   Circle,
-  ClipboardList,
   GitBranch,
   Images,
-  Lock,
   Settings,
   ShieldCheck,
   Sparkles,
   Users,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { StatsCard } from "../components/dashboard/StatsCard";
 import { PageShell, SectionHeader, iconStroke, pageTransition } from "../components/ui";
 import { useSpaceStore } from "../hooks/useSpaceStore";
-
-type ArchiveChecklistItem = {
-  label: string;
-  detail: string;
-  complete: boolean;
-};
-
-type SuggestedStep = {
-  title: string;
-  description: string;
-  to: string;
-  icon: LucideIcon;
-};
+import {
+  deriveAiReady,
+  deriveArchiveChecklist,
+  deriveCompletionLabel,
+  deriveSuggestedSteps,
+  deriveArchiveSignals,
+  AI_ACTIONS,
+} from "./spaceDashboard.derive";
 
 export const SpaceDashboard = () => {
   const { currentSpace, members, gallery, timeline, summary, canEdit } = useSpaceStore();
 
-  const generations = useMemo(
-    () => summary?.generationsCount ?? new Set(members.map((member) => member.generation)).size,
-    [members, summary?.generationsCount],
-  );
+  if (!currentSpace) return null;
+
+  const generations = summary?.generationsCount ?? new Set(members.map((member) => member.generation)).size;
   const membersCount = summary?.membersCount ?? members.length;
   const timelineCount = summary?.timelineCount ?? timeline.length;
   const galleryCount = summary?.galleryCount ?? gallery.length;
   const storiesCount = summary?.storiesCount ?? 0;
 
-  const archiveChecklist = useMemo<ArchiveChecklistItem[]>(
-    () => [
-      {
-        label: "Family tree started",
-        detail: membersCount > 0 ? "The archive has a visible relationship base." : "Add the first family member record.",
-        complete: membersCount > 0,
-      },
-      {
-        label: "Members added",
-        detail: membersCount > 0 ? `${membersCount} member records preserved.` : "Start with the relatives closest to the root family.",
-        complete: membersCount >= 3,
-      },
-      {
-        label: "Timeline has events",
-        detail: timelineCount > 0 ? `${timelineCount} milestones can anchor family stories.` : "Add dates that explain moves, weddings, reunions, or births.",
-        complete: timelineCount > 0,
-      },
-      {
-        label: "Stories drafted",
-        detail: storiesCount > 0 ? `${storiesCount} narrative drafts are ready for review.` : "Turn source notes into the first family story draft.",
-        complete: storiesCount > 0,
-      },
-      {
-        label: "Photos connected",
-        detail: galleryCount > 0 ? `${galleryCount} photo memories are stored in this archive.` : "Connect old photos to their family context.",
-        complete: galleryCount > 0,
-      },
-      {
-        label: "AI draft generated",
-        detail: "AI generation is waiting for the Sprint 6 backend endpoint.",
-        complete: false,
-      },
-    ],
-    [galleryCount, membersCount, storiesCount, timelineCount],
-  );
+  const counts = { membersCount, generations, timelineCount, galleryCount, storiesCount };
 
+  // Use derivation functions from the pure module
+  const aiReady = deriveAiReady(counts);
+  const archiveChecklist = deriveArchiveChecklist(counts, aiReady);
   const completedChecklist = archiveChecklist.filter((item) => item.complete).length;
-  const archiveCompletion = Math.round((completedChecklist / archiveChecklist.length) * 100);
-
-  const suggestedSteps = useMemo<SuggestedStep[]>(() => {
-    const steps: SuggestedStep[] = [];
-
-    if (membersCount === 0) {
-      steps.push({
-        title: "Add the first family member",
-        description: "Create the root record so this archive has a starting point.",
-        to: "members",
-        icon: Users,
-      });
-    }
-
-    if (membersCount > 0 && generations < 2) {
-      steps.push({
-        title: "Preserve another generation",
-        description: "Add parents, children, or elders so the tree shows continuity.",
-        to: "members",
-        icon: GitBranch,
-      });
-    }
-
-    if (timelineCount === 0) {
-      steps.push({
-        title: "Add the first timeline event",
-        description: "Anchor the archive with a birth, move, wedding, reunion, or milestone.",
-        to: "timeline",
-        icon: Calendar,
-      });
-    }
-
-    if (galleryCount === 0) {
-      steps.push({
-        title: "Connect a photo memory",
-        description: "Save one photo with context so it becomes part of the family record.",
-        to: "gallery",
-        icon: Images,
-      });
-    }
-
-    if (storiesCount === 0) {
-      steps.push({
-        title: "Draft the first family story",
-        description: "Capture a remembered moment before it stays only in conversation.",
-        to: "stories",
-        icon: BookOpen,
-      });
-    }
-
-    if (steps.length === 0) {
-      steps.push(
-        {
-          title: "Review story drafts",
-          description: "Check narrative drafts and move the strongest memories toward approval.",
-          to: "stories",
-          icon: ClipboardList,
-        },
-        {
-          title: "Walk through the family tree",
-          description: "Use the tree to spot missing relationships before the demo recording.",
-          to: "tree",
-          icon: GitBranch,
-        },
-        {
-          title: "Add more photo context",
-          description: "Attach names, dates, and event context to the photo archive.",
-          to: "gallery",
-          icon: Camera,
-        },
-      );
-    }
-
-    return steps.slice(0, 3);
-  }, [galleryCount, generations, membersCount, storiesCount, timelineCount]);
-
-  const recentActivity = useMemo(() => {
-    const activity = [
-      membersCount > 0
-        ? `${membersCount} family member records are available for relationship browsing.`
-        : "No member records yet. The archive is ready for its first family profile.",
-      generations > 1
-        ? `${generations} generations are preserved in the current tree structure.`
-        : "Generation depth will appear after parent and child records are connected.",
-      timelineCount > 0
-        ? `${timelineCount} timeline events can be used as story anchors.`
-        : "Timeline events have not been added yet.",
-      galleryCount > 0
-        ? `${galleryCount} photo memories are stored for this FamilySpace.`
-        : "Photo memories are still waiting for upload and context.",
-      storiesCount > 0
-        ? `${storiesCount} story drafts are waiting for family review.`
-        : "No story drafts yet. Source notes can become family narratives.",
-    ];
-
-    return activity;
-  }, [galleryCount, generations, membersCount, storiesCount, timelineCount]);
+  const archiveCompletion = Math.round((completedChecklist / 6) * 100);
+  const completionLabel = deriveCompletionLabel(archiveCompletion);
+  const suggestedSteps = deriveSuggestedSteps(counts);
+  const archiveSignals = deriveArchiveSignals(counts);
 
   const quickActions = [
-    { title: "Family Tree", description: "Browse relationships", to: "tree", icon: GitBranch },
-    { title: "Members", description: "Manage family records", to: "members", icon: Users },
-    { title: "Timeline", description: "Preserve milestones", to: "timeline", icon: Calendar },
-    { title: "Photo Memories", description: "Review visual context", to: "gallery", icon: Images },
-    { title: "Stories", description: "Draft narratives", to: "stories", icon: BookOpen },
-    { title: "Settings", description: "Archive identity", to: "settings", icon: Settings },
+    { title: "Family Tree", description: "Understand relationships", to: "tree", icon: GitBranch },
+    { title: "Members", description: "Preserve people records", to: "members", icon: Users },
+    { title: "Timeline", description: "Capture milestones", to: "timeline", icon: Calendar },
+    { title: "Photo Memories", description: "Add visual context", to: "gallery", icon: Images },
+    { title: "Stories", description: "Review family narratives", to: "stories", icon: BookOpen },
+    { title: "Settings", description: "Manage archive identity", to: "settings", icon: Settings },
   ];
-
-  if (!currentSpace) return null;
 
   return (
     <motion.div {...pageTransition}>
@@ -205,12 +69,26 @@ export const SpaceDashboard = () => {
           }
         />
 
+        <section className="surface-grain relative mb-8 overflow-hidden rounded-[1.8rem] border border-border-soft bg-surface/94 p-5 shadow-soft ring-1 ring-border-soft/60 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-sage-green">Preservation focus</p>
+              <h2 className="mt-2 font-display text-xl font-bold tracking-tight text-text-primary sm:text-2xl">
+                Every saved record protects a memory from being lost.
+              </h2>
+            </div>
+            <p className="mt-4 max-w-lg text-sm leading-6 text-text-muted lg:mt-0">
+              This FamilySpace brings together relatives, milestones, photos, and stories so the next generation can understand where they come from.
+            </p>
+          </div>
+        </section>
+
         <section className="mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
           <StatsCard icon={Users} value={membersCount} title="Family Members" description="People preserved in this archive" />
-          <StatsCard icon={GitBranch} value={generations} title="Generations Preserved" description="Distinct family levels" />
+          <StatsCard icon={GitBranch} value={generations} title="Generations Preserved" description="Family levels connected" />
           <StatsCard icon={Calendar} value={timelineCount} title="Timeline Events" description="Milestones with context" />
-          <StatsCard icon={Camera} value={galleryCount} title="Photo Memories" description="Visual memories saved" />
-          <StatsCard icon={BookOpen} value={storiesCount} title="Story Drafts" description="Narratives ready to review" />
+          <StatsCard icon={Camera} value={galleryCount} title="Photo Memories" description="Images tied to family meaning" />
+          <StatsCard icon={BookOpen} value={storiesCount} title="Story Drafts" description="Narratives ready for review" />
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
@@ -223,7 +101,7 @@ export const SpaceDashboard = () => {
                     Your archive is {archiveCompletion}% complete.
                   </h2>
                   <p className="mt-3 text-sm leading-6 text-text-muted">
-                    Completion is based on the records needed for a clear demo: tree structure, members, milestones, photos, stories, and AI draft readiness.
+                    Completion is based on the records that make a family archive clear and ready to share: tree structure, members, milestones, photos, stories, and AI-assisted writing readiness.
                   </p>
                 </div>
 
@@ -232,6 +110,9 @@ export const SpaceDashboard = () => {
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Progress</p>
                       <p className="mt-2 font-display text-4xl font-extrabold leading-none text-text-primary">{archiveCompletion}%</p>
+                      <span className="mt-2 inline-block rounded-full bg-soft-gold/20 px-2.5 py-1 text-xs font-bold text-warm-brown">
+                        {completionLabel}
+                      </span>
                     </div>
                     <ShieldCheck className="h-9 w-9 text-dark-green" strokeWidth={iconStroke} />
                   </div>
@@ -239,7 +120,7 @@ export const SpaceDashboard = () => {
                     <div className="h-full rounded-full bg-dark-green transition-all" style={{ width: `${archiveCompletion}%` }} />
                   </div>
                   <p className="mt-3 text-xs font-semibold text-text-muted">
-                    {completedChecklist} of {archiveChecklist.length} archive signals completed
+                    {completedChecklist} of 6 archive signals completed
                   </p>
                 </div>
               </div>
@@ -261,6 +142,10 @@ export const SpaceDashboard = () => {
                   </div>
                 ))}
               </div>
+
+              <p className="mt-6 border-t border-border-soft pt-4 text-xs font-medium italic leading-relaxed text-text-muted">
+                The best archive is not only complete; it is understandable by the next generation.
+              </p>
             </section>
 
             <section className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
@@ -289,9 +174,9 @@ export const SpaceDashboard = () => {
               </div>
 
               <div className="rounded-[1.7rem] border border-white/75 bg-surface/94 p-5 shadow-soft ring-1 ring-border-soft/60 sm:p-6">
-                <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-sage-green">Recent Activity</p>
+                <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-sage-green">Archive Signals</p>
                 <div className="mt-5 grid gap-3">
-                  {recentActivity.map((item, index) => (
+                  {archiveSignals.map((item, index) => (
                     <div key={item} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-[1.15rem] border border-border-soft bg-background px-4 py-3">
                       <span className="grid h-8 w-8 place-items-center rounded-full bg-surface-soft text-xs font-extrabold text-warm-brown">
                         {index + 1}
@@ -311,7 +196,7 @@ export const SpaceDashboard = () => {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-white/70">AI Family Assistant</p>
-                    <h2 className="mt-3 font-display text-2xl font-bold tracking-tight">Turn scattered notes into meaningful family history.</h2>
+                    <h2 className="mt-3 font-display text-2xl font-bold tracking-tight">Turn scattered family memories into reviewable stories.</h2>
                   </div>
                   <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-white ring-1 ring-white/20">
                     <Sparkles className="h-5 w-5" strokeWidth={iconStroke} />
@@ -319,36 +204,28 @@ export const SpaceDashboard = () => {
                 </div>
 
                 <p className="mt-4 text-sm font-medium leading-6 text-white/76">
-                  AI drafts stay inside this family space until reviewed.
+                  Use AI to draft biographies, explain family relationships, and turn milestones into timeline stories. Drafts stay inside this FamilySpace until reviewed by the family.
                 </p>
 
                 <div className="mt-5 grid gap-3">
-                  {[
-                    { title: "Explain Relationship", description: "Ask how two family members are related." },
-                    { title: "Generate Biography", description: "Create a warm biography from short notes." },
-                    { title: "Create Timeline Story", description: "Turn milestones into a readable family journey." },
-                  ].map((action) => (
-                    <button
-                      key={action.title}
-                      type="button"
-                      disabled
-                      className="flex min-h-16 cursor-not-allowed items-center justify-between gap-4 rounded-[1.15rem] border border-white/15 bg-white/10 px-4 py-3 text-left opacity-90"
-                      title="Available after the Sprint 6 AI backend is connected."
+                  {AI_ACTIONS.map(({ title, description, to, icon: Icon }) => (
+                    <Link
+                      key={title}
+                      to={to}
+                      className="group flex min-h-16 items-start justify-between gap-4 rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-3 text-left shadow-soft transition hover:-translate-y-0.5 hover:bg-white/10 active:translate-y-[1px]"
                     >
-                      <span>
-                        <span className="block text-sm font-extrabold text-white">{action.title}</span>
-                        <span className="mt-1 block text-xs font-semibold leading-5 text-white/65">{action.description}</span>
+                      <span className="flex min-w-0 gap-3">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10 text-white ring-1 ring-white/20">
+                          <Icon className="h-4 w-4" strokeWidth={iconStroke} />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-extrabold text-white">{title}</span>
+                          <span className="mt-1 block text-sm leading-6 text-white/76">{description}</span>
+                        </span>
                       </span>
-                      <Lock className="h-4 w-4 shrink-0 text-white/60" strokeWidth={iconStroke} />
-                    </button>
+                      <ArrowRight className="mt-3 h-4 w-4 shrink-0 text-white/60 transition group-hover:translate-x-0.5" strokeWidth={iconStroke} />
+                    </Link>
                   ))}
-                </div>
-
-                <div className="mt-5 rounded-[1.15rem] border border-white/15 bg-white/10 p-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/58">Status</p>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-white/76">
-                    Disabled until protected AI endpoints are available. No fake action is exposed to users.
-                  </p>
                 </div>
               </div>
             </section>
@@ -373,6 +250,13 @@ export const SpaceDashboard = () => {
                   </Link>
                 ))}
               </div>
+            </section>
+
+            <section className="rounded-[1.45rem] border border-dark-green/15 bg-dark-green/6 p-5">
+              <p className="text-sm font-extrabold text-text-primary">Private by default</p>
+              <p className="mt-2 text-sm font-semibold leading-6 text-text-muted">
+                Only invited FamilySpace members can access this archive. AI-assisted drafts stay private until the family reviews them.
+              </p>
             </section>
 
             {!canEdit() && (

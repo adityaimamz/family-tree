@@ -321,11 +321,15 @@ export const mapFamilySpaceWithCounts = (space: any) => ({
 
 export const mapMembership = (membership: any) => ({
   role: membership.role,
+  displayName: membership.displayName ?? null,
+  avatarUrl: membership.avatarUrl ?? null,
   space: mapFamilySpaceWithCounts(membership.familySpace),
 });
 
 export const mapCurrentMembership = (membership: any, familySpace: any) => ({
   role: membership.role,
+  displayName: membership.displayName ?? null,
+  avatarUrl: membership.avatarUrl ?? null,
   space: mapFamilySpace(membership.familySpace ?? familySpace),
 });
 

@@ -6,7 +6,7 @@ const f = createUploadthing();
 
 export const uploadContentTypes = ["image/jpeg", "image/png", "image/webp"] as const;
 
-type UploadFolder = "members" | "gallery";
+type UploadFolder = "members" | "gallery" | "avatars";
 
 type CompatibleUploadResult = {
   url: string;

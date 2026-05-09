@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "RelationshipExplanationHistory_familySpaceId_fromMemberId_toMem" RENAME TO "RelationshipExplanationHistory_familySpaceId_fromMemberId_t_key";

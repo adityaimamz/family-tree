@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express";
 import type { AppUser, FamilyMembership, FamilyRole, FamilySpace } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./db.js";
 
 declare global {
@@ -25,6 +26,16 @@ const shouldLogAuthzDebug = () => process.env.NODE_ENV !== "production" && proce
 const authzLog = (event: string, data: Record<string, unknown>, level: "info" | "warn" = "info") => {
   if (level === "info" && !shouldLogAuthzDebug()) return;
   console[level](`[authz] ${event}`, data);
+};
+
+const isMissingMembershipProfileColumnError = (error: unknown) => {
+  const maybeError = error as { code?: unknown; message?: unknown; meta?: { code?: unknown; message?: unknown } } | null;
+  return (
+    maybeError?.code === "P2010" &&
+    (maybeError.meta?.code === "42703" ||
+      String(maybeError.message ?? "").includes("displayName") ||
+      String(maybeError.meta?.message ?? "").includes("displayName"))
+  );
 };
 
 export const loadAppUser: RequestHandler = async (req, res, next) => {
@@ -154,7 +165,36 @@ export const getFamilySpaceBySlug = async (spaceSlug: string, userId: string) =>
     },
   });
 
-  return { familySpace, membership } as const;
+  if (!membership) return { familySpace, membership: null } as const;
+
+  const profile = await (async () => {
+    try {
+      const [row] = await prisma.$queryRaw<Array<{ displayName: string | null; avatarUrl: string | null }>>(
+        Prisma.sql`
+          SELECT "displayName", "avatarUrl"
+          FROM "FamilyMembership"
+          WHERE "id" = ${membership.id}
+          LIMIT 1
+        `,
+      );
+      return row;
+    } catch (error) {
+      if (isMissingMembershipProfileColumnError(error)) {
+        authzLog("membership_profile_columns_missing", { spaceSlug, membershipId: membership.id }, "warn");
+        return null;
+      }
+      throw error;
+    }
+  })();
+
+  return {
+    familySpace,
+    membership: {
+      ...membership,
+      displayName: profile?.displayName ?? null,
+      avatarUrl: profile?.avatarUrl ?? null,
+    } as FamilyMembership,
+  } as const;
 };
 
 export const requireSpaceMembership: RequestHandler = async (req, res, next) => {

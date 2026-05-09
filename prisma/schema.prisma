@@ -97,6 +97,8 @@ model FamilyMembership {
   userId        String
   familySpaceId String
   role          FamilyRole @default(member)
+  displayName   String?
+  avatarUrl     String?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 

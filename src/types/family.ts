@@ -80,6 +80,8 @@ export interface FamilySpace {
 
 export interface FamilyMembership {
   role: "owner" | "admin" | "member";
+  displayName: string | null;
+  avatarUrl: string | null;
   space: FamilySpace;
 }
 

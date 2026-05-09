@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { loadAppUser, requireSpaceMembership, requireSpaceRole } from "../authorization.js";
 import { requireAuth } from "../neonAuth.js";
 import { prisma } from "../db.js";
@@ -174,10 +175,58 @@ spaceRoutes.get(
   loadAppUser,
   requireSpaceMembership,
   async (req, res) => {
-    res.json({
-      role: req.membership?.role,
-      space: req.familySpace ? mapFamilySpace(req.familySpace) : null,
-    });
+    res.json(
+      req.membership && req.familySpace
+        ? mapCurrentMembership(req.membership, req.familySpace)
+        : {
+            role: req.membership?.role,
+            displayName: null,
+            avatarUrl: null,
+            space: req.familySpace ? mapFamilySpace(req.familySpace) : null,
+          },
+    );
+  },
+);
+
+spaceRoutes.patch(
+  "/api/spaces/:spaceSlug/membership/profile",
+  requireAuth,
+  loadAppUser,
+  requireSpaceMembership,
+  async (req, res) => {
+    try {
+      if (!req.membership || !req.familySpace) {
+        res.status(500).json({ error: "Membership context not loaded." });
+        return;
+      }
+
+      const displayName = req.body && Object.prototype.hasOwnProperty.call(req.body, "displayName")
+        ? asNullableString(req.body.displayName)
+        : undefined;
+      const avatarUrl = req.body && Object.prototype.hasOwnProperty.call(req.body, "avatarUrl")
+        ? asNullableString(req.body.avatarUrl)
+        : undefined;
+
+      const updates: Prisma.Sql[] = [];
+      if (displayName !== undefined) updates.push(Prisma.sql`"displayName" = ${displayName}`);
+      if (avatarUrl !== undefined) updates.push(Prisma.sql`"avatarUrl" = ${avatarUrl}`);
+      updates.push(Prisma.sql`"updatedAt" = NOW()`);
+
+      const [membership] = await prisma.$queryRaw<any[]>(
+        Prisma.sql`
+          UPDATE "FamilyMembership"
+          SET ${Prisma.join(updates)}
+          WHERE "id" = ${req.membership.id}
+          RETURNING *
+        `,
+      );
+
+      res.json({
+        membership: mapCurrentMembership(membership, req.familySpace),
+      });
+    } catch (error) {
+      handleError(res, error, "Failed to update membership profile");
+    }
   },
 );
 

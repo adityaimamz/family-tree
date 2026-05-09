@@ -41,12 +41,12 @@ async function main() {
     where: { slug: "rahman-archive" },
     update: {
       name: "Rahman Archive",
-      description: "Demo private family archive (Sprint 3).",
+      description: "Family Archive of Rahman",
     },
     create: {
       slug: "rahman-archive",
       name: "Rahman Archive",
-      description: "Demo private family archive (Sprint 3).",
+      description: "Family Archive of Rahman",
     },
   });
 

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useLocation, useParams } from "react-router-dom";
-import { authFetch, spaceFetch } from "../lib/api";
+import { apiErrorMessage, authFetch, spaceFetch } from "../lib/api";
 import type {
   AppUser,
   FamilyBranch,
@@ -43,6 +43,7 @@ type SpaceContextValue = {
   saveTimelineEvent: (event: TimelineEvent, previousId?: string) => Promise<void>;
   deleteTimelineEvent: (id: string) => Promise<void>;
   updateSpace: (data: { name?: string; description?: string | null }) => Promise<void>;
+  updateMembershipProfile: (data: { displayName?: string | null; avatarUrl?: string | null }) => Promise<FamilyMembership | null>;
   
   // Helpers
   canEdit: () => boolean;
@@ -396,6 +397,31 @@ export const SpaceProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateMembershipProfile = async (data: { displayName?: string | null; avatarUrl?: string | null }) => {
+    if (!spaceSlug) return null;
+    try {
+      const response = await spaceFetch(spaceSlug, "/membership/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error(await apiErrorMessage(response, "Failed to update account profile"));
+      }
+
+      const result = (await response.json()) as { membership?: FamilyMembership };
+      const nextMembership = result.membership ?? null;
+      if (nextMembership) setMembership(nextMembership);
+      addToast("Account profile saved successfully");
+      return nextMembership;
+    } catch (error) {
+      console.error(error);
+      addToast("Failed to save account profile", "error");
+      throw error;
+    }
+  };
+
   const value = useMemo<SpaceContextValue>(
     () => ({
       currentSpace,
@@ -418,6 +444,7 @@ export const SpaceProvider = ({ children }: { children: ReactNode }) => {
       saveTimelineEvent,
       deleteTimelineEvent,
       updateSpace,
+      updateMembershipProfile,
       canEdit,
       canDelete,
     }),

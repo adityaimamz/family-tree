@@ -10,8 +10,10 @@ import { sourceNoteRoutes } from "./sourceNoteRoutes.js";
 import { spaceRoutes } from "./spaceRoutes.js";
 import { storyRoutes } from "./storyRoutes.js";
 import { timelineRoutes } from "./timelineRoutes.js";
+import { uploadRoutes } from "./uploadRoutes.js";
 
 export const registerRoutes = (app: Express) => {
+  app.use(uploadRoutes);
   app.use(spaceRoutes);
   app.use(memberRoutes);
   app.use(branchRoutes);
