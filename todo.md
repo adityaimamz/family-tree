@@ -825,18 +825,18 @@ AI drafts stay inside this family space until reviewed.
 
 Priority: **P2 / bagus untuk closing demo**
 
-* [ ] Backend endpoint:
+* [x] Backend endpoint:
 
 ```txt
 POST /api/spaces/:spaceSlug/ai/generate-timeline-story
 ```
 
-* [ ] Endpoint wajib require auth + FamilySpace membership
-* [ ] Ambil timeline events dari FamilySpace aktif
-* [ ] Output family journey summary
-* [ ] Frontend panel di Timeline page
-* [ ] Bisa copy atau save sebagai Story draft
-* [ ] Sediakan deterministic fallback jika AI env belum tersedia
+* [x] Endpoint wajib require auth + FamilySpace membership
+* [x] Ambil timeline events dari FamilySpace aktif
+* [x] Output family journey summary
+* [x] Frontend panel di Timeline page
+* [x] Bisa copy atau save sebagai Story draft
+* [x] Sediakan deterministic fallback jika AI env belum tersedia
 
 ---
 

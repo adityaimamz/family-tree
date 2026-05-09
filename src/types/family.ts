@@ -235,3 +235,12 @@ export interface BiographyGenerationResult {
   fallbackNote: string;
   source: "ai" | "deterministic";
 }
+
+export interface TimelineStoryGenerationResult {
+  timelineStoryDraft: string;
+  privacyReminder: string;
+  fallbackNote: string;
+  source: "ai" | "deterministic";
+  eventCount: number;
+  memberIds: string[];
+}
