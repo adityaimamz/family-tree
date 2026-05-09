@@ -1,6 +1,5 @@
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { Analytics } from "@vercel/analytics/react";
 import { NeonAuthUIProvider } from "@neondatabase/neon-js/auth/react/ui";
 import "@neondatabase/neon-js/ui/css";
 import App from "./App";
@@ -28,7 +27,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
     <NeonAuthUIProvider authClient={neonAuth} redirectTo="/app" toast={handleAuthToast}>
       <App />
-      <Analytics />
     </NeonAuthUIProvider>
   </BrowserRouter>,
 );

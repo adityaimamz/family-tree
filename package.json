@@ -20,7 +20,6 @@
     "@prisma/adapter-neon": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@uploadthing/react": "^7.3.3",
-    "@vercel/analytics": "^2.0.1",
     "@vitejs/plugin-react": "^5.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
