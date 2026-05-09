@@ -421,6 +421,16 @@ async function main() {
           branchId: "garis-utama",
           summary: "Keluarga inti generasi kedua.",
         },
+        {
+          familySpaceId: familySpace.id,
+          slugId: "keluarga-alya",
+          name: "Keluarga Alya Rahman",
+          parentIds: ["rahman-daughter", "daughter-spouse"],
+          childIds: ["grandchild-2", "grandchild-3"],
+          childrenIds: ["grandchild-2", "grandchild-3"],
+          branchId: "cabang-kedua",
+          summary: "Keluarga inti cabang kedua.",
+        },
       ],
     });
 

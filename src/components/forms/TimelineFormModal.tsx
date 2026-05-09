@@ -2,7 +2,7 @@ import { Trash2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useSpaceStore } from "../../hooks/useSpaceStore";
 import type { TimelineEvent, TimelineEventType } from "../../types/family";
-import { FilterSelect, SecondaryButton, iconStroke } from "../ui";
+import { FilterSelect, MultiSelectList, SecondaryButton, iconStroke } from "../ui";
 import { AppModal } from "../ui/AppModal";
 
 const inputClass =
@@ -84,25 +84,17 @@ export function TimelineFormModal({
             <span className="mb-2 block text-sm font-semibold text-text-primary">Description</span>
             <textarea className={`${inputClass} min-h-28 resize-y`} value={form.description} onChange={(item) => update("description", item.target.value)} />
           </label>
-          <label className="block md:col-span-2">
-            <span className="mb-2 block text-sm font-semibold text-text-primary">Related members</span>
-            <select
-              className="min-h-40 w-full rounded-2xl border border-border-soft bg-background px-4 py-3 text-sm font-medium text-text-primary shadow-soft outline-none transition focus:border-dark-green focus:ring-4 focus:ring-sage-green/12"
-              multiple
-              size={7}
-              value={selectedMemberIds}
-              onChange={(item) => {
-                const ids = Array.from(item.currentTarget.selectedOptions, (option) => option.value);
-                setForm((current) => ({ ...current, relatedMemberIds: ids, memberIds: ids }));
-              }}
-            >
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.displayName || member.fullName}
-                </option>
-              ))}
-            </select>
-          </label>
+          <MultiSelectList
+            className="md:col-span-2"
+            label="Related members"
+            values={selectedMemberIds}
+            options={members.map((member) => ({
+              value: member.id,
+              label: member.displayName || member.fullName,
+              description: member.familyBranch,
+            }))}
+            onChange={(ids) => setForm((current) => ({ ...current, relatedMemberIds: ids, memberIds: ids }))}
+          />
         </div>
 
         <div className="flex flex-col justify-end gap-3 sm:flex-row sm:flex-wrap">

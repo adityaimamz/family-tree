@@ -78,6 +78,32 @@ textarea {
   border-radius: 999px;
 }
 
+.dropdown-scroll {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--dark-green) / 0.62) hsl(var(--surface-soft) / 0.72);
+}
+
+.dropdown-scroll::-webkit-scrollbar {
+  width: 9px;
+}
+
+.dropdown-scroll::-webkit-scrollbar-track {
+  background: hsl(var(--surface-soft) / 0.72);
+  border-radius: 999px;
+  margin: 0.75rem 0;
+}
+
+.dropdown-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--dark-green) / 0.62);
+  border: 2px solid hsl(var(--surface));
+  border-radius: 999px;
+}
+
+.dropdown-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--dark-green) / 0.78);
+}
+
 .surface-grain::before {
   content: "";
   position: absolute;

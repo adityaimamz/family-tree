@@ -9,7 +9,7 @@ import type { FamilyMember } from "../../types/family";
 import type { FocusMode } from "../../types/tree";
 import { getAncestorIds, getDescendantIds, memberById } from "../../utils/family";
 import { buildTreeLayout } from "../../utils/treeLayout";
-import { SecondaryButton } from "../ui";
+import { DropdownSelect } from "../ui";
 import { AutoGenerationTree } from "./AutoGenerationTree";
 import { BranchSummaryCard } from "./BranchSummaryCard";
 import { FocusSearchCombobox, memberMatchesTerm } from "./FocusSearchCombobox";
@@ -36,9 +36,13 @@ const midpointBetween = (a: { x: number; y: number }, b: { x: number; y: number 
 
 export const FamilyTreeCanvas = ({
   members,
+  highlightMemberIds = [],
+  relationshipEndpointIds,
   onSelectMember,
 }: {
   members: FamilyMember[];
+  highlightMemberIds?: string[];
+  relationshipEndpointIds?: { startId?: string; targetId?: string };
   onSelectMember: (member: FamilyMember) => void;
 }) => {
   const [query, setQuery] = useState("");
@@ -70,9 +74,25 @@ export const FamilyTreeCanvas = ({
 
   const { families } = useSpaceStore();
   const memberMap = useMemo(() => memberById(members), [members]);
+  const highlightIds = useMemo(
+    () => new Set(highlightMemberIds.filter((id) => memberMap[id])),
+    [highlightMemberIds, memberMap],
+  );
+  const pathOrderByMemberId = useMemo(
+    () => new Map(highlightMemberIds.map((id, index) => [id, index + 1] as const).filter(([id]) => memberMap[id])),
+    [highlightMemberIds, memberMap],
+  );
+  const relationshipMode = highlightIds.size > 0;
   const branchOptions = useMemo(
     () => Array.from(new Set(members.map((member) => member.familyBranch).filter(Boolean))).sort(),
     [members],
+  );
+  const branchSelectOptions = useMemo(
+    () => [
+      { value: "all", label: "All branches" },
+      ...branchOptions.map((branch) => ({ value: branch, label: branch })),
+    ],
+    [branchOptions],
   );
   const visibleTreeMembers = useMemo(
     () => (activeBranch === "all" ? members : members.filter((member) => member.familyBranch === activeBranch)),
@@ -140,14 +160,37 @@ export const FamilyTreeCanvas = ({
       const viewport = viewportRef.current;
       if (!viewport) return nextPan;
 
-      const minX = Math.min(PAN_EDGE_PADDING, viewport.clientWidth - layout.width * zoomLevel - PAN_EDGE_PADDING);
-      const minY = Math.min(PAN_EDGE_PADDING, viewport.clientHeight - layout.height * zoomLevel - PAN_EDGE_PADDING);
+      const contentWidth = layout.width * zoomLevel;
+      const contentHeight = layout.height * zoomLevel;
+
+      // Horizontal centering or clamping
+      let minX, maxX;
+      if (contentWidth < viewport.clientWidth) {
+        const offset = (viewport.clientWidth - contentWidth) / 2;
+        minX = offset;
+        maxX = offset;
+      } else {
+        minX = viewport.clientWidth - contentWidth - PAN_EDGE_PADDING;
+        maxX = PAN_EDGE_PADDING;
+      }
+
+      // Vertical centering or clamping
+      let minY, maxY;
+      if (contentHeight < viewport.clientHeight) {
+        const offset = (viewport.clientHeight - contentHeight) / 2;
+        minY = offset;
+        maxY = offset;
+      } else {
+        minY = viewport.clientHeight - contentHeight - PAN_EDGE_PADDING;
+        maxY = PAN_EDGE_PADDING;
+      }
+
       return {
-        x: Math.max(minX, Math.min(PAN_EDGE_PADDING, nextPan.x)),
-        y: Math.max(minY, Math.min(PAN_EDGE_PADDING, nextPan.y)),
+        x: Math.max(minX, Math.min(maxX, nextPan.x)),
+        y: Math.max(minY, Math.min(maxY, nextPan.y)),
       };
     },
-    [layout.height, layout.width],
+    [layout.height, layout.width, viewportSize.width, viewportSize.height],
   );
 
   const panForMember = useCallback(
@@ -180,6 +223,50 @@ export const FamilyTreeCanvas = ({
       pulseTimerRef.current = window.setTimeout(() => setPulseMemberId(null), 2100);
     },
     [panForMember, zoom],
+  );
+
+  const focusCanvasOnMembers = useCallback(
+    (memberIds: string[], zoomLevel = Math.min(0.86, Math.max(MIN_TREE_ZOOM, zoom))) => {
+      const viewport = viewportRef.current;
+      if (!viewport) return;
+
+      const positions = memberIds.map((memberId) => memberCanvasPositions.get(memberId)).filter(Boolean) as {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      }[];
+      if (!positions.length) return;
+
+      const left = Math.min(...positions.map((position) => position.x));
+      const right = Math.max(...positions.map((position) => position.x + position.width));
+      const top = Math.min(...positions.map((position) => position.y));
+      const bottom = Math.max(...positions.map((position) => position.y + position.height));
+      const boxWidth = Math.max(TREE_NODE_WIDTH, right - left);
+      const boxHeight = Math.max(TREE_NODE_HEIGHT, bottom - top);
+      const fitZoom = clampNumber(
+        Math.min((viewport.clientWidth - 96) / boxWidth, (viewport.clientHeight - 120) / boxHeight, zoomLevel),
+        MIN_TREE_ZOOM,
+        MAX_TREE_ZOOM,
+      );
+
+      setFocusMode("all");
+      setZoom(fitZoom);
+      setPan(
+        clampPan(
+          {
+            x: viewport.clientWidth / 2 - (left + boxWidth / 2) * fitZoom,
+            y: viewport.clientHeight / 2 - (top + boxHeight / 2) * fitZoom,
+          },
+          fitZoom,
+        ),
+      );
+
+      if (pulseTimerRef.current) window.clearTimeout(pulseTimerRef.current);
+      setPulseMemberId(memberIds[0] ?? null);
+      pulseTimerRef.current = window.setTimeout(() => setPulseMemberId(null), 1800);
+    },
+    [clampPan, memberCanvasPositions, zoom],
   );
 
   const homePan = useMemo(
@@ -220,6 +307,8 @@ export const FamilyTreeCanvas = ({
     if (!viewportSize.width || !viewportSize.height) return;
     if (!memberCanvasPositions.has(branchHomeMemberId)) return;
 
+    if (isAwayFromHome) return;
+
     const nextPan = panForMember(branchHomeMemberId, DEFAULT_TREE_ZOOM);
     if (!nextPan) return;
 
@@ -237,7 +326,13 @@ export const FamilyTreeCanvas = ({
     panForMember,
     viewportSize.height,
     viewportSize.width,
+    isAwayFromHome,
   ]);
+
+  useEffect(() => {
+    if (!relationshipMode || !viewportSize.width || !viewportSize.height) return;
+    focusCanvasOnMembers(highlightMemberIds);
+  }, [focusCanvasOnMembers, highlightMemberIds, relationshipMode, viewportSize.height, viewportSize.width]);
 
   const updateZoom = (nextZoom: number) => {
     const clampedZoom = clampNumber(nextZoom, MIN_TREE_ZOOM, MAX_TREE_ZOOM);
@@ -421,13 +516,31 @@ export const FamilyTreeCanvas = ({
   };
 
   return (
-    <div className="grid min-w-0 gap-5">
-      <div className="grid gap-4 lg:grid-cols-[minmax(260px,0.8fr)_minmax(360px,1.35fr)]">
-        <BranchSummaryCard branchName={activeBranch === "all" ? "Semua Cabang" : activeBranch} members={visibleTreeMembers} />
-        <div className="rounded-[1.6rem] border border-white/75 bg-surface/95 p-4 shadow-[0_20px_44px_-34px_rgba(80,54,30,0.72)] ring-1 ring-border-soft/60">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px]">
+    <div className="grid min-w-0 gap-4">
+      <div className="min-w-0 rounded-[1.5rem] border border-white/75 bg-surface/95 p-3 shadow-warm ring-1 ring-border-soft/60 sm:rounded-[1.8rem] sm:p-4">
+        <div className="mb-4 grid gap-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-xl font-extrabold text-text-primary">Family Tree Canvas</h2>
+              <p className="mt-1 text-sm leading-6 text-text-muted">
+                Search, filter, then focus the tree around the relationship path.
+              </p>
+            </div>
+            <TreeControls
+              zoom={zoom}
+              onZoomIn={() => updateZoom(zoom + 0.1)}
+              onZoomOut={() => updateZoom(zoom - 0.1)}
+              onReset={() => {
+                returnToHome();
+                setFocusMode("all");
+                setQuery("");
+              }}
+            />
+          </div>
+
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_240px]">
             <div>
-              <p className="mb-3 flex items-center gap-2 text-sm font-bold text-text-primary">
+              <p className="mb-2 flex items-center gap-2 text-sm font-bold text-text-primary">
                 <Search className="h-4 w-4 text-sage-green" strokeWidth={1.8} />
                 Search family member
               </p>
@@ -439,43 +552,38 @@ export const FamilyTreeCanvas = ({
                 onSelect={handleFocusResultChange}
               />
             </div>
-            <label className="block">
-              <span className="mb-3 block text-sm font-bold text-text-primary">Branch filter</span>
-              <select
-                className="min-h-12 w-full rounded-2xl border border-border-soft bg-background px-4 py-3 text-sm font-bold text-text-primary shadow-soft outline-none transition focus:border-dark-green focus:ring-4 focus:ring-sage-green/12"
-                value={activeBranch}
-                onChange={(event) => {
-                  setActiveBranch(event.target.value);
-                  setQuery("");
-                  setFocusMode("all");
-                }}
-              >
-                <option value="all">All branches</option>
-                {branchOptions.map((branch) => (
-                  <option key={branch} value={branch}>
-                    {branch}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <DropdownSelect
+              label="Branch filter"
+              value={activeBranch}
+              options={branchSelectOptions}
+              onChange={(value) => {
+                setActiveBranch(value);
+                setQuery("");
+                setFocusMode("all");
+              }}
+            />
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 xl:grid-cols-4">
+
+          <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
             {(
               [
-                ["all", "Tampilan Awal", Maximize2],
-                ["descendants", "Lihat Anak-Cucu", Network],
-                ["ancestors", "Lihat Leluhur", Eye],
-                ["nuclear", "Lihat Keluarga Dekat", Users],
+                ["all", relationshipMode ? "Focus path" : "Full tree", Maximize2],
+                ["descendants", "Descendants", Network],
+                ["ancestors", "Ancestors", Eye],
+                ["nuclear", "Close family", Users],
               ] as const
             ).map(([mode, label, Icon]) => (
               <button
                 key={mode as string}
-                className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl px-3 text-center text-sm font-semibold transition ${
+                className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl px-3 text-center text-sm font-semibold transition active:translate-y-[1px] ${
                   focusMode === mode
                     ? "bg-dark-green text-white shadow-soft"
                     : "bg-surface-soft/80 text-text-primary hover:bg-soft-gold/20"
                 }`}
-                onClick={() => setFocusMode(mode)}
+                onClick={() => {
+                  setFocusMode(mode);
+                  if (mode === "all" && relationshipMode) focusCanvasOnMembers(highlightMemberIds);
+                }}
               >
                 <Icon className="h-4 w-4 shrink-0" strokeWidth={1.8} />
                 <span className="line-clamp-1">{label}</span>
@@ -483,31 +591,10 @@ export const FamilyTreeCanvas = ({
             ))}
           </div>
         </div>
-      </div>
-
-      <div className="min-w-0 rounded-[1.5rem] border border-white/75 bg-surface/95 p-3 shadow-warm ring-1 ring-border-soft/60 sm:rounded-[2rem] sm:p-4">
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-text-primary">Pohon Keluarga</h2>
-            <p className="mt-1 text-sm text-text-muted">
-              Geser gambar untuk melihat keluarga lain. Gunakan tombol + dan - untuk memperbesar atau memperkecil.
-            </p>
-          </div>
-          <TreeControls
-            zoom={zoom}
-            onZoomIn={() => updateZoom(zoom + 0.1)}
-            onZoomOut={() => updateZoom(zoom - 0.1)}
-            onReset={() => {
-              returnToHome();
-              setFocusMode("all");
-              setQuery("");
-            }}
-          />
-        </div>
 
         <div
           ref={viewportRef}
-          className="tree-scroll archive-grid relative h-[70vh] min-h-[420px] max-h-[760px] touch-none select-none overflow-hidden rounded-[1.25rem] border border-border-soft/75 bg-[linear-gradient(135deg,hsl(var(--surface-soft)_/_0.72),hsl(var(--background)))] p-3 sm:h-[72vh] sm:rounded-[1.6rem] sm:p-5 lg:h-[760px]"
+          className="tree-scroll archive-grid relative h-[68vh] min-h-[430px] max-h-[720px] touch-none select-none overflow-hidden rounded-[1.25rem] border border-border-soft/75 bg-[linear-gradient(135deg,hsl(var(--surface-soft)_/_0.72),hsl(var(--background)))] p-3 sm:h-[70vh] sm:rounded-[1.45rem] sm:p-5 xl:h-[720px]"
           onClickCapture={handleCanvasClickCapture}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -529,16 +616,30 @@ export const FamilyTreeCanvas = ({
               <AutoGenerationTree
                 layout={layout}
                 focusIds={focusIds}
+                highlightIds={highlightIds}
+                pathOrderByMemberId={pathOrderByMemberId}
+                endpointIds={relationshipEndpointIds}
                 pulseMemberId={pulseMemberId}
                 onSelect={handleSelect}
               />
             </AnimatePresence>
           </motion.div>
           {familyConfig.features.minimap && <MiniMap layout={layout} pan={pan} zoom={zoom} viewportSize={viewportSize} onJump={handleMiniMapJump} />}
+          {relationshipMode && (
+            <div className="absolute left-4 top-4 z-[4] rounded-[1.1rem] border border-border-soft/80 bg-surface/95 p-3 text-xs font-bold text-text-primary shadow-warm ring-1 ring-white/80">
+              <p className="mb-2 text-[0.64rem] font-extrabold uppercase tracking-[0.16em] text-text-muted">Relationship legend</p>
+              <div className="grid gap-2">
+                <span className="flex items-center gap-2"><i className="h-3 w-3 rounded-full bg-dark-green" />Start person</span>
+                <span className="flex items-center gap-2"><i className="h-3 w-3 rounded-full bg-soft-gold" />Relationship path</span>
+                <span className="flex items-center gap-2"><i className="h-3 w-3 rounded-full border-2 border-soft-gold bg-dark-green" />Target person</span>
+                <span className="flex items-center gap-2 text-text-muted"><i className="h-3 w-3 rounded-full bg-border-soft" />Other members</span>
+              </div>
+            </div>
+          )}
           {isAwayFromHome && (
             <motion.button
               data-no-canvas-pan="true"
-              aria-label="Kembali ke tengah pohon keluarga"
+              aria-label="Return to the center of the family tree"
               className="absolute bottom-[6.25rem] right-4 z-[3] inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border-soft bg-surface/95 px-4 text-sm font-bold text-text-primary shadow-warm backdrop-blur transition hover:bg-surface-soft active:translate-y-[1px]"
               initial={{ opacity: 0, y: 10, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -547,15 +648,13 @@ export const FamilyTreeCanvas = ({
               onClick={returnToHome}
             >
               <RotateCcw className="h-4 w-4 text-sage-green" strokeWidth={1.8} />
-              Kembali ke Tengah
+              {relationshipMode ? "Focus path" : "Recenter"}
             </motion.button>
           )}
         </div>
-        {/* <div className="mt-4 flex flex-wrap gap-2">
-          <SecondaryButton onClick={() => setFocusMode("descendants")}>Lihat di Pohon</SecondaryButton>
-          <SecondaryButton onClick={() => setFocusMode("nuclear")}>Lihat Keluarga Dekat</SecondaryButton>
-        </div> */}
       </div>
+
+      <BranchSummaryCard branchName={activeBranch === "all" ? "All branches" : activeBranch} members={visibleTreeMembers} />
     </div>
   );
 };

@@ -202,3 +202,13 @@ export interface PlatformSystemInfo {
   nodeVersion: string;
   uptime: number;
 }
+
+export interface RelationshipExplanation {
+  relationshipLabel: string;
+  explanation: string;
+  path: { id: string; name: string }[];
+  pathMemberIds: string[];
+  confidence: "high" | "medium" | "low";
+  fallbackNote: string;
+  source: "ai" | "deterministic";
+}

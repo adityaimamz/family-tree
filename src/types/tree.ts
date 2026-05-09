@@ -12,6 +12,7 @@ export type ConnectorLine = {
   id: string;
   path: string;
   color: string;
+  memberIds?: string[];
 };
 
 export type TreeLayoutUnit = GenerationUnit & {
@@ -37,6 +38,7 @@ export type FamilyLayoutNode = {
 export type FamilyConnector = {
   familyId: string;
   color: string;
+  parentIds: string[];
   parentBottom: number;
   parentCenterX: number;
   leftChildX: number;

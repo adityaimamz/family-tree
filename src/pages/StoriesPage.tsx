@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { BookOpen, CheckCircle2, Clock3, FileText, Inbox, Plus, ScrollText, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Badge, EmptyState, LoadingState, PageShell, SectionHeader, iconStroke, pageTransition } from "../components/ui";
+import { Badge, DropdownSelect, EmptyState, LoadingState, PageShell, SectionHeader, iconStroke, pageTransition } from "../components/ui";
 import { apiErrorMessage, spaceFetch } from "../lib/api";
 import { useSpaceStore } from "../hooks/useSpaceStore";
 import type { SourceNote, SourceNoteType, Story, StoryStatus } from "../types/family";
@@ -34,6 +34,7 @@ const statusLabel = (status: StoryStatus) => {
 const noteTypeLabel = (type: SourceNoteType) => type.replace("_", " ");
 
 const noteTypeOptions: SourceNoteType[] = ["note", "photo_context", "interview", "document", "chat"];
+const storyStatusOptions: StoryStatus[] = ["draft", "in_review", "approved"];
 
 export const StoriesPage = () => {
   const { spaceSlug } = useParams<{ spaceSlug: string }>();
@@ -234,15 +235,12 @@ export const StoriesPage = () => {
                   placeholder="Write the family story draft"
                   onChange={(event) => setStoryForm((current) => ({ ...current, content: event.target.value }))}
                 />
-                <select
-                  className={inputClass}
+                <DropdownSelect
+                  label="Story status"
                   value={storyForm.status}
-                  onChange={(event) => setStoryForm((current) => ({ ...current, status: event.target.value as StoryStatus }))}
-                >
-                  <option value="draft">draft</option>
-                  <option value="in_review">in review</option>
-                  <option value="approved">approved</option>
-                </select>
+                  options={storyStatusOptions.map((status) => ({ value: status, label: statusLabel(status) }))}
+                  onChange={(value) => setStoryForm((current) => ({ ...current, status: value as StoryStatus }))}
+                />
                 <div className="grid gap-3 md:grid-cols-2">
                   <div>
                     <p className="mb-2 text-sm font-bold text-text-primary">Related members</p>
@@ -318,17 +316,12 @@ export const StoriesPage = () => {
                   placeholder="Interview details, document context, photo notes, chat snippets, or raw memories"
                   onChange={(event) => setNoteForm((current) => ({ ...current, content: event.target.value }))}
                 />
-                <select
-                  className={inputClass}
+                <DropdownSelect
+                  label="Note type"
                   value={noteForm.type}
-                  onChange={(event) => setNoteForm((current) => ({ ...current, type: event.target.value as SourceNoteType }))}
-                >
-                  {noteTypeOptions.map((type) => (
-                    <option key={type} value={type}>
-                      {noteTypeLabel(type)}
-                    </option>
-                  ))}
-                </select>
+                  options={noteTypeOptions.map((type) => ({ value: type, label: noteTypeLabel(type) }))}
+                  onChange={(value) => setNoteForm((current) => ({ ...current, type: value as SourceNoteType }))}
+                />
                 <div>
                   <p className="mb-2 text-sm font-bold text-text-primary">Attach to stories</p>
                   <div className="max-h-40 overflow-y-auto rounded-2xl border border-border-soft bg-background p-2">

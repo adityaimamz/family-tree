@@ -40,7 +40,7 @@ export const FocusSearchCombobox = ({
       }}
     >
       <label className="block">
-        <span className="sr-only">Cari dan pilih anggota keluarga</span>
+        <span className="sr-only">Search and choose a family member</span>
         <span className="relative block">
           <Search
             className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-sage-green"
@@ -48,7 +48,7 @@ export const FocusSearchCombobox = ({
           />
           <input
             className="min-h-14 w-full rounded-2xl border border-border-soft bg-surface py-3 pl-12 pr-24 text-base font-semibold text-text-primary shadow-soft outline-none transition placeholder:text-text-muted/70 focus:border-dark-green focus:ring-2 focus:ring-sage-green/20"
-            placeholder="Ketik nama anggota keluarga"
+            placeholder="Type a family member name"
 
 
 
@@ -63,7 +63,7 @@ export const FocusSearchCombobox = ({
           <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
             {query && (
               <button
-                aria-label="Hapus pencarian"
+                aria-label="Clear search"
                 className="grid h-9 w-9 place-items-center rounded-xl text-text-muted transition hover:bg-surface-soft hover:text-text-primary"
                 type="button"
                 onClick={() => {
@@ -75,7 +75,7 @@ export const FocusSearchCombobox = ({
               </button>
             )}
             <button
-              aria-label="Buka daftar anggota"
+              aria-label="Open member list"
               className="grid h-9 w-9 place-items-center rounded-xl bg-surface-soft text-text-primary transition hover:bg-soft-gold/20"
               type="button"
               onClick={() => setOpen((value) => !value)}
@@ -97,7 +97,7 @@ export const FocusSearchCombobox = ({
           >
             <div className="flex items-center justify-between gap-3 border-b border-border-soft bg-surface-soft/70 px-4 py-3">
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-text-muted">
-                {filteredMembers.length ? `${filteredMembers.length} hasil` : "Tidak ada hasil"}
+                {filteredMembers.length ? `${filteredMembers.length} results` : "No results"}
               </p>
               {selectedMember && (
                 <span className="max-w-[12rem] truncate rounded-full bg-background px-3 py-1 text-xs font-bold text-warm-brown">
@@ -137,7 +137,7 @@ export const FocusSearchCombobox = ({
                             selected ? "text-white/75" : "text-text-muted"
                           }`}
                         >
-                          Generasi {member.generation} - {member.statusLabel}
+                          Generation {member.generation} - {member.statusLabel}
                         </span>
                       </span>
                       {selected && <Check className="h-5 w-5" strokeWidth={2} />}
@@ -146,9 +146,9 @@ export const FocusSearchCombobox = ({
                 })
               ) : (
                 <div className="px-4 py-7 text-center">
-                  <p className="text-sm font-bold text-text-primary">Nama tidak ditemukan</p>
+                  <p className="text-sm font-bold text-text-primary">No member found</p>
                   <p className="mt-1 text-xs leading-5 text-text-muted">
-                    Coba ketik nama lain atau pilih keluarga yang berbeda.
+                    Try another name or choose a different branch.
                   </p>
                 </div>
               )}

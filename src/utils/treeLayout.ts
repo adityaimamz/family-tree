@@ -22,10 +22,66 @@ export const buildTreeLayout = (
 ): TreeLayout => {
   const visibleIds = new Set(visibleMembers.map((m) => m.id));
   const familyChildIds = (family: NuclearFamily) => family.childrenIds ?? [];
+  const normalizedFamilies = new Map<string, NuclearFamily>();
+  const familyIdByParentKey = new Map<string, string>();
+  const parentKey = (parentIds: string[]) => [...parentIds].sort().join("|");
+
+  nuclearFamilies.forEach((family) => {
+    const childrenIds = Array.from(new Set([...(family.childrenIds ?? []), ...(family.childIds ?? [])]));
+    const normalizedFamily = {
+      ...family,
+      childIds: childrenIds,
+      childrenIds,
+    };
+    normalizedFamilies.set(family.id, normalizedFamily);
+    if (family.parentIds.length > 0) familyIdByParentKey.set(parentKey(family.parentIds), family.id);
+  });
+
+  const addInferredFamilyChild = (parentIds: string[], childId: string, branchId: string) => {
+    const parents = parentIds.filter((id) => allMembers[id]);
+    if (parents.length === 0 || !allMembers[childId]) return;
+
+    const key = parentKey(parents);
+    const existingFamilyId = familyIdByParentKey.get(key);
+    const familyId = existingFamilyId ?? `inferred:${key || "unknown"}:${branchId}`;
+    const family =
+      normalizedFamilies.get(familyId) ??
+      ({
+        id: familyId,
+        name: parents.map((id) => allMembers[id]?.displayName || allMembers[id]?.fullName).filter(Boolean).join(" & "),
+        parentIds: parents,
+        childIds: [],
+        childrenIds: [],
+        branchId,
+        summary: "Inferred from member parent-child relationships.",
+      } satisfies NuclearFamily);
+
+    const nextChildren = Array.from(new Set([...(family.childrenIds ?? []), ...(family.childIds ?? []), childId]));
+    normalizedFamilies.set(familyId, {
+      ...family,
+      childIds: nextChildren,
+      childrenIds: nextChildren,
+    });
+    familyIdByParentKey.set(key, familyId);
+  };
+
+  visibleMembers.forEach((member) => {
+    const parentIds = [member.fatherId, member.motherId].filter((id): id is string => Boolean(id && allMembers[id]));
+    if (parentIds.length > 0) addInferredFamilyChild(parentIds, member.id, member.familyBranch);
+
+    member.childrenIds.forEach((childId) => {
+      const child = allMembers[childId];
+      if (!child) return;
+      const childParentIds = [child.fatherId, child.motherId].filter((id): id is string => Boolean(id && allMembers[id]));
+      const parentIdsFromChild = childParentIds.length > 0 ? childParentIds : [member.id];
+      addInferredFamilyChild(parentIdsFromChild, childId, child.familyBranch || member.familyBranch);
+    });
+  });
+
   const familyHasVisibleMember = (family: NuclearFamily) =>
     family.parentIds.some((id) => visibleIds.has(id)) || familyChildIds(family).some((id) => visibleIds.has(id));
 
-  const visibleFamilies = nuclearFamilies.filter(familyHasVisibleMember);
+  const visibleFamilies = Array.from(normalizedFamilies.values()).filter(familyHasVisibleMember);
   const familyById = new Map(visibleFamilies.map((family) => [family.id, family]));
   const memberOriginFamilies = new Map<string, string[]>();
   const memberParentFamilies = new Map<string, string[]>();
@@ -415,6 +471,7 @@ export const buildTreeLayout = (
       familyConnectors.push({
         familyId: node.family.id,
         color: connectorColorForFamily(node.family.id),
+        parentIds: node.parentIds,
         parentBottom,
         parentCenterX,
         leftChildX: Math.min(...childCenters),
@@ -444,12 +501,14 @@ export const buildTreeLayout = (
       id: `${connector.familyId}-stem`,
       path: `M ${connector.parentCenterX} ${connector.parentBottom} V ${connector.midY}`,
       color: connector.color,
+      memberIds: connector.parentIds,
     });
 
     lines.push({
       id: `${connector.familyId}-horizontal`,
       path: `M ${connector.leftChildX} ${connector.midY} H ${connector.rightChildX}`,
       color: connector.color,
+      memberIds: [...connector.parentIds, ...connector.childAnchors.map((child) => child.childId)],
     });
 
     connector.childAnchors.forEach((child) => {
@@ -457,6 +516,7 @@ export const buildTreeLayout = (
         id: `${connector.familyId}-child-${child.childId}`,
         path: `M ${child.centerX} ${connector.midY} V ${child.topY}`,
         color: connector.color,
+        memberIds: [...connector.parentIds, child.childId],
       });
     });
   });

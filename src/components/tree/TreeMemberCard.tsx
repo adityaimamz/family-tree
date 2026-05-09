@@ -9,14 +9,21 @@ export const TreeMemberCard = ({
   member,
   muted,
   pulse,
+  highlighted,
+  pathOrder,
+  pathRole = "none",
   onClick,
 }: {
   member: FamilyMember;
   muted?: boolean;
   pulse?: boolean;
+  highlighted?: boolean;
+  pathOrder?: number;
+  pathRole?: "start" | "path" | "target" | "none";
   onClick: (member: FamilyMember) => void;
 }) => {
   const initials = getInitials(member.displayName || member.fullName).toUpperCase();
+  const isEndpoint = pathRole === "start" || pathRole === "target";
 
   return (
     <motion.button
@@ -26,13 +33,43 @@ export const TreeMemberCard = ({
       transition={{ type: "spring", stiffness: 190, damping: 19 }}
       className={`group relative overflow-hidden rounded-[1rem] border bg-surface p-2 text-left shadow-[0_18px_34px_-28px_rgba(80,54,30,0.8)] ring-1 transition active:translate-y-[1px] ${
         muted
-          ? "border-border-soft/80 opacity-40 saturate-0 ring-border-soft/60"
-          : "border-white/85 ring-border-soft/70 hover:border-soft-gold/55 hover:shadow-[0_24px_42px_-30px_rgba(80,54,30,0.9)]"
+          ? "border-border-soft/70 opacity-28 saturate-0 ring-border-soft/50"
+          : highlighted && isEndpoint
+            ? "border-soft-gold bg-[linear-gradient(180deg,hsl(var(--surface))_0%,hsl(var(--soft-gold)_/_0.2)_100%)] ring-4 ring-soft-gold/45 shadow-[0_26px_58px_-26px_rgba(183,138,53,0.95)]"
+            : highlighted
+              ? "border-sage-green/70 bg-[linear-gradient(180deg,hsl(var(--surface))_0%,hsl(var(--sage-green)_/_0.13)_100%)] ring-2 ring-sage-green/35 shadow-[0_24px_46px_-30px_rgba(45,68,43,0.72)]"
+              : "border-white/85 ring-border-soft/70 hover:border-soft-gold/55 hover:shadow-[0_24px_42px_-30px_rgba(80,54,30,0.9)]"
       }`}
       style={{ minHeight: TREE_NODE_HEIGHT, width: TREE_NODE_WIDTH }}
       onClick={() => onClick(member)}
     >
-      <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,hsl(var(--soft-gold)),hsl(var(--sage-green)),hsl(var(--warm-brown)))]" />
+      <span
+        className={`pointer-events-none absolute inset-x-0 top-0 h-1 ${
+          highlighted && isEndpoint
+            ? "bg-[linear-gradient(90deg,hsl(var(--soft-gold)),hsl(var(--soft-gold)),hsl(var(--dark-green)))]"
+            : highlighted
+              ? "bg-[linear-gradient(90deg,hsl(var(--sage-green)),hsl(var(--soft-gold)))]"
+              : "bg-[linear-gradient(90deg,hsl(var(--soft-gold)),hsl(var(--sage-green)),hsl(var(--warm-brown)))]"
+        }`}
+      />
+      {highlighted && !muted && (
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-0 rounded-[1rem] ${
+            isEndpoint ? "bg-soft-gold/18" : "bg-sage-green/10"
+          }`}
+        />
+      )}
+      {pathOrder && !muted && (
+        <span
+          aria-label={`Relationship path step ${pathOrder}`}
+          className={`absolute left-2 top-2 z-[3] grid h-6 w-6 place-items-center rounded-full text-[11px] font-extrabold shadow-soft ring-2 ring-white/85 ${
+            isEndpoint ? "bg-dark-green text-white" : "bg-soft-gold text-text-primary"
+          }`}
+        >
+          {pathOrder}
+        </span>
+      )}
       {pulse && (
         <motion.span
           aria-hidden="true"

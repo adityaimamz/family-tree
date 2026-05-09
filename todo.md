@@ -684,13 +684,13 @@ Context: First reunion after moving to Jakarta.
 
 Stories adalah pembeda penting WarisanAI dari family tree biasa.
 
-* [ ] Stories page dibuat lebih narrative-oriented
+* [x] Stories page dibuat lebih narrative-oriented
 * [x] Tampilkan status story (sudah ada di StoriesPage.tsx dengan Badge):
 
   * draft ✅
   * in review ✅
   * approved ✅
-* [ ] Source Notes diframing sebagai `Memory Inbox`
+* [x] Source Notes diframing sebagai `Memory Inbox`
 * [x] Memory Inbox menyimpan (noteTypeOptions sudah ada di StoriesPage.tsx):
 
   * interview notes ✅ (type: interview)
@@ -708,8 +708,15 @@ Connect to member
 Turn into story with AI
 ```
 
-* [ ] Jangan buat page baru kalau waktu terbatas
-* [ ] Cukup matangkan Source Notes di Stories page sebagai Memory Inbox
+* [x] Jangan buat page baru kalau waktu terbatas
+* [x] Cukup matangkan Source Notes di Stories page sebagai Memory Inbox
+
+Catatan codebase:
+
+```txt
+Flow manual Memory Inbox -> connect to member/story -> story draft sudah tersedia.
+Bagian "Turn into story with AI" tetap menunggu Sprint 6 AI endpoint.
+```
 
 ---
 
@@ -743,30 +750,30 @@ Membuat WarisanAI berbeda dari family tree biasa melalui AI yang benar-benar bis
 
 Priority: **P1 / paling demo-friendly**
 
-* [ ] Backend endpoint:
+* [x] Backend endpoint:
 
 ```txt
 POST /api/spaces/:spaceSlug/ai/explain-relationship
 ```
 
-* [ ] Endpoint wajib require auth + FamilySpace membership
-* [ ] Hanya boleh menggunakan data dari FamilySpace aktif
-* [ ] Input:
+* [x] Endpoint wajib require auth + FamilySpace membership
+* [x] Hanya boleh menggunakan data dari FamilySpace aktif
+* [x] Input:
 
   * `fromMemberId`
   * `toMemberId`
-* [ ] Backend cari relationship path dari data family tree
-* [ ] Output minimal:
+* [x] Backend cari relationship path dari data family tree
+* [x] Output minimal:
 
   * relationship label
   * plain-language explanation
   * path array
   * confidence/fallback note jika relasi tidak ditemukan
-* [ ] Frontend panel di Family Tree page
-* [ ] User bisa pilih Person A dan Person B
-* [ ] Tampilkan explanation dan relationship path
-* [ ] Highlight path di UI jika feasible
-* [ ] Sediakan deterministic fallback jika AI env belum tersedia
+* [x] Frontend panel di Family Tree page
+* [x] User bisa pilih Person A dan Person B
+* [x] Tampilkan explanation dan relationship path
+* [x] Highlight path di UI jika feasible
+* [x] Sediakan deterministic fallback jika AI env belum tersedia
 
 Contoh output:
 

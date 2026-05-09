@@ -242,36 +242,74 @@ export const SearchBar = ({
   </label>
 );
 
-export const FilterSelect = ({
+export type DropdownSelectOption =
+  | string
+  | {
+      value: string;
+      label: string;
+      description?: string;
+      disabled?: boolean;
+    };
+
+const normalizeDropdownOption = (option: DropdownSelectOption) =>
+  typeof option === "string"
+    ? {
+        value: option,
+        label: option,
+      }
+    : option;
+
+export const DropdownSelect = ({
   label,
   value,
   options,
   onChange,
+  placeholder = "Pilih opsi",
+  tone = "light",
+  className = "",
 }: {
   label: string;
   value: string;
-  options: string[];
+  options: DropdownSelectOption[];
   onChange: (value: string) => void;
+  placeholder?: string;
+  tone?: "light" | "dark";
+  className?: string;
 }) => {
   const [open, setOpen] = useState(false);
   const listboxId = useId();
+  const normalizedOptions = options.map(normalizeDropdownOption);
+  const selectedOption = normalizedOptions.find((option) => option.value === value);
+  const isDark = tone === "dark";
 
   return (
     <div
-      className="relative block"
+      className={`relative block ${className}`}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
       }}
     >
-      <span className="mb-2 block text-sm font-semibold text-text-primary">{label}</span>
+      <span
+        className={`mb-2 block ${
+          isDark
+            ? "text-xs font-bold uppercase tracking-[0.14em] text-white/82"
+            : "text-sm font-semibold text-text-primary"
+        }`}
+      >
+        {label}
+      </span>
       <button
         aria-controls={listboxId}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border bg-surface px-4 py-3 text-left text-sm font-semibold text-text-primary shadow-soft transition ${
-          open
-            ? "border-dark-green ring-4 ring-sage-green/12"
-            : "border-border-soft hover:border-sage-green/40 hover:bg-surface-soft/55"
+        className={`group flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-bold shadow-soft transition active:translate-y-[1px] ${
+          isDark
+            ? open
+              ? "border-white/58 bg-white/18 text-white ring-4 ring-white/10"
+              : "border-white/28 bg-white/12 text-white hover:border-white/46 hover:bg-white/16"
+            : open
+              ? "border-dark-green bg-surface text-text-primary ring-4 ring-sage-green/12"
+              : "border-border-soft bg-surface text-text-primary hover:border-sage-green/40 hover:bg-surface-soft/55"
         }`}
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -279,9 +317,13 @@ export const FilterSelect = ({
           if (event.key === "Escape") setOpen(false);
         }}
       >
-        <span className="min-w-0 truncate">{value === "Semua Cabang" ? "Semua Keluarga" : value}</span>
+        <span className={`min-w-0 truncate ${selectedOption ? "" : isDark ? "text-white/72" : "text-text-muted"}`}>
+          {selectedOption?.label ?? placeholder}
+        </span>
         <ChevronDown
-          className={`h-4 w-4 shrink-0 text-text-muted transition ${open ? "rotate-180 text-dark-green" : ""}`}
+          className={`h-4 w-4 shrink-0 transition ${
+            open ? "rotate-180" : ""
+          } ${isDark ? "text-white/72 group-hover:text-white" : open ? "text-dark-green" : "text-text-muted"}`}
           strokeWidth={iconStroke}
         />
       </button>
@@ -296,34 +338,134 @@ export const FilterSelect = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 260, damping: 24 }}
-            className="absolute left-0 right-0 top-[calc(100%+0.55rem)] z-[24] max-h-72 overflow-y-auto rounded-[1.35rem] border border-border-soft bg-surface p-2 shadow-warm ring-1 ring-white/70"
+            className="dropdown-scroll absolute left-0 right-0 top-[calc(100%+0.55rem)] z-[30] max-h-72 overflow-y-auto rounded-[1.35rem] border border-border-soft bg-surface p-2 shadow-warm ring-1 ring-white/70"
           >
-            {options.map((option) => {
-              const selected = option === value;
+            {normalizedOptions.length ? (
+              normalizedOptions.map((option) => {
+                const selected = option.value === value;
+                const disabled = Boolean(option.disabled);
               return (
                 <button
-                  key={option}
+                  key={option.value}
                   role="option"
                   aria-selected={selected}
-                  className={`grid w-full grid-cols-[minmax(0,1fr)_22px] items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition ${
-                    selected
-                      ? "bg-dark-green font-bold text-white"
-                      : "font-semibold text-text-primary hover:bg-surface-soft"
+                    disabled={disabled}
+                    className={`grid min-h-11 w-full grid-cols-[minmax(0,1fr)_22px] items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition active:translate-y-[1px] ${
+                      selected
+                        ? "bg-dark-green font-bold text-white shadow-soft"
+                        : disabled
+                          ? "cursor-not-allowed font-semibold text-text-muted/55"
+                          : "font-semibold text-text-primary hover:bg-surface-soft"
                   }`}
                   type="button"
                   onClick={() => {
-                    onChange(option);
+                      if (disabled) return;
+                      onChange(option.value);
                     setOpen(false);
                   }}
                 >
-                  <span className="truncate">{option === "Semua Cabang" ? "Semua Keluarga" : option}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate">{option.label}</span>
+                      {option.description && (
+                        <span className={`mt-0.5 block truncate text-xs ${selected ? "text-white/72" : "text-text-muted"}`}>
+                          {option.description}
+                        </span>
+                      )}
+                    </span>
                   {selected && <Check className="h-4 w-4" strokeWidth={2} />}
                 </button>
               );
-            })}
+              })
+            ) : (
+              <p className="px-3 py-5 text-center text-sm font-semibold text-text-muted">Tidak ada pilihan</p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+};
+
+export const FilterSelect = ({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) => (
+  <DropdownSelect
+    label={label}
+    value={value}
+    options={options.map((option) => ({
+      value: option,
+      label: option === "Semua Cabang" ? "Semua Keluarga" : option,
+    }))}
+    onChange={onChange}
+  />
+);
+
+export const MultiSelectList = ({
+  label,
+  values,
+  options,
+  onChange,
+  emptyLabel = "Tidak ada pilihan",
+  className = "",
+}: {
+  label: string;
+  values: string[];
+  options: DropdownSelectOption[];
+  onChange: (values: string[]) => void;
+  emptyLabel?: string;
+  className?: string;
+}) => {
+  const normalizedOptions = options.map(normalizeDropdownOption);
+  const selectedValues = new Set(values);
+
+  return (
+    <div className={className}>
+      <span className="mb-2 block text-sm font-semibold text-text-primary">{label}</span>
+      <div className="dropdown-scroll max-h-52 overflow-y-auto rounded-2xl border border-border-soft bg-background p-2 shadow-soft">
+        {normalizedOptions.length ? (
+          normalizedOptions.map((option) => {
+            const selected = selectedValues.has(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                className={`mb-1 grid min-h-10 w-full grid-cols-[minmax(0,1fr)_22px] items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition active:translate-y-[1px] ${
+                  selected
+                    ? "bg-dark-green font-bold text-white shadow-soft"
+                    : "font-semibold text-text-primary hover:bg-surface-soft"
+                }`}
+                onClick={() =>
+                  onChange(
+                    selected
+                      ? values.filter((selectedValue) => selectedValue !== option.value)
+                      : [...values, option.value],
+                  )
+                }
+              >
+                <span className="min-w-0">
+                  <span className="block truncate">{option.label}</span>
+                  {option.description && (
+                    <span className={`mt-0.5 block truncate text-xs ${selected ? "text-white/72" : "text-text-muted"}`}>
+                      {option.description}
+                    </span>
+                  )}
+                </span>
+                {selected && <Check className="h-4 w-4" strokeWidth={2} />}
+              </button>
+            );
+          })
+        ) : (
+          <p className="px-3 py-5 text-center text-sm font-semibold text-text-muted">{emptyLabel}</p>
+        )}
+      </div>
     </div>
   );
 };
