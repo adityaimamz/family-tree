@@ -3,7 +3,7 @@ import { loadAppUser, requireSpaceMembership, requireSpaceRole } from "../author
 import { requireAuth } from "../neonAuth.js";
 import { prisma } from "../db.js";
 import { handleError } from "../http/error.js";
-import { asRouteParam, mapTimelineEvent, timelineDataFromBody } from "./shared.js";
+import { asRouteParam, mapTimelineEvent, parsePagination, timelineDataFromBody } from "./shared.js";
 
 const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
 const requireSpaceWrite = [requireAuth, loadAppUser, requireSpaceMembership, requireSpaceRole(["owner", "admin"])];
@@ -17,11 +17,44 @@ timelineRoutes.get("/api/spaces/:spaceSlug/timeline", ...requireSpaceRead, async
       return;
     }
 
-    const events = await prisma.timelineEvent.findMany({
-      where: { familySpaceId: req.familySpace.id },
-      orderBy: { year: "asc" },
-    });
-    res.json(events.map(mapTimelineEvent));
+    const pagination = parsePagination(req.query);
+    if ("error" in pagination) {
+      res.status(400).json({ error: pagination.error });
+      return;
+    }
+
+    const where = { familySpaceId: req.familySpace.id };
+
+    if (pagination.mode === "legacy") {
+      // Legacy mode: return bare array (no pagination)
+      const events = await prisma.timelineEvent.findMany({
+        where,
+        orderBy: { year: "asc" },
+      });
+      res.json(events.map(mapTimelineEvent));
+    } else {
+      // Paged mode: return paginated response with metadata
+      const { page, pageSize } = pagination;
+      const skip = (page - 1) * pageSize;
+
+      const [items, total] = await prisma.$transaction([
+        prisma.timelineEvent.findMany({
+          where,
+          orderBy: { year: "asc" },
+          skip,
+          take: pageSize,
+        }),
+        prisma.timelineEvent.count({ where }),
+      ]);
+
+      res.json({
+        items: items.map(mapTimelineEvent),
+        page,
+        pageSize,
+        total,
+        hasMore: page * pageSize < total,
+      });
+    }
   } catch (error) {
     handleError(res, error, "Failed to fetch timeline events");
   }

@@ -3,7 +3,7 @@ import { loadAppUser, requireSpaceMembership, requireSpaceRole } from "../author
 import { requireAuth } from "../neonAuth.js";
 import { prisma } from "../db.js";
 import { handleError } from "../http/error.js";
-import { asNullableString, asRouteParam, galleryDataFromBody, mapGalleryItem } from "./shared.js";
+import { asNullableString, asRouteParam, galleryDataFromBody, mapGalleryItem, parsePagination } from "./shared.js";
 
 const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
 const requireSpaceWrite = [requireAuth, loadAppUser, requireSpaceMembership, requireSpaceRole(["owner", "admin"])];
@@ -17,11 +17,44 @@ galleryRoutes.get("/api/spaces/:spaceSlug/gallery", ...requireSpaceRead, async (
       return;
     }
 
-    const items = await prisma.galleryItem.findMany({
-      where: { familySpaceId: req.familySpace.id },
-      orderBy: { year: "asc" },
-    });
-    res.json(items.map(mapGalleryItem));
+    const where = { familySpaceId: req.familySpace.id };
+    const pagination = parsePagination(req.query);
+
+    if ("error" in pagination) {
+      res.status(400).json({ error: pagination.error });
+      return;
+    }
+
+    if (pagination.mode === "legacy") {
+      // Legacy mode: return bare array
+      const items = await prisma.galleryItem.findMany({
+        where,
+        orderBy: { year: "asc" },
+      });
+      res.json(items.map(mapGalleryItem));
+    } else {
+      // Paged mode: return paginated response
+      const { page, pageSize } = pagination;
+      const skip = (page - 1) * pageSize;
+
+      const [items, total] = await prisma.$transaction([
+        prisma.galleryItem.findMany({
+          where,
+          orderBy: { year: "asc" },
+          skip,
+          take: pageSize,
+        }),
+        prisma.galleryItem.count({ where }),
+      ]);
+
+      res.json({
+        items: items.map(mapGalleryItem),
+        page,
+        pageSize,
+        total,
+        hasMore: page * pageSize < total,
+      });
+    }
   } catch (error) {
     handleError(res, error, "Failed to fetch gallery items");
   }

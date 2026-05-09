@@ -72,14 +72,6 @@ const explainRelationshipFromPath = (
       : `${fromName} is ${possessiveName(toName)} grandparent based on the parent-child chain in this FamilySpace.`;
   }
 
-  if ((label === "aunt" || label === "uncle" || label === "aunt or uncle") && pathIds.length >= 3) {
-    const parent = memberMap.get(pathIds[1]);
-    if (parent) {
-      const parentName = memberName(parent);
-      return `${fromName} is ${possessiveName(toName)} ${label}. ${fromName} and ${parentName} are connected as siblings, and ${toName} is connected as ${possessiveName(parentName)} child.`;
-    }
-  }
-
   if (label === "cousin" && pathIds.length >= 4) {
     const fromParent = memberMap.get(pathIds[1]);
     const toParent = memberMap.get(pathIds[2]);
@@ -203,22 +195,12 @@ export const deterministicRelationship = (
   } else if (from.siblingIds.includes(to.id) || to.siblingIds.includes(from.id)) {
     label = genderedSiblingLabel(from);
     confidence = "high";
-  } else if (ids.length === 3) {
-    const middle = memberMap.get(ids[1]);
-    const fromSiblingToParent =
-      middle &&
-      (from.siblingIds.includes(middle.id) || middle.siblingIds.includes(from.id)) &&
-      (to.fatherId === middle.id || to.motherId === middle.id);
-    if (fromSiblingToParent) {
-      label = genderedAuntUncleLabel(from);
-      confidence = "medium";
-    } else if (middle && (middle.fatherId === to.id || middle.motherId === to.id)) {
-      label = "grandchild";
-      confidence = "medium";
-    } else if (middle && (to.fatherId === middle.id || to.motherId === middle.id)) {
-      label = "grandparent";
-      confidence = "medium";
-    }
+  } else if (ids.length === 3 && ids[1] && (memberMap.get(ids[1])?.fatherId === to.id || memberMap.get(ids[1])?.motherId === to.id)) {
+    label = "grandchild";
+    confidence = "medium";
+  } else if (ids.length === 3 && (to.fatherId === ids[1] || to.motherId === ids[1])) {
+    label = "grandparent";
+    confidence = "medium";
   } else if (ids.length === 4) {
     const middleA = memberMap.get(ids[1]);
     const middleB = memberMap.get(ids[2]);

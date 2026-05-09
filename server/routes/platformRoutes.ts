@@ -3,6 +3,7 @@ import { loadAppUser, requirePlatformAdmin } from "../authorization.js";
 import { requireAuth } from "../neonAuth.js";
 import { prisma } from "../db.js";
 import { handleError } from "../http/error.js";
+import { parsePagination } from "./shared.js";
 
 export const platformRoutes = Router();
 
@@ -44,65 +45,163 @@ platformRoutes.get("/api/platform/stats", requireAuth, loadAppUser, requirePlatf
   }
 });
 
-platformRoutes.get("/api/platform/spaces", requireAuth, loadAppUser, requirePlatformAdmin, async (_req, res) => {
+platformRoutes.get("/api/platform/spaces", requireAuth, loadAppUser, requirePlatformAdmin, async (req, res) => {
   try {
-    const spaces = await prisma.familySpace.findMany({
-      include: {
-        _count: {
-          select: {
-            members: true,
-            timelineEvents: true,
-            galleryItems: true,
+    const pagination = parsePagination(req.query);
+
+    if ("error" in pagination) {
+      res.status(400).json({ error: pagination.error });
+      return;
+    }
+
+    if (pagination.mode === "legacy") {
+      // Legacy mode: return bare array
+      const spaces = await prisma.familySpace.findMany({
+        include: {
+          _count: {
+            select: {
+              members: true,
+              timelineEvents: true,
+              galleryItems: true,
+            },
+          },
+          memberships: {
+            select: { role: true },
           },
         },
-        memberships: {
-          select: { role: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+      });
 
-    res.json(
-      spaces.map((space) => ({
-        id: space.id,
-        slug: space.slug,
-        name: space.name,
-        ownerCount: space.memberships.filter((membership) => membership.role === "owner").length,
-        memberCount: space.memberships.length,
-        recordCounts: {
-          members: space._count.members,
-          timeline: space._count.timelineEvents,
-          gallery: space._count.galleryItems,
-        },
-        createdAt: space.createdAt,
-      })),
-    );
+      res.json(
+        spaces.map((space) => ({
+          id: space.id,
+          slug: space.slug,
+          name: space.name,
+          ownerCount: space.memberships.filter((membership) => membership.role === "owner").length,
+          memberCount: space.memberships.length,
+          recordCounts: {
+            members: space._count.members,
+            timeline: space._count.timelineEvents,
+            gallery: space._count.galleryItems,
+          },
+          createdAt: space.createdAt,
+        })),
+      );
+    } else {
+      // Paged mode: return paginated response
+      const { page, pageSize } = pagination;
+      const skip = (page - 1) * pageSize;
+
+      const [spaces, total] = await prisma.$transaction([
+        prisma.familySpace.findMany({
+          include: {
+            _count: {
+              select: {
+                members: true,
+                timelineEvents: true,
+                galleryItems: true,
+              },
+            },
+            memberships: {
+              select: { role: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: pageSize,
+        }),
+        prisma.familySpace.count(),
+      ]);
+
+      res.json({
+        items: spaces.map((space) => ({
+          id: space.id,
+          slug: space.slug,
+          name: space.name,
+          ownerCount: space.memberships.filter((membership) => membership.role === "owner").length,
+          memberCount: space.memberships.length,
+          recordCounts: {
+            members: space._count.members,
+            timeline: space._count.timelineEvents,
+            gallery: space._count.galleryItems,
+          },
+          createdAt: space.createdAt,
+        })),
+        page,
+        pageSize,
+        total,
+        hasMore: page * pageSize < total,
+      });
+    }
   } catch (error) {
     handleError(res, error, "Failed to fetch platform spaces");
   }
 });
 
-platformRoutes.get("/api/platform/users", requireAuth, loadAppUser, requirePlatformAdmin, async (_req, res) => {
+platformRoutes.get("/api/platform/users", requireAuth, loadAppUser, requirePlatformAdmin, async (req, res) => {
   try {
-    const users = await prisma.appUser.findMany({
-      include: {
-        _count: {
-          select: { memberships: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const pagination = parsePagination(req.query);
 
-    res.json(
-      users.map((user) => ({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        platformRole: user.platformRole,
-        spacesCount: user._count.memberships,
-        createdAt: user.createdAt,
-      })),
-    );
+    if ("error" in pagination) {
+      res.status(400).json({ error: pagination.error });
+      return;
+    }
+
+    if (pagination.mode === "legacy") {
+      // Legacy mode: return bare array
+      const users = await prisma.appUser.findMany({
+        include: {
+          _count: {
+            select: { memberships: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      res.json(
+        users.map((user) => ({
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          platformRole: user.platformRole,
+          spacesCount: user._count.memberships,
+          createdAt: user.createdAt,
+        })),
+      );
+    } else {
+      // Paged mode: return paginated response
+      const { page, pageSize } = pagination;
+      const skip = (page - 1) * pageSize;
+
+      const [users, total] = await prisma.$transaction([
+        prisma.appUser.findMany({
+          include: {
+            _count: {
+              select: { memberships: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: pageSize,
+        }),
+        prisma.appUser.count(),
+      ]);
+
+      res.json({
+        items: users.map((user) => ({
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          platformRole: user.platformRole,
+          spacesCount: user._count.memberships,
+          createdAt: user.createdAt,
+        })),
+        page,
+        pageSize,
+        total,
+        hasMore: page * pageSize < total,
+      });
+    }
   } catch (error) {
     handleError(res, error, "Failed to fetch platform users");
   }

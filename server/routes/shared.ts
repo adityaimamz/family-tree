@@ -1,3 +1,5 @@
+import { prisma } from "../db.js";
+
 export const asStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 
@@ -19,6 +21,103 @@ export const safeFilename = (value: string) =>
     .replaceAll(/(^-|-$)/g, "")
     .slice(0, 72) || "photo";
 
+export interface SpaceSummary {
+  membersCount: number;
+  generationsCount: number;
+  branchesCount: number;
+  nuclearFamiliesCount: number;
+  timelineCount: number;
+  galleryCount: number;
+  storiesCount: number;
+}
+
+export const computeSpaceSummary = async (familySpaceId: string): Promise<SpaceSummary> => {
+  const [
+    membersCount,
+    generationRows,
+    branchesCount,
+    nuclearFamiliesCount,
+    timelineCount,
+    galleryCount,
+    storiesCount,
+  ] = await prisma.$transaction([
+    prisma.familyMember.count({ where: { familySpaceId } }),
+    prisma.familyMember.findMany({
+      where: { familySpaceId },
+      select: { generation: true },
+      distinct: ["generation"],
+    }),
+    prisma.familyBranch.count({ where: { familySpaceId } }),
+    prisma.nuclearFamily.count({ where: { familySpaceId } }),
+    prisma.timelineEvent.count({ where: { familySpaceId } }),
+    prisma.galleryItem.count({ where: { familySpaceId } }),
+    prisma.story.count({ where: { familySpaceId } }),
+  ]);
+
+  return {
+    membersCount,
+    generationsCount: generationRows.length,
+    branchesCount,
+    nuclearFamiliesCount,
+    timelineCount,
+    galleryCount,
+    storiesCount,
+  };
+};
+
+// Prisma select shape for fetching tree members with all required fields
+export const treeMemberSelect = {
+  slugId: true,
+  fullName: true,
+  displayName: true,
+  gender: true,
+  generation: true,
+  familyBranchId: true,
+  fatherId: true,
+  motherId: true,
+  spouseIds: true,
+  formerSpouseIds: true,
+  childrenIds: true,
+  siblingIds: true,
+  parentFamilyId: true,
+  nuclearFamilyIds: true,
+  birthDate: true,
+  marriageDate: true,
+  deathDate: true,
+  isDeceased: true,
+  deceasedLabel: true,
+  photo: true,
+  statusLabel: true,
+  relationshipToRoot: true,
+} as const;
+
+// Maps a treeMemberSelect-shaped row to the Tree_Data_Endpoint member response
+export const mapTreeMember = (member: any) => ({
+  id: member.slugId,
+  fullName: member.fullName,
+  displayName: member.displayName,
+  gender: member.gender,
+  generation: member.generation,
+  familyBranch: member.familyBranchId,
+  fatherId: member.fatherId,
+  motherId: member.motherId,
+  spouseIds: member.spouseIds ?? [],
+  formerSpouseIds: member.formerSpouseIds ?? [],
+  childrenIds: member.childrenIds ?? [],
+  siblingIds: member.siblingIds ?? [],
+  parentFamilyId: member.parentFamilyId,
+  nuclearFamilyIds: member.nuclearFamilyIds ?? [],
+  birthDate: member.birthDate,
+  marriageDate: member.marriageDate,
+  deathDate: member.deathDate,
+  isDeceased: member.isDeceased,
+  deceasedLabel: member.deceasedLabel,
+  photo: member.photo,
+  statusLabel: member.statusLabel,
+  relationshipToRoot: member.relationshipToRoot,
+});
+
+// Legacy mapMember for Bootstrap_Endpoint (includes birthPlace, biography, notes)
 export const mapMember = (member: any) => ({
   id: member.slugId,
   fullName: member.fullName,
@@ -229,3 +328,99 @@ export const slugify = (value: string) =>
     .replaceAll(/[^a-z0-9]+/g, "-")
     .replaceAll(/(^-|-$)/g, "")
     .slice(0, 72);
+
+// ============================================
+// Pagination Types and Parser
+// ============================================
+
+export type PaginationParams =
+  | { mode: "legacy" } // no page, no pageSize
+  | { mode: "paged"; page: number; pageSize: number }; // at least one of them provided
+
+type PaginationResult = PaginationParams | { error: string };
+
+/**
+ * Parse pagination query parameters from Express req.query
+ * - Returns { mode: "legacy" } when both page and pageSize are absent (undefined)
+ * - Returns { mode: "paged", page, pageSize } when at least one is present
+ * - Validates that page and pageSize are positive integers if provided
+ * - Clamps pageSize to [1, 100] range
+ * - Defaults to page=1 if not provided, pageSize=20 if not provided
+ * - Returns { error: string } for invalid input
+ */
+export const parsePagination = (query: Record<string, unknown>): PaginationResult => {
+  const page = query.page;
+  const pageSize = query.pageSize;
+
+  const hasPage = page !== undefined;
+  const hasPageSize = pageSize !== undefined;
+
+  // If neither is present, return legacy mode
+  if (!hasPage && !hasPageSize) {
+    return { mode: "legacy" };
+  }
+
+  // At least one is present - paged mode
+  let parsedPage: number;
+  let parsedPageSize: number;
+
+  // Parse and validate page
+  if (hasPage) {
+    if (typeof page === "string") {
+      const parsed = Number(page);
+      if (!Number.isInteger(parsed)) {
+        return { error: "page must be an integer" };
+      }
+      if (parsed <= 0) {
+        return { error: "page must be a positive integer" };
+      }
+      parsedPage = parsed;
+    } else {
+      return { error: "page must be a string" };
+    }
+  } else {
+    parsedPage = 1; // default
+  }
+
+  // Parse and validate pageSize
+  if (hasPageSize) {
+    if (typeof pageSize === "string") {
+      const parsed = Number(pageSize);
+      if (!Number.isInteger(parsed)) {
+        return { error: "pageSize must be an integer" };
+      }
+      if (parsed <= 0) {
+        return { error: "pageSize must be a positive integer" };
+      }
+      parsedPageSize = Math.min(100, Math.max(1, parsed)); // clamp to [1, 100]
+    } else {
+      return { error: "pageSize must be a string" };
+    }
+  } else {
+    parsedPageSize = 20; // default
+  }
+
+  return { mode: "paged", page: parsedPage, pageSize: parsedPageSize };
+};
+
+// ============================================
+// Narrowed Include Shapes for List Endpoints
+// ============================================
+
+/**
+ * Frozen constant with narrowed nested-select shape for Stories list endpoint.
+ * Only fetches the slugId from related members and source notes.
+ */
+export const storyListInclude = {
+  members: { select: { member: { select: { slugId: true } } } },
+  sourceNotes: { select: { sourceNote: { select: { slugId: true } } } },
+} as const;
+
+/**
+ * Frozen constant with narrowed nested-select shape for Source Notes list endpoint.
+ * Only fetches the slugId from related members and stories.
+ */
+export const sourceNoteListInclude = {
+  memberLinks: { select: { member: { select: { slugId: true } } } },
+  storyLinks: { select: { story: { select: { slugId: true } } } },
+} as const;

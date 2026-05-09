@@ -6,10 +6,15 @@ import { handleError } from "../http/error.js";
 import {
   asNonEmptyString,
   asNullableString,
+  computeSpaceSummary,
+  mapBranch,
   mapCurrentMembership,
   mapFamilySpace,
   mapMembership,
+  mapNuclearFamily,
+  mapTreeMember,
   slugify,
+  treeMemberSelect,
 } from "./shared.js";
 
 const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
@@ -123,38 +128,8 @@ spaceRoutes.get("/api/spaces/:spaceSlug/summary", ...requireSpaceRead, async (re
       return;
     }
 
-    const familySpaceId = req.familySpace.id;
-    const [
-      membersCount,
-      generationRows,
-      branchesCount,
-      nuclearFamiliesCount,
-      timelineCount,
-      galleryCount,
-      storiesCount,
-    ] = await prisma.$transaction([
-      prisma.familyMember.count({ where: { familySpaceId } }),
-      prisma.familyMember.findMany({
-        where: { familySpaceId },
-        select: { generation: true },
-        distinct: ["generation"],
-      }),
-      prisma.familyBranch.count({ where: { familySpaceId } }),
-      prisma.nuclearFamily.count({ where: { familySpaceId } }),
-      prisma.timelineEvent.count({ where: { familySpaceId } }),
-      prisma.galleryItem.count({ where: { familySpaceId } }),
-      prisma.story.count({ where: { familySpaceId } }),
-    ]);
-
-    res.json({
-      membersCount,
-      generationsCount: generationRows.length,
-      branchesCount,
-      nuclearFamiliesCount,
-      timelineCount,
-      galleryCount,
-      storiesCount,
-    });
+    const summary = await computeSpaceSummary(req.familySpace.id);
+    res.json(summary);
   } catch (error) {
     handleError(res, error, "Failed to fetch space summary");
   }
@@ -205,3 +180,47 @@ spaceRoutes.get(
     });
   },
 );
+
+spaceRoutes.get("/api/spaces/:spaceSlug/bootstrap", ...requireSpaceRead, async (req, res) => {
+  try {
+    if (!req.familySpace) {
+      res.status(500).json({ error: "FamilySpace context not loaded." });
+      return;
+    }
+
+    const include = req.query.include;
+    const includeCoreData = include === "coreData";
+
+    const summary = await computeSpaceSummary(req.familySpace.id);
+
+    const response: Record<string, unknown> = {
+      space: mapFamilySpace(req.familySpace),
+      membership: mapCurrentMembership(req.membership!, req.familySpace),
+      summary,
+    };
+
+    if (includeCoreData) {
+      const [members, branches, nuclearFamilies] = await Promise.all([
+        prisma.familyMember.findMany({
+          where: { familySpaceId: req.familySpace.id },
+          select: treeMemberSelect,
+          orderBy: [{ generation: "asc" }, { fullName: "asc" }],
+        }),
+        prisma.familyBranch.findMany({
+          where: { familySpaceId: req.familySpace.id },
+        }),
+        prisma.nuclearFamily.findMany({
+          where: { familySpaceId: req.familySpace.id },
+        }),
+      ]);
+
+      response.members = members.map(mapTreeMember);
+      response.branches = branches.map(mapBranch);
+      response.nuclearFamilies = nuclearFamilies.map(mapNuclearFamily);
+    }
+
+    res.json(response);
+  } catch (error) {
+    handleError(res, error, "Failed to load bootstrap data.");
+  }
+});

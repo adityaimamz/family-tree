@@ -3,7 +3,7 @@ import { loadAppUser, requireSpaceMembership, requireSpaceRole } from "../author
 import { requireAuth } from "../neonAuth.js";
 import { prisma } from "../db.js";
 import { handleError } from "../http/error.js";
-import { asRouteParam, mapMember, memberDataFromBody } from "./shared.js";
+import { asRouteParam, mapMember, memberDataFromBody, treeMemberSelect, mapTreeMember, mapBranch, mapNuclearFamily } from "./shared.js";
 
 const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
 const requireSpaceWrite = [requireAuth, loadAppUser, requireSpaceMembership, requireSpaceRole(["owner", "admin"])];
@@ -25,6 +25,41 @@ memberRoutes.get("/api/spaces/:spaceSlug/members", ...requireSpaceRead, async (r
     res.json(members.map(mapMember));
   } catch (error) {
     handleError(res, error, "Failed to fetch members");
+  }
+});
+
+memberRoutes.get("/api/spaces/:spaceSlug/tree-data", ...requireSpaceRead, async (req, res) => {
+  try {
+    if (!req.familySpace) {
+      res.status(500).json({ error: "FamilySpace context not loaded." });
+      return;
+    }
+
+    const where = { familySpaceId: req.familySpace.id };
+
+    const [members, branches, nuclearFamilies] = await prisma.$transaction([
+      prisma.familyMember.findMany({
+        where,
+        orderBy: [{ generation: "asc" }, { fullName: "asc" }],
+        select: treeMemberSelect,
+      }),
+      prisma.familyBranch.findMany({
+        where,
+        orderBy: { name: "asc" },
+      }),
+      prisma.nuclearFamily.findMany({
+        where,
+        orderBy: { name: "asc" },
+      }),
+    ]);
+
+    res.json({
+      members: members.map(mapTreeMember),
+      branches: branches.map(mapBranch),
+      nuclearFamilies: nuclearFamilies.map(mapNuclearFamily),
+    });
+  } catch (error) {
+    handleError(res, error, "Failed to load tree data.");
   }
 });
 

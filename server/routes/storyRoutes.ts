@@ -3,7 +3,7 @@ import { loadAppUser, requireSpaceMembership, requireSpaceRole } from "../author
 import { requireAuth } from "../neonAuth.js";
 import { prisma } from "../db.js";
 import { handleError } from "../http/error.js";
-import { mapStory, storyDataFromBody } from "./shared.js";
+import { mapStory, parsePagination, storyDataFromBody, storyListInclude } from "./shared.js";
 
 const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
 const requireSpaceWrite = [requireAuth, loadAppUser, requireSpaceMembership, requireSpaceRole(["owner", "admin"])];
@@ -17,15 +17,47 @@ storyRoutes.get("/api/spaces/:spaceSlug/stories", ...requireSpaceRead, async (re
       return;
     }
 
-    const stories = await prisma.story.findMany({
-      where: { familySpaceId: req.familySpace.id },
-      include: {
-        members: { include: { member: true } },
-        sourceNotes: { include: { sourceNote: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-    res.json(stories.map(mapStory));
+    const pagination = parsePagination(req.query);
+    if ("error" in pagination) {
+      res.status(400).json({ error: pagination.error });
+      return;
+    }
+
+    const where = { familySpaceId: req.familySpace.id };
+
+    if (pagination.mode === "legacy") {
+      // Legacy mode: return bare array
+      const stories = await prisma.story.findMany({
+        where,
+        include: storyListInclude,
+        orderBy: { updatedAt: "desc" },
+      });
+      res.json(stories.map(mapStory));
+    } else {
+      // Paged mode: return paginated response
+      const { page, pageSize } = pagination;
+      const skip = (page - 1) * pageSize;
+      const take = pageSize;
+
+      const [items, total] = await prisma.$transaction([
+        prisma.story.findMany({
+          where,
+          orderBy: { updatedAt: "desc" },
+          skip,
+          take,
+          include: storyListInclude,
+        }),
+        prisma.story.count({ where }),
+      ]);
+
+      res.json({
+        items: items.map(mapStory),
+        page,
+        pageSize,
+        total,
+        hasMore: page * pageSize < total,
+      });
+    }
   } catch (error) {
     handleError(res, error, "Failed to fetch stories");
   }
@@ -95,10 +127,7 @@ storyRoutes.post("/api/spaces/:spaceSlug/stories", ...requireSpaceWrite, async (
 
       return tx.story.findUniqueOrThrow({
         where: { id: created.id },
-        include: {
-          members: { include: { member: true } },
-          sourceNotes: { include: { sourceNote: true } },
-        },
+        include: storyListInclude,
       });
     });
 

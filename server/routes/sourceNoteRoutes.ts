@@ -3,7 +3,7 @@ import { loadAppUser, requireSpaceMembership, requireSpaceRole } from "../author
 import { requireAuth } from "../neonAuth.js";
 import { prisma } from "../db.js";
 import { handleError } from "../http/error.js";
-import { mapSourceNote, sourceNoteDataFromBody } from "./shared.js";
+import { mapSourceNote, parsePagination, sourceNoteDataFromBody, sourceNoteListInclude } from "./shared.js";
 
 const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
 const requireSpaceWrite = [requireAuth, loadAppUser, requireSpaceMembership, requireSpaceRole(["owner", "admin"])];
@@ -17,15 +17,46 @@ sourceNoteRoutes.get("/api/spaces/:spaceSlug/source-notes", ...requireSpaceRead,
       return;
     }
 
-    const notes = await prisma.sourceNote.findMany({
-      where: { familySpaceId: req.familySpace.id },
-      include: {
-        memberLinks: { include: { member: true } },
-        storyLinks: { include: { story: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-    res.json(notes.map(mapSourceNote));
+    const pagination = parsePagination(req.query);
+    if ("error" in pagination) {
+      res.status(400).json({ error: pagination.error });
+      return;
+    }
+
+    const where = { familySpaceId: req.familySpace.id };
+
+    if (pagination.mode === "legacy") {
+      // Legacy mode: return bare array (no pagination)
+      const notes = await prisma.sourceNote.findMany({
+        where,
+        orderBy: { updatedAt: "desc" },
+        include: sourceNoteListInclude,
+      });
+      res.json(notes.map(mapSourceNote));
+    } else {
+      // Paged mode: return paginated response with metadata
+      const { page, pageSize } = pagination;
+      const skip = (page - 1) * pageSize;
+
+      const [items, total] = await prisma.$transaction([
+        prisma.sourceNote.findMany({
+          where,
+          orderBy: { updatedAt: "desc" },
+          skip,
+          take: pageSize,
+          include: sourceNoteListInclude,
+        }),
+        prisma.sourceNote.count({ where }),
+      ]);
+
+      res.json({
+        items: items.map(mapSourceNote),
+        page,
+        pageSize,
+        total,
+        hasMore: page * pageSize < total,
+      });
+    }
   } catch (error) {
     handleError(res, error, "Failed to fetch source notes");
   }
@@ -95,10 +126,7 @@ sourceNoteRoutes.post("/api/spaces/:spaceSlug/source-notes", ...requireSpaceWrit
 
       return tx.sourceNote.findUniqueOrThrow({
         where: { id: created.id },
-        include: {
-          memberLinks: { include: { member: true } },
-          storyLinks: { include: { story: true } },
-        },
+        include: sourceNoteListInclude,
       });
     });
 
