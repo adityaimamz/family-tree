@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
-import { AlertTriangle, ArrowDown, Check, ChevronDown, Database, GitBranch, Info, Loader2, Network, RotateCcw, Route, Search, ShieldCheck, Sparkles, Users, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, ArrowDown, Check, ChevronDown, Database, GitBranch, History, Info, Loader2, Network, RefreshCw, RotateCcw, Route, Search, ShieldCheck, Sparkles, Users, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { FamilyTreeCanvas } from "../components/FamilyTree";
 import { MemberDetailModal } from "../components/MemberDetail";
@@ -8,9 +8,35 @@ import { PageShell, SectionHeader, iconStroke, pageTransition } from "../compone
 import { familyConfig } from "../config";
 import { useSpaceStore } from "../hooks/useSpaceStore";
 import { apiErrorMessage, spaceFetch } from "../lib/api";
-import type { FamilyMember, RelationshipExplanation } from "../types/family";
+import type { FamilyMember, RelationshipExplanation, RelationshipExplanationHistory } from "../types/family";
 
 const memberDisplayName = (member: FamilyMember) => member.displayName || member.fullName;
+
+const defaultPrivacyNote = "This explanation only uses data inside this FamilySpace.";
+
+const historyRowToExplanation = (row: RelationshipExplanationHistory, memberList: FamilyMember[]): RelationshipExplanation => {
+  const map = new Map(memberList.map((m) => [m.id, m]));
+  const path = row.pathMemberIds.map((id) => {
+    const member = map.get(id);
+    return { id, name: member ? memberDisplayName(member) : "Unknown member" };
+  });
+  const confidence =
+    row.confidence === "high" || row.confidence === "medium" || row.confidence === "low"
+      ? row.confidence
+      : "medium";
+  const source = row.source === "ai" || row.source === "deterministic" ? row.source : "deterministic";
+  return {
+    relationshipLabel: row.relationshipLabel,
+    explanation: row.explanation,
+    path,
+    pathMemberIds: row.pathMemberIds,
+    confidence,
+    fallbackNote: row.fallbackNote?.trim() ? row.fallbackNote : defaultPrivacyNote,
+    source,
+    cached: true,
+    historyId: row.id,
+  };
+};
 
 const memberMatchesSearch = (member: FamilyMember, query: string) =>
   [
@@ -151,6 +177,8 @@ export const TreePage = () => {
   const [relationship, setRelationship] = useState<RelationshipExplanation | null>(null);
   const [relationshipError, setRelationshipError] = useState("");
   const [isExplaining, setIsExplaining] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [relationshipHistory, setRelationshipHistory] = useState<RelationshipExplanationHistory[]>([]);
   const [showFullRelationshipPath, setShowFullRelationshipPath] = useState(false);
 
   const memberOptions = useMemo(
@@ -289,6 +317,22 @@ export const TreePage = () => {
     setToMemberId((current) => current || memberOptions.find((member) => member.id !== memberOptions[0]?.id)?.id || memberOptions[0]?.id || "");
   }, [memberOptions]);
 
+  const loadRelationshipHistory = useCallback(async () => {
+    if (!spaceSlug) return;
+    try {
+      const response = await spaceFetch(spaceSlug, "/ai/relationship-history");
+      if (!response.ok) return;
+      const data = (await response.json()) as RelationshipExplanationHistory[];
+      setRelationshipHistory(Array.isArray(data) ? data : []);
+    } catch {
+      /* ignore */
+    }
+  }, [spaceSlug]);
+
+  useEffect(() => {
+    void loadRelationshipHistory();
+  }, [loadRelationshipHistory]);
+
   useEffect(() => {
     setShowFullRelationshipPath(false);
   }, [relationship?.pathMemberIds, relationship?.path]);
@@ -302,33 +346,39 @@ export const TreePage = () => {
     setIsExplaining(false);
   };
 
-  const explainRelationship = async () => {
+  const explainRelationship = async (options?: { refresh?: boolean }) => {
     if (!spaceSlug || !fromMemberId || !toMemberId) return;
 
-    setIsExplaining(true);
-    setRelationshipError("");
-    setRelationship(null);
-    setShowFullRelationshipPath(false);
+    const refresh = options?.refresh === true;
+    if (refresh) setIsRegenerating(true);
+    else {
+      setIsExplaining(true);
+      setRelationshipError("");
+      setRelationship(null);
+      setShowFullRelationshipPath(false);
+    }
     try {
       const response = await spaceFetch(spaceSlug, "/ai/explain-relationship", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromMemberId, toMemberId }),
+        body: JSON.stringify({ fromMemberId, toMemberId, ...(refresh ? { refresh: true } : {}) }),
       });
 
       if (!response.ok) throw new Error(await apiErrorMessage(response, "Failed to explain relationship."));
       const result = (await response.json()) as RelationshipExplanation;
       setRelationship(result);
+      void loadRelationshipHistory();
       if (result.relationshipLabel.toLowerCase() === "relationship not found") {
         addToast("No clear relationship path found using current FamilySpace data.", "warning");
       } else {
-        addToast("Relationship explanation ready", "info");
+        addToast(refresh ? "Relationship regenerated" : "Relationship explanation ready", "info");
       }
     } catch (error) {
       setRelationshipError("No clear relationship path found using current FamilySpace data.");
       addToast("No clear relationship path found using current FamilySpace data.", "error");
     } finally {
-      setIsExplaining(false);
+      if (refresh) setIsRegenerating(false);
+      else setIsExplaining(false);
     }
   };
 
@@ -392,7 +442,7 @@ export const TreePage = () => {
                 <div className="grid grid-cols-[minmax(0,1fr)_48px] gap-2">
                   <button
                     type="button"
-                    disabled={isExplaining || !fromMemberId || !toMemberId}
+                    disabled={isExplaining || isRegenerating || !fromMemberId || !toMemberId}
                     className="group mt-1 flex min-h-12 items-center justify-center gap-3 rounded-2xl border border-white/35 bg-white px-4 text-sm font-extrabold text-dark-green shadow-[0_20px_42px_-28px_rgba(255,255,255,0.86)] transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:bg-soft-gold active:translate-y-[1px] disabled:cursor-wait disabled:border-white/25 disabled:bg-white disabled:text-dark-green disabled:opacity-95 disabled:shadow-[0_18px_36px_-28px_rgba(255,255,255,0.82)]"
                     onClick={() => void explainRelationship()}
                   >
@@ -411,6 +461,46 @@ export const TreePage = () => {
                   </button>
                 </div>
               </div>
+
+              {relationshipHistory.length > 0 && (
+                <div className="mt-4 rounded-[1.1rem] border border-white/14 bg-white/8 p-3 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08)]">
+                  <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.14em] text-white/72">
+                    <History className="h-3.5 w-3.5 text-soft-gold" strokeWidth={iconStroke} />
+                    Recent explanations
+                  </div>
+                  <ul className="mt-2 grid gap-1.5">
+                    {relationshipHistory.slice(0, 5).map((row) => {
+                      const nameA = displayNameForMember(memberMap.get(row.fromMemberId)) || row.fromMemberId;
+                      const nameB = displayNameForMember(memberMap.get(row.toMemberId)) || row.toMemberId;
+                      return (
+                        <li key={row.id}>
+                          <button
+                            type="button"
+                            className="flex w-full flex-col gap-1 rounded-[0.95rem] border border-white/12 bg-white/8 px-3 py-2.5 text-left transition hover:bg-white/12 active:translate-y-[1px]"
+                            onClick={() => {
+                              setFromMemberId(row.fromMemberId);
+                              setToMemberId(row.toMemberId);
+                              setRelationship(historyRowToExplanation(row, members));
+                              setRelationshipError("");
+                              setShowFullRelationshipPath(false);
+                            }}
+                          >
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className="min-w-0 flex-1 truncate text-sm font-extrabold text-white">
+                                {nameA} <span className="font-bold text-white/55">→</span> {nameB}
+                              </span>
+                              <span className="shrink-0 rounded-full border border-white/18 bg-white/10 px-2 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-[0.08em] text-white/78">
+                                History
+                              </span>
+                            </span>
+                            <span className="truncate text-xs font-bold capitalize text-white/72">{row.relationshipLabel}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
 
               {relationshipError && (
                 <div className="mt-4 rounded-[1.15rem] border border-warning/30 bg-warning/18 p-4">
@@ -432,6 +522,11 @@ export const TreePage = () => {
                     <span className="rounded-full border border-soft-gold/35 bg-soft-gold/18 px-3 py-1 text-xs font-extrabold text-soft-gold">
                       Based on FamilySpace data
                     </span>
+                    {relationship.cached ? (
+                      <span className="rounded-full border border-white/22 bg-white/14 px-3 py-1 text-xs font-extrabold text-white/92">
+                        Loaded from history
+                      </span>
+                    ) : null}
                     <span className="rounded-full border border-white/18 bg-white/12 px-3 py-1 text-xs font-extrabold text-white">
                       Confidence: {relationship.confidence}
                     </span>
@@ -511,8 +606,26 @@ export const TreePage = () => {
                   </div>
                   <p className="mt-3 flex items-start gap-2 rounded-[1rem] border border-white/12 bg-white/8 p-3 text-xs font-bold leading-5 text-white/84">
                     <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-soft-gold" strokeWidth={iconStroke} />
-                    {relationship.fallbackNote || "This explanation only uses data inside this FamilySpace."}
+                    {relationship.fallbackNote || defaultPrivacyNote}
                   </p>
+                  {relationship.cached ? (
+                    <div className="mt-3 flex flex-col gap-2 rounded-[1rem] border border-white/12 bg-white/6 p-3">
+                      <p className="text-[0.7rem] font-semibold leading-5 text-white/58">Regenerate if family links have changed.</p>
+                      <button
+                        type="button"
+                        disabled={isRegenerating || !fromMemberId || !toMemberId}
+                        className="inline-flex min-h-9 w-fit items-center gap-2 rounded-full border border-white/22 bg-white/12 px-3 py-1.5 text-xs font-extrabold text-white transition hover:bg-white/16 disabled:cursor-wait disabled:opacity-80"
+                        onClick={() => void explainRelationship({ refresh: true })}
+                      >
+                        {isRegenerating ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={iconStroke} />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5" strokeWidth={iconStroke} />
+                        )}
+                        Regenerate
+                      </button>
+                    </div>
+                  ) : null}
                   <details className="mt-3 rounded-[1rem] border border-white/12 bg-white/8 p-3 text-xs font-bold leading-5 text-white/86 open:bg-white/10">
                     <summary className="cursor-pointer select-none text-xs font-extrabold uppercase tracking-[0.14em] text-white/78">
                       Details
@@ -531,6 +644,16 @@ export const TreePage = () => {
                 </div>
               ) : relationship ? (
                 <div className="mt-5 rounded-[1.45rem] border border-warning/30 bg-warning/18 p-4">
+                  {relationship.cached ? (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      <span className="rounded-full border border-white/22 bg-white/12 px-3 py-1 text-xs font-extrabold text-white/92">
+                        Loaded from history
+                      </span>
+                      <span className="rounded-full border border-white/18 bg-white/10 px-3 py-1 text-xs font-extrabold text-white/78">
+                        History
+                      </span>
+                    </div>
+                  ) : null}
                   <p className="flex items-start gap-2 text-sm font-extrabold leading-6 text-white">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-soft-gold" strokeWidth={iconStroke} />
                     No clear relationship path found using current FamilySpace data.
@@ -542,8 +665,26 @@ export const TreePage = () => {
                   </ul>
                   <p className="mt-4 flex items-start gap-2 text-xs font-bold leading-5 text-white/78">
                     <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-soft-gold" strokeWidth={iconStroke} />
-                    This explanation only uses data inside this FamilySpace.
+                    {relationship.fallbackNote || defaultPrivacyNote}
                   </p>
+                  {relationship.cached ? (
+                    <div className="mt-3 flex flex-col gap-2 rounded-[1rem] border border-white/14 bg-white/8 p-3">
+                      <p className="text-[0.7rem] font-semibold leading-5 text-white/58">Regenerate if family links have changed.</p>
+                      <button
+                        type="button"
+                        disabled={isRegenerating || !fromMemberId || !toMemberId}
+                        className="inline-flex min-h-9 w-fit items-center gap-2 rounded-full border border-white/22 bg-white/12 px-3 py-1.5 text-xs font-extrabold text-white transition hover:bg-white/16 disabled:cursor-wait disabled:opacity-80"
+                        onClick={() => void explainRelationship({ refresh: true })}
+                      >
+                        {isRegenerating ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={iconStroke} />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5" strokeWidth={iconStroke} />
+                        )}
+                        Regenerate
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <p className="mt-4 rounded-[1.1rem] border border-white/12 bg-white/10 p-3 text-sm font-bold leading-6 text-white/86">

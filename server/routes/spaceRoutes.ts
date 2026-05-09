@@ -1,0 +1,207 @@
+import { Router } from "express";
+import { loadAppUser, requireSpaceMembership, requireSpaceRole } from "../authorization.js";
+import { requireAuth } from "../neonAuth.js";
+import { prisma } from "../db.js";
+import { handleError } from "../http/error.js";
+import {
+  asNonEmptyString,
+  asNullableString,
+  mapCurrentMembership,
+  mapFamilySpace,
+  mapMembership,
+  slugify,
+} from "./shared.js";
+
+const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
+
+export const spaceRoutes = Router();
+
+spaceRoutes.get("/api/health", (_req, res) => {
+  res.json({ ok: true, service: "silsilah-keluarga-api" });
+});
+
+spaceRoutes.get("/api/auth/me", requireAuth, loadAppUser, async (req, res) => {
+  res.json({ user: req.appUser });
+});
+
+spaceRoutes.get("/api/spaces", requireAuth, loadAppUser, async (req, res) => {
+  try {
+    if (!req.appUser) {
+      res.status(500).json({ error: "User context not loaded." });
+      return;
+    }
+
+    const memberships = await prisma.familyMembership.findMany({
+      where: { userId: req.appUser.id },
+      include: {
+        familySpace: {
+          include: {
+            _count: {
+              select: {
+                members: true,
+                timelineEvents: true,
+                galleryItems: true,
+                stories: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: [{ createdAt: "asc" }],
+    });
+
+    res.json(memberships.map(mapMembership));
+  } catch (error) {
+    handleError(res, error, "Failed to fetch spaces");
+  }
+});
+
+spaceRoutes.post("/api/spaces", requireAuth, loadAppUser, async (req, res) => {
+  try {
+    if (!req.appUser) {
+      res.status(500).json({ error: "User context not loaded." });
+      return;
+    }
+
+    const name = asNonEmptyString(req.body?.name);
+    if (!name) {
+      res.status(400).json({ error: "Space name is required." });
+      return;
+    }
+
+    const description = asNullableString(req.body?.description);
+    const baseSlug = slugify(name) || `space-${Date.now()}`;
+
+    let slug = baseSlug;
+    for (let suffix = 2; suffix < 100; suffix += 1) {
+      const existing = await prisma.familySpace.findUnique({ where: { slug } });
+      if (!existing) break;
+      slug = `${baseSlug}-${suffix}`;
+    }
+
+    const created = await prisma.$transaction(async (tx) => {
+      const space = await tx.familySpace.create({
+        data: {
+          slug,
+          name,
+          description,
+        },
+      });
+
+      const membership = await tx.familyMembership.create({
+        data: {
+          userId: req.appUser!.id,
+          familySpaceId: space.id,
+          role: "owner",
+        },
+        include: { familySpace: true },
+      });
+
+      return membership;
+    });
+
+    res.status(201).json(mapMembership(created));
+  } catch (error) {
+    handleError(res, error, "Failed to create space");
+  }
+});
+
+spaceRoutes.get("/api/spaces/:spaceSlug", requireAuth, loadAppUser, requireSpaceMembership, async (req, res) => {
+  res.json({
+    space: req.familySpace ? mapFamilySpace(req.familySpace) : null,
+    membership:
+      req.membership && req.familySpace
+        ? mapCurrentMembership(req.membership, req.familySpace)
+        : null,
+  });
+});
+
+spaceRoutes.get("/api/spaces/:spaceSlug/summary", ...requireSpaceRead, async (req, res) => {
+  try {
+    if (!req.familySpace) {
+      res.status(500).json({ error: "FamilySpace context not loaded." });
+      return;
+    }
+
+    const familySpaceId = req.familySpace.id;
+    const [
+      membersCount,
+      generationRows,
+      branchesCount,
+      nuclearFamiliesCount,
+      timelineCount,
+      galleryCount,
+      storiesCount,
+    ] = await prisma.$transaction([
+      prisma.familyMember.count({ where: { familySpaceId } }),
+      prisma.familyMember.findMany({
+        where: { familySpaceId },
+        select: { generation: true },
+        distinct: ["generation"],
+      }),
+      prisma.familyBranch.count({ where: { familySpaceId } }),
+      prisma.nuclearFamily.count({ where: { familySpaceId } }),
+      prisma.timelineEvent.count({ where: { familySpaceId } }),
+      prisma.galleryItem.count({ where: { familySpaceId } }),
+      prisma.story.count({ where: { familySpaceId } }),
+    ]);
+
+    res.json({
+      membersCount,
+      generationsCount: generationRows.length,
+      branchesCount,
+      nuclearFamiliesCount,
+      timelineCount,
+      galleryCount,
+      storiesCount,
+    });
+  } catch (error) {
+    handleError(res, error, "Failed to fetch space summary");
+  }
+});
+
+spaceRoutes.patch(
+  "/api/spaces/:spaceSlug",
+  requireAuth,
+  loadAppUser,
+  requireSpaceMembership,
+  requireSpaceRole(["owner", "admin"]),
+  async (req, res) => {
+    try {
+      if (!req.familySpace) {
+        res.status(500).json({ error: "FamilySpace context not loaded." });
+        return;
+      }
+
+      const name = asNonEmptyString(req.body?.name);
+      const description = req.body && Object.prototype.hasOwnProperty.call(req.body, "description")
+        ? asNullableString(req.body.description)
+        : undefined;
+
+      const space = await prisma.familySpace.update({
+        where: { id: req.familySpace.id },
+        data: {
+          ...(name ? { name } : {}),
+          ...(description !== undefined ? { description } : {}),
+        },
+      });
+
+      res.json({ space: mapFamilySpace(space) });
+    } catch (error) {
+      handleError(res, error, "Failed to update space");
+    }
+  },
+);
+
+spaceRoutes.get(
+  "/api/spaces/:spaceSlug/membership",
+  requireAuth,
+  loadAppUser,
+  requireSpaceMembership,
+  async (req, res) => {
+    res.json({
+      role: req.membership?.role,
+      space: req.familySpace ? mapFamilySpace(req.familySpace) : null,
+    });
+  },
+);

@@ -211,4 +211,20 @@ export interface RelationshipExplanation {
   confidence: "high" | "medium" | "low";
   fallbackNote: string;
   source: "ai" | "deterministic";
+  cached?: boolean;
+  historyId?: string;
+}
+
+export interface RelationshipExplanationHistory {
+  id: string;
+  fromMemberId: string;
+  toMemberId: string;
+  relationshipLabel: string;
+  explanation: string;
+  pathMemberIds: string[];
+  confidence: string;
+  source: string;
+  fallbackNote: string;
+  updatedAt: string;
+  viewCount: number;
 }

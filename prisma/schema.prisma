@@ -41,8 +41,9 @@ model AppUser {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  memberships          FamilyMembership[]
-  uploadedGalleryItems GalleryItem[]      @relation("GalleryUploadedBy")
+  memberships                       FamilyMembership[]
+  uploadedGalleryItems              GalleryItem[]                     @relation("GalleryUploadedBy")
+  relationshipExplanationHistories  RelationshipExplanationHistory[]
 }
 
 model FamilySpace {
@@ -59,8 +60,36 @@ model FamilySpace {
   nuclearFamilies NuclearFamily[]
   timelineEvents TimelineEvent[]
   galleryItems   GalleryItem[]
-  stories        Story[]
-  sourceNotes    SourceNote[]
+  stories                         Story[]
+  sourceNotes                     SourceNote[]
+  relationshipExplanationHistories RelationshipExplanationHistory[]
+}
+
+model RelationshipExplanationHistory {
+  id                 String    @id @default(uuid())
+  familySpaceId      String
+  fromMemberId       String
+  toMemberId         String
+  relationshipLabel  String
+  explanation        String
+  fallbackNote       String
+  pathMemberIds      String[]  @default([])
+  confidence         String
+  source             String
+  inputHash          String?
+  createdById        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  lastViewedAt       DateTime?
+  viewCount          Int       @default(0)
+
+  familySpace FamilySpace @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+  createdBy   AppUser?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([familySpaceId, fromMemberId, toMemberId])
+  @@index([familySpaceId, updatedAt])
+  @@index([familySpaceId, fromMemberId])
+  @@index([familySpaceId, toMemberId])
 }
 
 model FamilyMembership {
