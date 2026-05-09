@@ -4,12 +4,12 @@ import { useState } from "react";
 import { GalleryFormModal } from "../components/forms/GalleryFormModal";
 import { GalleryGrid } from "../components/GalleryTimeline";
 import { PageShell, iconStroke, pageTransition } from "../components/ui";
-import { familyConfig } from "../config";
 import { useSpaceStore } from "../hooks/useSpaceStore";
 import type { GalleryItem } from "../types/family";
+import { displayFamilyName, galleryHeroImageForSpace } from "../utils/spaceDisplay";
 
 export const GalleryPage = () => {
-  const { gallery, canEdit } = useSpaceStore();
+  const { currentSpace, gallery, canEdit } = useSpaceStore();
   const [createOpen, setCreateOpen] = useState(false);
   const [itemToEdit, setItemToEdit] = useState<GalleryItem | null>(null);
 
@@ -31,9 +31,9 @@ export const GalleryPage = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="relative col-span-2 min-h-[15rem] overflow-hidden rounded-[1.5rem] border border-white/75 bg-surface shadow-soft">
                 <img
-                  alt={`Album keluarga ${familyConfig.site.familyName}`}
+                  alt={`${displayFamilyName(currentSpace)} family album`}
                   className="h-full w-full object-cover contrast-105 sepia-[0.14]"
-                  src={familyConfig.site.galleryHeroImage}
+                  src={galleryHeroImageForSpace(currentSpace)}
                 />
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_38%,rgba(45,36,27,0.62)_100%)]" />
                 <div className="absolute bottom-4 left-4 right-4 text-white">

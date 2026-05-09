@@ -5,10 +5,10 @@ import { useParams } from "react-router-dom";
 import { FamilyTreeCanvas } from "../components/FamilyTree";
 import { MemberDetailModal } from "../components/MemberDetail";
 import { PageShell, SectionHeader, iconStroke, pageTransition } from "../components/ui";
-import { familyConfig } from "../config";
 import { useSpaceStore } from "../hooks/useSpaceStore";
 import { apiErrorMessage, spaceFetch } from "../lib/api";
 import type { FamilyMember, RelationshipExplanation, RelationshipExplanationHistory } from "../types/family";
+import { displayFamilyName } from "../utils/spaceDisplay";
 
 const memberDisplayName = (member: FamilyMember) => member.displayName || member.fullName;
 
@@ -170,7 +170,7 @@ const SearchableMemberSelect = ({
 
 export const TreePage = () => {
   const { spaceSlug } = useParams<{ spaceSlug: string }>();
-  const { members, addToast } = useSpaceStore();
+  const { currentSpace, members, addToast } = useSpaceStore();
   const [selected, setSelected] = useState<FamilyMember | null>(null);
   const [fromMemberId, setFromMemberId] = useState("");
   const [toMemberId, setToMemberId] = useState("");
@@ -387,7 +387,7 @@ export const TreePage = () => {
       <PageShell>
         <SectionHeader
           eyebrow="Family tree"
-          title={`${familyConfig.site.familyName} Family Tree`}
+          title={`${displayFamilyName(currentSpace)} Family Tree`}
           description="Explore relationships across generations and ask AI how two relatives are connected."
         />
 

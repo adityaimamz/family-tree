@@ -18,10 +18,21 @@ export const getInitials = (name: string) => {
   return (parts[0]?.[0] ?? "K") + (parts[1]?.[0] ?? parts[0]?.[1] ?? "L");
 };
 
-export const generationLabel = (generation: number) => `Generasi ${generation}`;
+export const generationLabel = (generation: number) => `Generation ${generation}`;
 
 export const displayStatus = (member: FamilyMember) =>
   member.isDeceased && member.deceasedLabel ? member.deceasedLabel : member.statusLabel;
+
+export const getRelationshipLabel = (relationshipToRoot: string) => {
+  const labels: Record<string, string> = {
+    "Tokoh Awal": "Family Founder · Root Person",
+    "Pasangan": "Spouse · Life Partner",
+    "Anak": "Child · Next Generation",
+    "Cucu": "Grandchild · Current Generation",
+    "Menantu": "In-Law · Family Connector",
+  };
+  return labels[relationshipToRoot] || relationshipToRoot || "Family Member";
+};
 
 export const relationNames = (ids: string[], members: FamilyMember[]) => {
   const map = memberById(members);
@@ -86,11 +97,11 @@ export const validateMember = (member: FamilyMember) => {
     ...member.spouseIds,
     ...member.formerSpouseIds,
   ].filter(Boolean);
-  if (related.includes(member.id)) errors.push("Seseorang tidak dapat menjadi orang tua, anak, atau pasangan bagi dirinya sendiri.");
-  if (new Set(member.spouseIds).size !== member.spouseIds.length) errors.push("Data pasangan tidak boleh duplikat.");
-  if (new Set(member.childrenIds).size !== member.childrenIds.length) errors.push("Data anak tidak boleh duplikat.");
-  if (!member.fatherId && !member.motherId && member.generation > 1 && member.statusLabel !== "Menantu") {
-    errors.push("Peringatan: anggota generasi lanjutan belum memiliki orang tua terpilih.");
+  if (related.includes(member.id)) errors.push("A person cannot be their own parent, child, or spouse.");
+  if (new Set(member.spouseIds).size !== member.spouseIds.length) errors.push("Spouse data cannot be duplicated.");
+  if (new Set(member.childrenIds).size !== member.childrenIds.length) errors.push("Children data cannot be duplicated.");
+  if (!member.fatherId && !member.motherId && member.generation > 1 && member.statusLabel !== "In-law") {
+    errors.push("Warning: member of a later generation does not have parents selected.");
   }
   return errors;
 };
@@ -117,7 +128,7 @@ export const connectMemberRelations = (members: FamilyMember[], changed: FamilyM
 };
 
 export const familyMembersForBranch = (branchId: string, members: FamilyMember[], nuclearFamilies: NuclearFamily[]) => {
-  if (branchId === "semua") return members;
+  if (branchId === "all") return members;
   const familyIds = nuclearFamilies.filter((family) => family.branchId === branchId);
   const ids = new Set(familyIds.flatMap((family) => [...family.parentIds, ...(family.childIds ?? family.childrenIds ?? [])]));
   return members.filter((member) => ids.has(member.id) || member.familyBranch === branchId);

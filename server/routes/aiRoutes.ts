@@ -18,6 +18,14 @@ const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
 const biographyPrivacyReminder = "AI drafts stay inside this family space until reviewed.";
 const timelinePrivacyReminder = "AI timeline stories stay inside this family space until reviewed.";
 
+const aiLog = (
+  event: string,
+  data: Record<string, unknown>,
+  level: "info" | "warn" = "info",
+) => {
+  console[level](`[ai] ${event}`, data);
+};
+
 type BiographyTone = "warm" | "concise" | "legacy";
 type BiographySource = "ai" | "deterministic";
 type TimelineStoryTone = "warm" | "concise" | "legacy";
@@ -65,6 +73,14 @@ type TimelineStoryResult = {
   source: TimelineStorySource;
   eventCount: number;
   memberIds: string[];
+};
+
+type GenerateContentResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
 };
 
 const normalizeBiographyTone = (value: unknown): BiographyTone => {
@@ -160,7 +176,7 @@ const buildTimelineStoryEvents = (
       title: event.title,
       description: event.description,
       memberIds: relatedIds,
-      memberNames: relatedIds.map((id) => memberById.get(id)).filter(Boolean).map((member) => memberDisplayName(member!)),
+      memberNames: relatedIds.map((id) => memberById.get(id)).filter((m): m is Exclude<typeof m, undefined> => Boolean(m)).map((member) => memberDisplayName(member)),
       source: "timeline",
     };
   });
@@ -172,7 +188,7 @@ const buildTimelineStoryEvents = (
       events.push({
         id: `member-birth-${member.slugId}`,
         year: member.birthDate,
-        type: "Kelahiran",
+        type: "Birth",
         title: `${name} was born`,
         description: `${name}'s birth is recorded in the family archive.`,
         memberIds: [member.slugId],
@@ -183,14 +199,14 @@ const buildTimelineStoryEvents = (
 
     if (member.marriageDate) {
       const spouseIds = member.spouseIds?.length ? member.spouseIds : [];
-      const spouseNames = spouseIds.map((id) => memberById.get(id)).filter(Boolean).map((spouse) => memberDisplayName(spouse!));
-      const key = [member.slugId, ...spouseIds].sort().join("-");
+      const spouseNames = spouseIds.map((id) => memberById.get(id)).filter((m): m is Exclude<typeof m, undefined> => Boolean(m)).map((spouse) => memberDisplayName(spouse));
+      const key = [member.slugId, ...spouseIds].sort((a, b) => a.localeCompare(b)).join("-");
       if (!marriageKeys.has(key)) {
         marriageKeys.add(key);
         events.push({
           id: `member-marriage-${key}`,
           year: member.marriageDate,
-          type: "Pernikahan",
+          type: "Marriage",
           title: spouseNames.length ? `${name} married ${spouseNames.join(" and ")}` : `${name}'s marriage was recorded`,
           description: spouseNames.length
             ? `${name} and ${spouseNames.join(" and ")} are connected by a marriage record.`
@@ -206,7 +222,7 @@ const buildTimelineStoryEvents = (
       events.push({
         id: `member-death-${member.slugId}`,
         year: member.deathDate,
-        type: "Wafat",
+        type: "Deceased",
         title: `${name} passed away`,
         description: `${name}'s passing is recorded in the family archive.`,
         memberIds: [member.slugId],
@@ -237,7 +253,11 @@ const deterministicTimelineStory = (
   }
 
   const firstEvent = events[0];
-  const lastEvent = events[events.length - 1];
+  const lastEvent = events.at(-1);
+
+  if (!firstEvent || !lastEvent) {
+    throw new Error("Unexpected empty events array after length check");
+  }
   const typeSummary = Array.from(new Set(events.map((event) => event.type))).join(", ");
   const eventLines = events.slice(0, 9).map((event) => {
     const people = event.memberNames.length ? ` involving ${event.memberNames.join(", ")}` : "";
@@ -287,19 +307,22 @@ const deterministicBiography = (
   const branchName = mapBranchName(member?.familyBranchId ?? null);
   const relToRoot = mapRelationshipToRoot(member?.relationshipToRoot ?? null);
   
+  let statusText = null;
+  if (member?.isDeceased) {
+    statusText = `${name} is marked in the archive as ${member.deceasedLabel || member.statusLabel || "deceased"}.`;
+  } else if (member?.statusLabel) {
+    statusText = `${name}'s profile status: ${member.statusLabel}.`;
+  }
+
   const identityFacts = member
     ? compactLines([
         relToRoot ? `${name} is recorded as ${relToRoot}.` : null,
-        branchName !== "Not recorded" ? `This profile belongs to the ${branchName} branch.` : null,
+        branchName === "Not recorded" ? null : `This profile belongs to the ${branchName} branch.`,
         Number.isFinite(member.generation) ? `The archive places this record in generation ${member.generation}.` : null,
         member.birthDate || member.birthPlace
           ? `${name}'s birth context: ${compactLines([member.birthDate, member.birthPlace]).join(", ")}.`
           : null,
-        member.isDeceased
-          ? `${name} is marked in the archive as ${member.deceasedLabel || member.statusLabel || "deceased"}.`
-          : member.statusLabel
-            ? `${name}'s profile status: ${member.statusLabel}.`
-            : null,
+        statusText,
       ])
     : [];
   const profileContext = member ? compactLines([member.biography, member.notes]) : [];
@@ -346,7 +369,15 @@ const maybeAiBiography = async (
   tone: BiographyTone,
 ): Promise<BiographyGenerationResult> => {
   const apiKey = process.env.VERTEX_API_KEY || process.env.API_KEY;
-  if (!apiKey) return fallback;
+  if (!apiKey) {
+    aiLog("biography_fallback_no_api_key", {
+      feature: "biography",
+      tone,
+      hasMember: Boolean(member),
+      notesLength: notes.length,
+    }, "warn");
+    return fallback;
+  }
 
   const model = process.env.VERTEX_MODEL || "gemini-2.5-flash";
   const endpoint =
@@ -364,6 +395,16 @@ const maybeAiBiography = async (
     `Short notes: ${notes}`,
   ].join("\n");
 
+  const startedAt = Date.now();
+  aiLog("biography_llm_request_start", {
+    feature: "biography",
+    model,
+    endpointMode: process.env.VERTEX_AI_GENERATE_URL ? "custom" : "default",
+    tone,
+    hasMember: Boolean(member),
+    notesLength: notes.length,
+  });
+
   try {
     const response = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`, {
       method: "POST",
@@ -378,12 +419,37 @@ const maybeAiBiography = async (
       }),
     });
 
-    if (!response.ok) return fallback;
-    const data = (await response.json()) as any;
-    const text = data?.candidates?.[0]?.content?.parts?.map((part: any) => part.text).filter(Boolean).join("\n") ?? "";
+    if (!response.ok) {
+      aiLog("biography_llm_response_not_ok", {
+        feature: "biography",
+        model,
+        status: response.status,
+        durationMs: Date.now() - startedAt,
+        fallback: true,
+      }, "warn");
+      return fallback;
+    }
+    const data = (await response.json()) as GenerateContentResponse;
+    const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text).filter(Boolean).join("\n") ?? "";
     const parsed = parseAiBiographyJson(text);
-    if (!parsed?.biographyDraft || typeof parsed.biographyDraft !== "string") return fallback;
+    if (!parsed?.biographyDraft || typeof parsed.biographyDraft !== "string") {
+      aiLog("biography_llm_invalid_json", {
+        feature: "biography",
+        model,
+        durationMs: Date.now() - startedAt,
+        responseTextLength: text.length,
+        fallback: true,
+      }, "warn");
+      return fallback;
+    }
 
+    aiLog("biography_llm_success", {
+      feature: "biography",
+      model,
+      durationMs: Date.now() - startedAt,
+      draftLength: parsed.biographyDraft.length,
+      source: "ai",
+    });
     return {
       biographyDraft: parsed.biographyDraft.trim(),
       privacyReminder: biographyPrivacyReminder,
@@ -392,7 +458,14 @@ const maybeAiBiography = async (
         : "Generated by AI from FamilySpace data and submitted notes.",
       source: "ai",
     };
-  } catch {
+  } catch (error) {
+    aiLog("biography_llm_error", {
+      feature: "biography",
+      model,
+      durationMs: Date.now() - startedAt,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      fallback: true,
+    }, "warn");
     return fallback;
   }
 };
@@ -404,7 +477,15 @@ const maybeAiTimelineStory = async (
   tone: TimelineStoryTone,
 ): Promise<TimelineStoryResult> => {
   const apiKey = process.env.VERTEX_API_KEY || process.env.API_KEY;
-  if (!apiKey) return fallback;
+  if (!apiKey) {
+    aiLog("timeline_story_fallback_no_api_key", {
+      feature: "timeline_story",
+      tone,
+      eventCount: events.length,
+      memberCount: fallback.memberIds.length,
+    }, "warn");
+    return fallback;
+  }
 
   const model = process.env.VERTEX_MODEL || "gemini-2.5-flash";
   const endpoint =
@@ -422,6 +503,16 @@ const maybeAiTimelineStory = async (
     `Timeline events: ${JSON.stringify(events)}`,
   ].join("\n");
 
+  const startedAt = Date.now();
+  aiLog("timeline_story_llm_request_start", {
+    feature: "timeline_story",
+    model,
+    endpointMode: process.env.VERTEX_AI_GENERATE_URL ? "custom" : "default",
+    tone,
+    eventCount: events.length,
+    memberCount: fallback.memberIds.length,
+  });
+
   try {
     const response = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`, {
       method: "POST",
@@ -436,12 +527,37 @@ const maybeAiTimelineStory = async (
       }),
     });
 
-    if (!response.ok) return fallback;
-    const data = (await response.json()) as any;
-    const text = data?.candidates?.[0]?.content?.parts?.map((part: any) => part.text).filter(Boolean).join("\n") ?? "";
+    if (!response.ok) {
+      aiLog("timeline_story_llm_response_not_ok", {
+        feature: "timeline_story",
+        model,
+        status: response.status,
+        durationMs: Date.now() - startedAt,
+        fallback: true,
+      }, "warn");
+      return fallback;
+    }
+    const data = (await response.json()) as GenerateContentResponse;
+    const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text).filter(Boolean).join("\n") ?? "";
     const parsed = parseAiTimelineStoryJson(text);
-    if (!parsed?.timelineStoryDraft || typeof parsed.timelineStoryDraft !== "string") return fallback;
+    if (!parsed?.timelineStoryDraft || typeof parsed.timelineStoryDraft !== "string") {
+      aiLog("timeline_story_llm_invalid_json", {
+        feature: "timeline_story",
+        model,
+        durationMs: Date.now() - startedAt,
+        responseTextLength: text.length,
+        fallback: true,
+      }, "warn");
+      return fallback;
+    }
 
+    aiLog("timeline_story_llm_success", {
+      feature: "timeline_story",
+      model,
+      durationMs: Date.now() - startedAt,
+      draftLength: parsed.timelineStoryDraft.length,
+      source: "ai",
+    });
     return {
       timelineStoryDraft: parsed.timelineStoryDraft.trim(),
       privacyReminder: timelinePrivacyReminder,
@@ -452,7 +568,14 @@ const maybeAiTimelineStory = async (
       eventCount: fallback.eventCount,
       memberIds: fallback.memberIds,
     };
-  } catch {
+  } catch (error) {
+    aiLog("timeline_story_llm_error", {
+      feature: "timeline_story",
+      model,
+      durationMs: Date.now() - startedAt,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      fallback: true,
+    }, "warn");
     return fallback;
   }
 };
@@ -563,9 +686,25 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-biography", ...requireSpaceRea
       return;
     }
 
+    aiLog("biography_request", {
+      feature: "biography",
+      spaceSlug: req.params.spaceSlug,
+      familySpaceId: req.familySpace.id,
+      appUserId: req.appUser?.id ?? null,
+      tone,
+      hasMember: Boolean(member),
+      notesLength: notes.length,
+    });
     const fallback = deterministicBiography(member, notes, tone);
     const result = await maybeAiBiography(fallback, member, notes, tone);
 
+    aiLog("biography_response", {
+      feature: "biography",
+      spaceSlug: req.params.spaceSlug,
+      familySpaceId: req.familySpace.id,
+      source: result.source,
+      draftLength: result.biographyDraft.length,
+    });
     res.json(result);
   } catch (error) {
     handleError(res, error, "Failed to generate biography");
@@ -610,9 +749,27 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-timeline-story", ...requireSpa
     ]);
 
     const events = buildTimelineStoryEvents(members, timelineEvents);
+    aiLog("timeline_story_request", {
+      feature: "timeline_story",
+      spaceSlug: req.params.spaceSlug,
+      familySpaceId: req.familySpace.id,
+      appUserId: req.appUser?.id ?? null,
+      tone,
+      storedTimelineEventCount: timelineEvents.length,
+      derivedEventCount: events.length,
+      memberCount: members.length,
+    });
     const fallback = deterministicTimelineStory(req.familySpace.name, events, tone);
     const result = await maybeAiTimelineStory(fallback, req.familySpace.name, events, tone);
 
+    aiLog("timeline_story_response", {
+      feature: "timeline_story",
+      spaceSlug: req.params.spaceSlug,
+      familySpaceId: req.familySpace.id,
+      source: result.source,
+      eventCount: result.eventCount,
+      draftLength: result.timelineStoryDraft.length,
+    });
     res.json(result);
   } catch (error) {
     handleError(res, error, "Failed to generate timeline story");
@@ -663,8 +820,11 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/explain-relationship", ...requireSpaceR
       siblingIds: member.siblingIds ?? [],
     }));
 
-    const memberIdSet = new Set(relationshipMembers.map((m) => m.id));
-    if (!memberIdSet.has(fromMemberId) || !memberIdSet.has(toMemberId)) {
+    const memberMap = new Map(relationshipMembers.map((m) => [m.id, m]));
+    const from = memberMap.get(fromMemberId);
+    const to = memberMap.get(toMemberId);
+
+    if (!from || !to) {
       res.status(404).json({ error: "One or both members were not found in this FamilySpace." });
       return;
     }
@@ -716,8 +876,6 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/explain-relationship", ...requireSpaceR
       return;
     }
 
-    const from = relationshipMembers.find((member) => member.id === fromMemberId)!;
-    const to = relationshipMembers.find((member) => member.id === toMemberId)!;
     const result = await maybeAiRelationship(fallback, memberName(from), memberName(to));
     const pathMemberIds = result.path.map((item) => item.id);
 

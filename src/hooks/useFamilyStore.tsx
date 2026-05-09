@@ -75,7 +75,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
         setTimeline(nextTimeline);
         setGallery(nextGallery);
       } catch (error) {
-        console.error("Gagal mengambil data dari API, menggunakan data awal", error);
+        console.error("Failed to fetch data from API, using initial data", error);
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -144,7 +144,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify(member)
       });
 
-      if (!response.ok) throw new Error("Gagal menyimpan ke server");
+      if (!response.ok) throw new Error("Failed to save to server");
 
       // Optimistic update locally
       setMembers((current) => {
@@ -156,10 +156,10 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
         return result;
       });
       
-      addToast(isNew ? "Anggota berhasil ditambahkan" : "Data berhasil diperbarui");
+      addToast(isNew ? "Member added successfully" : "Data updated successfully");
     } catch (error) {
       console.error(error);
-      addToast("Terjadi kesalahan saat menyimpan data", "error");
+      addToast("Error occurred while saving data", "error");
     }
   };
 
@@ -169,7 +169,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
         method: 'DELETE'
       });
       
-      if (!response.ok) throw new Error("Gagal menghapus dari server");
+      if (!response.ok) throw new Error("Failed to delete from server");
 
       // Optimistic update locally
       setMembers((current) =>
@@ -185,10 +185,10 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
             siblingIds: member.siblingIds.filter((item) => item !== id),
           }))
       );
-      addToast("Data berhasil dihapus", "warning");
+      addToast("Data deleted successfully", "warning");
     } catch (error) {
       console.error(error);
-      addToast("Terjadi kesalahan saat menghapus data", "error");
+      addToast("Error occurred while deleting data", "error");
     }
   };
 
@@ -205,30 +205,30 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify(nextItem),
       });
 
-      if (!response.ok) throw new Error("Gagal menyimpan galeri ke server");
+      if (!response.ok) throw new Error("Failed to save gallery to server");
 
       const saved = (await response.json()) as GalleryItem;
       setGallery((current) => {
         const withoutItem = current.filter((galleryItem) => galleryItem.id !== (previousId || saved.id));
         return [...withoutItem, saved].sort((a, b) => a.year.localeCompare(b.year) || a.title.localeCompare(b.title));
       });
-      addToast(isNew ? "Item galeri berhasil ditambahkan" : "Item galeri berhasil diperbarui");
+      addToast(isNew ? "Gallery item added successfully" : "Gallery item updated successfully");
     } catch (error) {
       console.error(error);
-      addToast("Terjadi kesalahan saat menyimpan galeri", "error");
+      addToast("Error occurred while saving gallery", "error");
     }
   };
 
   const deleteGalleryItem = async (id: string) => {
     try {
       const response = await authFetch(`/api/gallery/${id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Gagal menghapus galeri dari server");
+      if (!response.ok) throw new Error("Failed to delete gallery from server");
 
       setGallery((current) => current.filter((item) => item.id !== id));
-      addToast("Item galeri berhasil dihapus", "warning");
+      addToast("Gallery item deleted successfully", "warning");
     } catch (error) {
       console.error(error);
-      addToast("Terjadi kesalahan saat menghapus galeri", "error");
+      addToast("Error occurred while deleting gallery", "error");
     }
   };
 
@@ -248,30 +248,30 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify(nextEvent),
       });
 
-      if (!response.ok) throw new Error("Gagal menyimpan linimasa ke server");
+      if (!response.ok) throw new Error("Failed to save timeline to server");
 
       const saved = (await response.json()) as TimelineEvent;
       setTimeline((current) => {
         const withoutEvent = current.filter((item) => item.id !== (previousId || saved.id));
         return [...withoutEvent, saved].sort((a, b) => a.year.localeCompare(b.year) || a.title.localeCompare(b.title));
       });
-      addToast(isNew ? "Event linimasa berhasil ditambahkan" : "Event linimasa berhasil diperbarui");
+      addToast(isNew ? "Timeline event added successfully" : "Timeline event updated successfully");
     } catch (error) {
       console.error(error);
-      addToast("Terjadi kesalahan saat menyimpan linimasa", "error");
+      addToast("Error occurred while saving timeline", "error");
     }
   };
 
   const deleteTimelineEvent = async (id: string) => {
     try {
       const response = await authFetch(`/api/timeline/${id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Gagal menghapus linimasa dari server");
+      if (!response.ok) throw new Error("Failed to delete timeline from server");
 
       setTimeline((current) => current.filter((event) => event.id !== id));
-      addToast("Event linimasa berhasil dihapus", "warning");
+      addToast("Timeline event deleted successfully", "warning");
     } catch (error) {
       console.error(error);
-      addToast("Terjadi kesalahan saat menghapus linimasa", "error");
+      addToast("Error occurred while deleting timeline", "error");
     }
   };
 
@@ -295,7 +295,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
       importMembers: (imported) => {
         // Implementasi bulk import ke server bisa ditambahkan nanti
         setMembers(imported);
-        addToast("Data keluarga berhasil diimpor (Lokal)");
+        addToast("Family data imported successfully (Local)");
       },
       resetData: () => {
         setMembers([]);
@@ -303,7 +303,7 @@ export const FamilyProvider = ({ children }: { children: ReactNode }) => {
         setFamilies([]);
         setTimeline([]);
         setGallery([]);
-        addToast("Data berhasil dikosongkan (Lokal)", "info");
+        addToast("Data reset successfully (Local)", "info");
       },
     }),
     [branches, families, gallery, members, timeline, toasts, isLoading]

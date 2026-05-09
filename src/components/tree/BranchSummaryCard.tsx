@@ -1,5 +1,4 @@
 import { Users } from "lucide-react";
-import { familyConfig } from "../../config";
 import { useSpaceStore } from "../../hooks/useSpaceStore";
 import type { FamilyMember } from "../../types/family";
 
@@ -16,7 +15,7 @@ export const BranchSummaryCard = ({
   const description =
     branchName === "All branches"
       ? "Every visible member in this FamilySpace is available for search, focus, and relationship path discovery."
-      : branch?.description ?? familyConfig.labels.branchSummaryFallback;
+      : branch?.description ?? "All family members in this branch are available for search, focus, and relationship path discovery.";
 
   return (
     <div className="rounded-[1.6rem] border border-white/75 bg-[linear-gradient(135deg,hsl(var(--surface))_0%,hsl(var(--surface-soft)_/_0.58)_100%)] p-5 shadow-[0_20px_44px_-34px_rgba(80,54,30,0.72)] ring-1 ring-border-soft/60">

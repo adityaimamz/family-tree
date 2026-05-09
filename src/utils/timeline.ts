@@ -47,7 +47,7 @@ export const deriveTimelineEvents = (members: Member[]): TimelineEvent[] => {
       events.push({
         id: `auto-birth-${member.id}`,
         year: memberBirthYear ? String(memberBirthYear) : member.birthDate,
-        type: "Kelahiran",
+        type: "Birth",
         title: `Kelahiran ${name}`,
         description: `${name} lahir pada ${member.birthDate}.`,
         relatedMemberIds: [member.id],
@@ -68,7 +68,7 @@ export const deriveTimelineEvents = (members: Member[]): TimelineEvent[] => {
       events.push({
         id: `auto-marriage-${pairKey}`,
         year: generationPeriod(member, spouse),
-        type: "Pernikahan",
+        type: "Marriage",
         title: `Pernikahan ${name} dan ${displayName(spouse)}`,
         description: `${name} tercatat sebagai pasangan ${displayName(spouse)} dalam arsip keluarga.`,
         relatedMemberIds: [member.id, spouse.id],
@@ -83,7 +83,7 @@ export const deriveTimelineEvents = (members: Member[]): TimelineEvent[] => {
       events.push({
         id: `auto-death-${member.id}`,
         year: memberDeathYear ? String(memberDeathYear) : generationPeriod(member),
-        type: "Wafat",
+        type: "Deceased",
         title: `Wafat ${name}`,
         description: member.deathDate
           ? `${name} wafat pada ${member.deathDate}.`

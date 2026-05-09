@@ -16,9 +16,9 @@ export const FamilyBranchFilter = ({
     <div className="rounded-[1.6rem] border border-border-soft bg-surface p-4 shadow-soft">
       <div className="mb-3 flex items-center gap-2 text-sm font-bold text-text-primary">
         <Filter className="h-4 w-4 text-sage-green" strokeWidth={1.8} />
-        Pilih Keluarga
+        Select Family
       </div>
-      <FilterSelect label="Pilih keluarga yang ingin dilihat" value={value} options={branchOptions} onChange={onChange} />
+      <FilterSelect label="Select the family you want to view" value={value} options={branchOptions} onChange={onChange} />
     </div>
   );
 };

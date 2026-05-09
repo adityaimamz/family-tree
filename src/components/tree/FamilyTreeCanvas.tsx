@@ -3,11 +3,11 @@ import { Eye, Maximize2, Network, RotateCcw, Search, Users } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent, Touch, TouchEvent, WheelEvent } from "react";
 import { TREE_NODE_HEIGHT, TREE_NODE_WIDTH, TREE_SPOUSE_GAP } from "../../constants/treeLayout";
-import { familyConfig } from "../../config";
 import { useSpaceStore } from "../../hooks/useSpaceStore";
 import type { FamilyMember } from "../../types/family";
 import type { FocusMode } from "../../types/tree";
 import { getAncestorIds, getDescendantIds, memberById } from "../../utils/family";
+import { rootMemberIdFromData } from "../../utils/spaceDisplay";
 import { buildTreeLayout } from "../../utils/treeLayout";
 import { DropdownSelect } from "../ui";
 import { AutoGenerationTree } from "./AutoGenerationTree";
@@ -16,10 +16,9 @@ import { FocusSearchCombobox, memberMatchesTerm } from "./FocusSearchCombobox";
 import { MiniMap } from "./MiniMap";
 import { TreeControls } from "./TreeControls";
 
-const DEFAULT_TREE_ZOOM = familyConfig.tree.defaultZoom;
-const MIN_TREE_ZOOM = familyConfig.tree.minZoom;
-const MAX_TREE_ZOOM = familyConfig.tree.maxZoom;
-const TREE_HOME_MEMBER_ID = familyConfig.site.homeMemberId;
+const DEFAULT_TREE_ZOOM = 0.82;
+const MIN_TREE_ZOOM = 0.4;
+const MAX_TREE_ZOOM = 1.5;
 const PAN_EDGE_PADDING = 24;
 
 const clampNumber = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -52,7 +51,7 @@ export const FamilyTreeCanvas = ({
   const [isTouchGestureActive, setIsTouchGestureActive] = useState(false);
   const [pulseMemberId, setPulseMemberId] = useState<string | null>(null);
   const [focusMode, setFocusMode] = useState<FocusMode>("all");
-  const [focusMemberId, setFocusMemberId] = useState(TREE_HOME_MEMBER_ID);
+  const [focusMemberId, setFocusMemberId] = useState("");
   const [activeBranch, setActiveBranch] = useState("all");
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -72,7 +71,7 @@ export const FamilyTreeCanvas = ({
     startZoom: number;
   } | null>(null);
 
-  const { families } = useSpaceStore();
+  const { branches, families } = useSpaceStore();
   const memberMap = useMemo(() => memberById(members), [members]);
   const highlightIds = useMemo(
     () => new Set(highlightMemberIds.filter((id) => memberMap[id])),
@@ -106,10 +105,11 @@ export const FamilyTreeCanvas = ({
 
   const branchHomeMemberId = useMemo(() => {
     const visibleIds = new Set(visibleTreeMembers.map((member) => member.id));
+    const homeMemberId = rootMemberIdFromData(members, branches);
 
-    if (visibleIds.has(TREE_HOME_MEMBER_ID)) return TREE_HOME_MEMBER_ID;
-    return visibleTreeMembers[0]?.id ?? TREE_HOME_MEMBER_ID;
-  }, [visibleTreeMembers]);
+    if (homeMemberId && visibleIds.has(homeMemberId)) return homeMemberId;
+    return rootMemberIdFromData(visibleTreeMembers, branches) || visibleTreeMembers[0]?.id || homeMemberId;
+  }, [branches, members, visibleTreeMembers]);
 
   const memberCanvasPositions = useMemo(() => {
     const positions = new Map<string, { x: number; y: number; width: number; height: number }>();
@@ -624,7 +624,7 @@ export const FamilyTreeCanvas = ({
               />
             </AnimatePresence>
           </motion.div>
-          {familyConfig.features.minimap && <MiniMap layout={layout} pan={pan} zoom={zoom} viewportSize={viewportSize} onJump={handleMiniMapJump} />}
+          <MiniMap layout={layout} pan={pan} zoom={zoom} viewportSize={viewportSize} onJump={handleMiniMapJump} />
           {relationshipMode && (
             <div className="absolute left-4 top-4 z-[4] rounded-[1.1rem] border border-border-soft/80 bg-surface/95 p-3 text-xs font-bold text-text-primary shadow-warm ring-1 ring-white/80">
               <p className="mb-2 text-[0.64rem] font-extrabold uppercase tracking-[0.16em] text-text-muted">Relationship legend</p>

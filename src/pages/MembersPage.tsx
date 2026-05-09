@@ -4,12 +4,12 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { MemberFormModal } from "../components/forms/MemberFormModal";
 import { Badge, EmptyState, FilterSelect, InitialsAvatar, LoadingState, PageShell, SearchBar, SectionHeader, iconStroke, pageTransition } from "../components/ui";
-import { familyConfig } from "../config";
 import { useSpaceStore } from "../hooks/useSpaceStore";
 import type { FamilyMember } from "../types/family";
 import { displayStatus, generationLabel, memberById } from "../utils/family";
+import { spaceLabels } from "../utils/spaceDisplay";
 
-const generationOptions = [familyConfig.labels.allGenerations, "Generasi 0", "Generasi 1", "Generasi 2", "Generasi 3", "Generasi 4", "Generasi 5"];
+const generationOptions = [spaceLabels.allGenerations, "Generasi 0", "Generasi 1", "Generasi 2", "Generasi 3", "Generasi 4", "Generasi 5"];
 
 const hasBiographyDraft = (member: FamilyMember) => member.biography.trim().length > 0;
 
@@ -116,23 +116,23 @@ const DirectoryMemberCard = ({
 export const MembersPage = () => {
   const { members, isLoading, canEdit } = useSpaceStore();
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState(familyConfig.labels.allMembers);
-  const [generation, setGeneration] = useState(familyConfig.labels.allGenerations);
-  const [branch, setBranch] = useState(familyConfig.labels.allBranches);
+  const [status, setStatus] = useState<string>(spaceLabels.allMembers);
+  const [generation, setGeneration] = useState<string>(spaceLabels.allGenerations);
+  const [branch, setBranch] = useState<string>(spaceLabels.allBranches);
   const [createOpen, setCreateOpen] = useState(false);
   const [memberToEdit, setMemberToEdit] = useState<FamilyMember | null>(null);
 
   const map = useMemo(() => memberById(members), [members]);
   const statusOptions = useMemo(
     () => [
-      familyConfig.labels.allMembers,
-      ...Array.from(new Set([...familyConfig.labels.statusOptions, ...members.map((member) => member.statusLabel).filter(Boolean)])),
-      familyConfig.labels.deceased,
+      spaceLabels.allMembers,
+      ...Array.from(new Set([...spaceLabels.statusOptions, ...members.map((member) => member.statusLabel).filter(Boolean)])),
+      spaceLabels.deceased,
     ],
     [members],
   );
   const branchOptions = useMemo(
-    () => [familyConfig.labels.allBranches, ...Array.from(new Set(members.map((member) => member.familyBranch)))],
+    () => [spaceLabels.allBranches, ...Array.from(new Set(members.map((member) => member.familyBranch)))],
     [members],
   );
 
@@ -153,9 +153,9 @@ export const MembersPage = () => {
         spouses
       ].join(" ").toLowerCase();
       
-      const matchesStatus = status === familyConfig.labels.allMembers || member.statusLabel === status || (status === familyConfig.labels.deceased && member.isDeceased);
-      const matchesGeneration = generation === familyConfig.labels.allGenerations || `Generasi ${member.generation}` === generation;
-      const matchesBranch = branch === familyConfig.labels.allBranches || member.familyBranch === branch;
+      const matchesStatus = status === spaceLabels.allMembers || member.statusLabel === status || (status === spaceLabels.deceased && member.isDeceased);
+      const matchesGeneration = generation === spaceLabels.allGenerations || `Generasi ${member.generation}` === generation;
+      const matchesBranch = branch === spaceLabels.allBranches || member.familyBranch === branch;
       
       return (!term || searchable.includes(term)) && matchesStatus && matchesGeneration && matchesBranch;
     });
@@ -167,7 +167,7 @@ export const MembersPage = () => {
         <SectionHeader 
           eyebrow="Family records" 
           title="Members Directory" 
-          description="Cari anggota keluarga berdasarkan nama, relasi ke root, generasi, status, atau cabang keluarga." 
+          description="Search for family members by name, relationship to root, generation, status, or family branch." 
           action={
             canEdit() ? (
               <button
@@ -176,7 +176,7 @@ export const MembersPage = () => {
                 onClick={() => setCreateOpen(true)}
               >
                 <Plus className="h-4 w-4" strokeWidth={iconStroke} />
-                Tambah Anggota
+                Add Member
               </button>
             ) : null
           }
@@ -186,15 +186,15 @@ export const MembersPage = () => {
             <div className="lg:pt-7">
               <SearchBar value={query} onChange={setQuery} />
             </div>
-            <FilterSelect label="Generasi" value={generation} options={generationOptions} onChange={setGeneration} />
+            <FilterSelect label="Generation" value={generation} options={generationOptions} onChange={setGeneration} />
             <FilterSelect label="Status" value={status} options={statusOptions} onChange={setStatus} />
-            <FilterSelect label="Keluarga" value={branch} options={branchOptions} onChange={setBranch} />
+            <FilterSelect label="Family" value={branch} options={branchOptions} onChange={setBranch} />
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border-soft/80 pt-4 text-sm font-semibold text-text-muted">
             <span className="rounded-full bg-sage-green/12 px-3 py-1.5 text-dark-green">
-              {filtered.length} {familyConfig.labels.membersFound}
+              {filtered.length} {spaceLabels.membersFound}
             </span>
-            {query && <span className="rounded-full bg-soft-gold/14 px-3 py-1.5 text-warm-brown">Kata kunci: {query}</span>}
+            {query && <span className="rounded-full bg-soft-gold/14 px-3 py-1.5 text-warm-brown">Keyword: {query}</span>}
           </div>
         </div>
         {isLoading ? (
@@ -212,8 +212,8 @@ export const MembersPage = () => {
           </motion.div>
         ) : (
           <EmptyState 
-            title="Nama tidak ditemukan." 
-            description="Coba ketik nama lain atau pilih keluarga yang berbeda." 
+            title="Name not found." 
+            description="Try typing another name or selecting a different family." 
           />
         )}
         <MemberFormModal open={createOpen} onClose={() => setCreateOpen(false)} />

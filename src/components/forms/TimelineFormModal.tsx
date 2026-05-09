@@ -9,21 +9,21 @@ const inputClass =
   "min-h-12 w-full rounded-2xl border border-border-soft bg-background px-4 py-3 text-sm font-semibold text-text-primary shadow-soft outline-none transition placeholder:text-text-muted/65 focus:border-dark-green focus:ring-4 focus:ring-sage-green/12";
 
 const eventTypeOptions: TimelineEventType[] = [
-  "Kelahiran",
-  "Pernikahan",
-  "Reuni",
-  "Wafat",
-  "Pindah Tempat",
-  "Pendidikan",
-  "Perjalanan Keluarga",
-  "Peristiwa Penting",
-  "Lainnya",
+  "Birth",
+  "Marriage",
+  "Reunion",
+  "Deceased",
+  "Place Move",
+  "Education",
+  "Family Trip",
+  "Important Event",
+  "Other",
 ];
 
 const emptyTimelineEvent: TimelineEvent = {
   id: "",
   year: "",
-  type: "Peristiwa Penting",
+  type: "Important Event",
   title: "",
   description: "",
   relatedMemberIds: [],
@@ -32,7 +32,7 @@ const emptyTimelineEvent: TimelineEvent = {
   isAutomatic: false,
 };
 
-const Field = ({ label, children }: { label: string; children: ReactNode }) => (
+const Field = ({ label, children }: Readonly<{ label: string; children: ReactNode }>) => (
   <label className="block">
     <span className="mb-2 block text-sm font-semibold text-text-primary">{label}</span>
     {children}
@@ -43,11 +43,11 @@ export function TimelineFormModal({
   event,
   open,
   onClose,
-}: {
+}: Readonly<{
   event?: TimelineEvent | null;
   open: boolean;
   onClose: () => void;
-}) {
+}>) {
   const { members, saveTimelineEvent, deleteTimelineEvent } = useSpaceStore();
   const [form, setForm] = useState<TimelineEvent>(() => event ?? emptyTimelineEvent);
 

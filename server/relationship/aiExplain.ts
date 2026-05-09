@@ -1,5 +1,21 @@
 import { RelationshipResult } from "./types.js";
 
+type GenerateContentResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{ text?: string }>;
+    };
+  }>;
+};
+
+const aiLog = (
+  event: string,
+  data: Record<string, unknown>,
+  level: "info" | "warn" = "info",
+) => {
+  console[level](`[ai] ${event}`, data);
+};
+
 const parseAiJson = (text: string) => {
   const match = /\{[\s\S]*\}/.exec(text);
   if (!match) return null;
@@ -12,7 +28,14 @@ const parseAiJson = (text: string) => {
 
 export const maybeAiRelationship = async (fallback: RelationshipResult, fromName: string, toName: string) => {
   const apiKey = process.env.VERTEX_API_KEY || process.env.API_KEY;
-  if (!apiKey) return fallback;
+  if (!apiKey) {
+    aiLog("relationship_fallback_no_api_key", {
+      feature: "relationship",
+      pathLength: fallback.path.length,
+      confidence: fallback.confidence,
+    }, "warn");
+    return fallback;
+  }
 
   const model = process.env.VERTEX_MODEL || "gemini-2.5-flash";
   const endpoint =
@@ -29,6 +52,15 @@ export const maybeAiRelationship = async (fallback: RelationshipResult, fromName
     `Deterministic result: ${JSON.stringify(fallback)}`,
   ].join("\n");
 
+  const startedAt = Date.now();
+  aiLog("relationship_llm_request_start", {
+    feature: "relationship",
+    model,
+    endpointMode: process.env.VERTEX_AI_GENERATE_URL ? "custom" : "default",
+    pathLength: fallback.path.length,
+    confidence: fallback.confidence,
+  });
+
   try {
     const response = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`, {
       method: "POST",
@@ -43,12 +75,37 @@ export const maybeAiRelationship = async (fallback: RelationshipResult, fromName
       }),
     });
 
-    if (!response.ok) return fallback;
-    const data = (await response.json()) as any;
-    const text = data?.candidates?.[0]?.content?.parts?.map((part: any) => part.text).filter(Boolean).join("\n") ?? "";
+    if (!response.ok) {
+      aiLog("relationship_llm_response_not_ok", {
+        feature: "relationship",
+        model,
+        status: response.status,
+        durationMs: Date.now() - startedAt,
+        fallback: true,
+      }, "warn");
+      return fallback;
+    }
+    const data = (await response.json()) as GenerateContentResponse;
+    const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text).filter(Boolean).join("\n") ?? "";
     const parsed = parseAiJson(text);
-    if (!parsed?.explanation || !parsed.relationshipLabel) return fallback;
+    if (!parsed?.explanation || !parsed.relationshipLabel) {
+      aiLog("relationship_llm_invalid_json", {
+        feature: "relationship",
+        model,
+        durationMs: Date.now() - startedAt,
+        responseTextLength: text.length,
+        fallback: true,
+      }, "warn");
+      return fallback;
+    }
 
+    aiLog("relationship_llm_success", {
+      feature: "relationship",
+      model,
+      durationMs: Date.now() - startedAt,
+      explanationLength: String(parsed.explanation).length,
+      source: "ai",
+    });
     return {
       ...fallback,
       relationshipLabel: String(parsed.relationshipLabel),
@@ -59,7 +116,14 @@ export const maybeAiRelationship = async (fallback: RelationshipResult, fromName
       fallbackNote: typeof parsed.fallbackNote === "string" ? parsed.fallbackNote : fallback.fallbackNote,
       source: "ai" as const,
     };
-  } catch {
+  } catch (error) {
+    aiLog("relationship_llm_error", {
+      feature: "relationship",
+      model,
+      durationMs: Date.now() - startedAt,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      fallback: true,
+    }, "warn");
     return fallback;
   }
 };

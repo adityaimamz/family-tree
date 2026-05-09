@@ -121,13 +121,13 @@ export const SpaceListPage = () => {
         <SectionHeader
           eyebrow="Private archives"
           title="FamilySpace"
-          description="Pilih ruang keluarga untuk mengelola silsilah, cerita, foto, dan arsip memori secara privat."
+          description="Select a family space to manage the family tree, stories, photos, and memory archives privately."
         />
 
         {isLoading ? (
           <LoadingState />
         ) : error ? (
-          <EmptyState title="Gagal memuat" description={error} />
+          <EmptyState title="Failed to load" description={error} />
         ) : memberships.length ? (
           <motion.div layout className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {memberships.map(({ role, space }) => (
@@ -194,10 +194,10 @@ export const SpaceListPage = () => {
               <Sprout className="h-6 w-6" strokeWidth={iconStroke} />
             </div>
             <h2 className="relative mt-5 font-display text-2xl font-bold text-text-primary">
-              Belum ada private archive.
+              No private archive yet.
             </h2>
             <p className="relative mx-auto mt-3 max-w-xl text-sm font-semibold leading-7 text-text-muted">
-              Buat FamilySpace pertama untuk menyimpan silsilah, foto, timeline, dan cerita keluarga di satu ruang privat.
+              Create your first FamilySpace to store family tree, photos, timeline, and stories in one private space.
             </p>
           </section>
         )}

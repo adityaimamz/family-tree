@@ -21,7 +21,7 @@ export interface FamilyMember {
   marriageDate: string | null;
   deathDate: string | null;
   isDeceased: boolean;
-  deceasedLabel: "Alm." | "Almh." | null;
+  deceasedLabel: "Late" | "Deceased" | null;
   birthPlace: string | null;
   biography: string;
   notes: string;
@@ -112,15 +112,15 @@ export interface GalleryItem {
 }
 
 export type TimelineEventType =
-  | "Kelahiran"
-  | "Pernikahan"
-  | "Reuni"
-  | "Wafat"
-  | "Pindah Tempat"
-  | "Pendidikan"
-  | "Perjalanan Keluarga"
-  | "Peristiwa Penting"
-  | "Lainnya";
+  | "Birth"
+  | "Marriage"
+  | "Reunion"
+  | "Deceased"
+  | "Place Move"
+  | "Education"
+  | "Family Trip"
+  | "Important Event"
+  | "Other";
 
 export interface TimelineEvent {
   id: string;

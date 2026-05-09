@@ -23,7 +23,7 @@ import { Badge, EmptyState, InitialsAvatar, PageShell, PrimaryButton, SecondaryB
 import { useSpaceStore } from "../hooks/useSpaceStore";
 import { apiErrorMessage, spaceFetch } from "../lib/api";
 import type { BiographyGenerationResult, FamilyMember, GalleryItem, TimelineEvent } from "../types/family";
-import { displayStatus, generationLabel, getParents, relationDetails } from "../utils/family";
+import { displayStatus, generationLabel, getParents, getRelationshipLabel, relationDetails } from "../utils/family";
 import { deriveTimelineEvents, sortTimelineEvents } from "../utils/timeline";
 
 const emptyLabel = "Belum tercatat";
@@ -34,7 +34,7 @@ const hasValue = (value: LinkedValue | LinkedValue[] | null | undefined) => {
   if (!value) return false;
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value === "object") return Boolean(value.id || value.name);
-  return value.trim().length > 0 && value !== emptyLabel && value !== "Tidak tercatat wafat";
+  return value.trim().length > 0 && value !== emptyLabel && value !== "Death not recorded";
 };
 
 const InfoCard = ({
@@ -53,7 +53,7 @@ const InfoCard = ({
       <p className="text-xs font-bold uppercase tracking-[0.14em] text-sage-green">{label}</p>
       <div className="mt-3 space-y-1 text-sm font-semibold leading-6 text-text-primary">
         {items.map((item, index) => {
-          if (typeof item === "string") return <p key={index}>{item}</p>;
+          if (typeof item === "string") return <p key={item}>{item}</p>;
           return (
             <Link
               key={item.id}
@@ -192,10 +192,10 @@ export const MemberProfilePage = () => {
     return (
       <PageShell>
         <SectionHeader
-          title="Data keluarga tidak ditemukan"
-          description="Data anggota yang dibuka belum tersedia di arsip lokal."
+          title="Family data not found"
+          description="The member data you opened is not available in the local archive."
         />
-        <SecondaryButton to={`/app/${spaceSlug}/members`}>Kembali ke Anggota</SecondaryButton>
+        <SecondaryButton to={`/app/${spaceSlug}/members`}>Back to Members</SecondaryButton>
       </PageShell>
     );
   }
@@ -210,6 +210,7 @@ export const MemberProfilePage = () => {
   const allTimelineEvents = sortTimelineEvents([...deriveTimelineEvents(members), ...timeline]);
   const relatedTimeline = allTimelineEvents.filter((event) => eventIncludesMember(event, member.id)).slice(0, 4);
   const relatedPhotos = gallery.filter((item) => galleryMentionsMember(item, member)).slice(0, 4);
+  const relationshipLabel = getRelationshipLabel(member.relationshipToRoot);
   const canSaveAiDraft = canEdit();
   const generatedBiography = biographyResult?.biographyDraft.trim() ?? "";
   const generateBiography = async () => {
@@ -256,7 +257,7 @@ export const MemberProfilePage = () => {
       await navigator.clipboard.writeText(generatedBiography);
       setHasCopiedBiography(true);
       addToast("Biography draft copied", "success");
-      window.setTimeout(() => setHasCopiedBiography(false), 2200);
+      globalThis.setTimeout(() => setHasCopiedBiography(false), 2200);
     } catch {
       setBiographyError("Clipboard access was blocked by the browser.");
       addToast("Clipboard access was blocked", "error");
@@ -309,7 +310,7 @@ export const MemberProfilePage = () => {
           to={`/app/${spaceSlug}/members`}
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={iconStroke} />
-          Kembali ke Anggota
+          Back to Members
         </Link>
 
         <section className="surface-grain relative overflow-hidden rounded-[2.2rem] border border-white/75 bg-[linear-gradient(135deg,hsl(var(--surface))_0%,hsl(var(--background))_64%,hsl(var(--surface-soft))_100%)] p-6 shadow-warm ring-1 ring-border-soft/70 md:p-8">
@@ -325,12 +326,7 @@ export const MemberProfilePage = () => {
                 {member.fullName}
               </h1>
               <p className="mt-4 max-w-3xl text-lg font-semibold leading-8 text-text-muted">
-                {member.relationshipToRoot === "Tokoh Awal" ? "Family Founder · Root Person" : 
-                 member.relationshipToRoot === "Pasangan" ? "Spouse · Life Partner" :
-                 member.relationshipToRoot === "Anak" ? "Child · Next Generation" :
-                 member.relationshipToRoot === "Cucu" ? "Grandchild · Current Generation" :
-                 member.relationshipToRoot === "Menantu" ? "In-Law · Family Connector" :
-                 member.relationshipToRoot || "Family Member"}
+                {relationshipLabel}
               </p>
               {/* Archive Summary */}
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium text-text-muted">
@@ -358,11 +354,11 @@ export const MemberProfilePage = () => {
               <div className="mt-6 flex flex-wrap gap-3">
                 <PrimaryButton to={`/app/${spaceSlug}/tree`}>
                   <Network className="h-4 w-4" strokeWidth={iconStroke} />
-                  Lihat di Pohon
+                  View in Tree
                 </PrimaryButton>
                 <SecondaryButton to={`/app/${spaceSlug}/tree`}>
                   <Users className="h-4 w-4" strokeWidth={iconStroke} />
-                  Lihat Keluarga Dekat
+                  View Close Family
                 </SecondaryButton>
                 {canEdit() && (
                   <SecondaryButton onClick={() => setEditOpen(true)}>

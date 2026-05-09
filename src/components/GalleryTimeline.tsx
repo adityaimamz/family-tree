@@ -15,8 +15,8 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { familyConfig } from "../config";
 import type { FamilyMember, GalleryItem, TimelineEvent } from "../types/family";
+import { spaceLabels } from "../utils/spaceDisplay";
 import { EmptyState, InitialsAvatar, iconStroke } from "./ui";
 
 export const GalleryCard = ({
@@ -37,7 +37,7 @@ export const GalleryCard = ({
   >
     <div className="absolute inset-0 overflow-hidden bg-surface-soft">
       <img
-        alt={`Foto album ${item.title}`}
+        alt={`Album ${item.title}`}
         className="h-full w-full object-cover contrast-105 sepia-[0.14] transition duration-700 ease-out group-hover:scale-105"
         src={item.image}
       />
@@ -106,7 +106,7 @@ export const Lightbox = ({
                 </h2>
               </div>
               <button
-                aria-label="Tutup galeri"
+                aria-label="Close gallery"
                 className="grid min-h-11 min-w-11 place-items-center rounded-2xl border border-border-soft bg-surface-soft text-text-primary transition hover:bg-background active:translate-y-[1px]"
                 onClick={onClose}
               >
@@ -115,7 +115,7 @@ export const Lightbox = ({
             </div>
             <p className="mt-4 text-sm leading-7 text-text-muted">{active.description}</p>
             <div className="mt-5 rounded-[1.25rem] border border-border-soft bg-surface-soft/60 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Kelompok foto</p>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-text-muted">Photo group</p>
               <p className="mt-1 text-sm font-bold text-warm-brown">{active.familyGroup}</p>
             </div>
             <div className="mt-auto flex gap-3 pt-6">
@@ -124,13 +124,13 @@ export const Lightbox = ({
                 onClick={() => onSelect(previous.id)}
               >
                 <ArrowLeft className="h-4 w-4" strokeWidth={iconStroke} />
-                Sebelumnya
+                Previous
               </button>
               <button
                 className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-dark-green px-4 text-sm font-bold text-white shadow-warm transition hover:bg-warm-brown active:translate-y-[1px]"
                 onClick={() => onSelect(next.id)}
               >
-                Berikutnya
+                Next
                 <ArrowRight className="h-4 w-4" strokeWidth={iconStroke} />
               </button>
             </div>
@@ -143,15 +143,15 @@ export const Lightbox = ({
 
 const iconForType = (type: TimelineEvent["type"]) => {
   const icons = {
-    Kelahiran: Baby,
-    Pernikahan: Heart,
-    Reuni: Users,
-    Wafat: Sparkles,
-    "Pindah Tempat": MapPin,
-    Pendidikan: GraduationCap,
-    "Perjalanan Keluarga": Route,
-    "Peristiwa Penting": Camera,
-    Lainnya: Sparkles,
+    Birth: Baby,
+    Marriage: Heart,
+    Reunion: Users,
+    Deceased: Sparkles,
+    "Place Move": MapPin,
+    Education: GraduationCap,
+    "Family Trip": Route,
+    "Important Event": Camera,
+    Other: Sparkles,
   };
   return icons[type];
 };
@@ -174,7 +174,7 @@ export const TimelineItem = ({
   onDelete?: () => void;
 }) => {
   const Icon = iconForType(event.type);
-  const visibleSourceLabel = sourceLabel ?? (event.isAutomatic ? "Otomatis" : "Manual");
+  const visibleSourceLabel = sourceLabel ?? (event.isAutomatic ? "Automatic" : "Manual");
 
   return (
     <motion.article
@@ -215,7 +215,7 @@ export const TimelineItem = ({
                 <Pencil className="h-4 w-4" strokeWidth={iconStroke} />
               </button>
               <button
-                aria-label={`Hapus ${event.title}`}
+                aria-label={`Delete ${event.title}`}
                 className="grid h-10 w-10 place-items-center rounded-full border border-warning/20 bg-warning/10 text-warning transition hover:bg-warning/15 active:translate-y-[1px]"
                 type="button"
                 onClick={onDelete}
@@ -231,7 +231,7 @@ export const TimelineItem = ({
             <div className="grid gap-0 sm:grid-cols-[8rem_minmax(0,1fr)]">
               <div className="h-32 overflow-hidden bg-surface-soft sm:h-full">
                 <img
-                  alt={`Photo context for ${event.title}`}
+                  alt={event.title}
                   className="h-full w-full object-cover contrast-105 sepia-[0.12] transition duration-700 group-hover:scale-105"
                   src={event.photo}
                 />
@@ -245,7 +245,7 @@ export const TimelineItem = ({
             </div>
           </div>
         )}
-        {!!relatedMembers.length ? (
+        {relatedMembers.length ? (
           <div className="mt-5 flex flex-wrap gap-3">
             {relatedMembers.map((member) => (
               <div key={member.id} className="flex items-center gap-2 rounded-full border border-border-soft bg-surface py-1 pl-1 pr-3 shadow-soft">
@@ -274,7 +274,7 @@ export const TimelineItem = ({
 
 export const GalleryGrid = ({ items }: { items: GalleryItem[] }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
-  if (!items.length) return <EmptyState title={familyConfig.labels.emptyGalleryTitle} description={familyConfig.labels.emptyGalleryDescription} />;
+  if (!items.length) return <EmptyState title={spaceLabels.emptyGalleryTitle} description={spaceLabels.emptyGalleryDescription} />;
   const layoutClasses = [
     "md:col-span-6 md:row-span-2",
     "md:col-span-3",

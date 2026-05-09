@@ -5,14 +5,14 @@ import { useParams } from "react-router-dom";
 import { TimelineFormModal } from "../components/forms/TimelineFormModal";
 import { TimelineItem } from "../components/GalleryTimeline";
 import { EmptyState, PageShell, iconStroke, pageTransition } from "../components/ui";
-import { familyConfig } from "../config";
 import { useSpaceStore } from "../hooks/useSpaceStore";
 import { apiErrorMessage, spaceFetch } from "../lib/api";
 import type { TimelineEvent, TimelineStoryGenerationResult } from "../types/family";
 import { memberById } from "../utils/family";
+import { spaceLabels } from "../utils/spaceDisplay";
 import { deriveTimelineEvents, sortTimelineEvents } from "../utils/timeline";
 
-const filterOptions = ["Semua", "Kelahiran", "Pernikahan", "Wafat", "Peristiwa Penting"] as const;
+const filterOptions = ["All", "Birth", "Marriage", "Deceased", "Important Event"] as const;
 
 type TimelineFilter = (typeof filterOptions)[number];
 
@@ -29,8 +29,8 @@ const timelineStoryToneOptions = [
 type TimelineStoryTone = (typeof timelineStoryToneOptions)[number]["value"];
 
 const eventMatchesFilter = (event: TimelineEvent, filter: TimelineFilter) => {
-  if (filter === "Semua") return true;
-  if (filter === "Peristiwa Penting") return ["Peristiwa Penting", "Reuni", "Lainnya"].includes(event.type);
+  if (filter === "All") return true;
+  if (filter === "Important Event") return ["Important Event", "Reunion", "Other"].includes(event.type);
   return event.type === filter;
 };
 
@@ -46,7 +46,7 @@ const slugFrom = (value: string) =>
 export const TimelinePage = () => {
   const { spaceSlug } = useParams<{ spaceSlug: string }>();
   const { members, timeline, canEdit, addToast } = useSpaceStore();
-  const [activeFilter, setActiveFilter] = useState<TimelineFilter>("Semua");
+  const [activeFilter, setActiveFilter] = useState<TimelineFilter>("All");
   const [createOpen, setCreateOpen] = useState(false);
   const [eventToEdit, setEventToEdit] = useState<TimelineEvent | null>(null);
   const [timelineStoryTone, setTimelineStoryTone] = useState<TimelineStoryTone>("warm");
@@ -79,9 +79,9 @@ export const TimelinePage = () => {
 
   const stats = useMemo(
     () => ({
-      kelahiran: allEvents.filter((e) => e.type === "Kelahiran").length,
-      pernikahan: allEvents.filter((e) => e.type === "Pernikahan").length,
-      wafat: allEvents.filter((e) => e.type === "Wafat").length,
+      kelahiran: allEvents.filter((e) => e.type === "Birth").length,
+      pernikahan: allEvents.filter((e) => e.type === "Marriage").length,
+      wafat: allEvents.filter((e) => e.type === "Deceased").length,
       photoContext: allEvents.filter((e) => Boolean(e.photo)).length,
     }),
     [allEvents],
@@ -123,7 +123,7 @@ export const TimelinePage = () => {
       await navigator.clipboard.writeText(generatedTimelineStory);
       setHasCopiedTimelineStory(true);
       addToast("Timeline story copied", "success");
-      window.setTimeout(() => setHasCopiedTimelineStory(false), 2200);
+      globalThis.setTimeout(() => setHasCopiedTimelineStory(false), 2200);
     } catch {
       setTimelineStoryError("Clipboard access was blocked by the browser.");
       addToast("Clipboard access was blocked", "error");
@@ -175,9 +175,9 @@ export const TimelinePage = () => {
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
               {[
-                { Icon: Baby, value: stats.kelahiran, label: "Kelahiran" },
-                { Icon: Heart, value: stats.pernikahan, label: "Pernikahan" },
-                { Icon: Flower2, value: stats.wafat, label: "Wafat" },
+                { Icon: Baby, value: stats.kelahiran, label: "Births" },
+                { Icon: Heart, value: stats.pernikahan, label: "Marriages" },
+                { Icon: Flower2, value: stats.wafat, label: "Deceased" },
                 { Icon: Camera, value: stats.photoContext, label: "Photo context" },
               ].map(({ Icon, value, label }) => (
                 <div key={label} className="rounded-[1.35rem] border border-white/75 bg-surface/92 p-4 shadow-soft ring-1 ring-border-soft/60">
@@ -342,7 +342,7 @@ export const TimelinePage = () => {
             {filterOptions.map((filter) => (
               <button
                 key={filter}
-                className={`min-h-11 rounded-full border px-4 py-2 text-sm font-bold transition active:translate-y-[1px] ${
+                className={`min-h-11 rounded-full border px-4 py-2 text-sm font-bold transition active:translate-y-[1px] \${
                   activeFilter === filter
                     ? "border-dark-green bg-dark-green text-white shadow-warm"
                     : "border-transparent bg-transparent text-text-muted hover:bg-surface-soft hover:text-text-primary"
@@ -373,12 +373,12 @@ export const TimelinePage = () => {
               const relatedMembers = relatedIds.map((id) => map[id]).filter(Boolean);
 
               return (
-                <div key={`${event.source}-${event.id}`}>
+                <div key={`\${event.source}-\${event.id}`}>
                   <TimelineItem
                     event={event}
                     memberNames={relatedMembers.map((member) => member.displayName ?? member.fullName)}
                     relatedMembers={relatedMembers}
-                    sourceLabel={event.source === "default" ? "Admin" : "Otomatis"}
+                    sourceLabel={event.source === "default" ? "Admin" : "Automatic"}
                   />
                   {canEdit() && event.source === "default" && (
                     <button
@@ -396,7 +396,7 @@ export const TimelinePage = () => {
           </div>
         ) : (
           <EmptyState
-            title={familyConfig.labels.emptyTimelineTitle}
+            title={spaceLabels.emptyTimelineTitle}
             description="Add births, weddings, moves, reunions, and photo-backed milestones so the archive can tell a family journey."
           />
         )}

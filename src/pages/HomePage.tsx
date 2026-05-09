@@ -34,12 +34,12 @@ export const HomePage = () => {
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <PrimaryButton to="/silsilah">
-                  Lihat Silsilah
+                  View Family Tree
                   <ArrowRight className="h-4 w-4" strokeWidth={1.8} />
                 </PrimaryButton>
                 <SecondaryButton to="/anggota">
                   <Users className="h-4 w-4" strokeWidth={1.8} />
-                  Lihat Anggota
+                  View Members
                 </SecondaryButton>
               </div>
               <div className="mt-10 max-w-xl border-l border-soft-gold/60 pl-5">
@@ -96,7 +96,7 @@ export const HomePage = () => {
                   className="col-span-4 grid place-items-center rounded-[1.15rem] border border-soft-gold/25 bg-surface/92 px-4 text-center shadow-soft sm:col-span-2"
                 >
                   <p className="text-sm font-bold leading-6 text-text-primary">
-                    Arsip yang mudah dibaca, siap diisi foto keluarga.
+                    Readable archives, ready for family photos.
                   </p>
                 </motion.div>
               </div>
@@ -105,10 +105,10 @@ export const HomePage = () => {
         </section>
         {members.length ? (
           <section className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard icon={<Users className="h-5 w-5" strokeWidth={1.8} />} value={String(members.length)} label="Total Anggota" />
-            <StatCard icon={<GitBranch className="h-5 w-5" strokeWidth={1.8} />} value={String(generations)} label="Jumlah Generasi" />
+            <StatCard icon={<Users className="h-5 w-5" strokeWidth={1.8} />} value={String(members.length)} label="Total Members" />
+            <StatCard icon={<GitBranch className="h-5 w-5" strokeWidth={1.8} />} value={String(generations)} label="Generations" />
             <StatCard icon={<BookOpen className="h-5 w-5" strokeWidth={1.8} />} value={String(coreFamilies)} label={familyConfig.labels.coreFamily} />
-            {familyConfig.features.gallery && <StatCard icon={<Camera className="h-5 w-5" strokeWidth={1.8} />} value={String(gallery.length)} label="Foto Keluarga" />}
+            {familyConfig.features.gallery && <StatCard icon={<Camera className="h-5 w-5" strokeWidth={1.8} />} value={String(gallery.length)} label="Family Photos" />}
           </section>
         ) : (
           <div className="mt-8"><EmptyState title={familyConfig.labels.emptyMembersTitle} description={familyConfig.labels.emptyMembersDescription} /></div>
@@ -116,13 +116,13 @@ export const HomePage = () => {
         <section className="mt-8 grid gap-5 lg:grid-cols-[1fr_0.72fr]">
           <div className="rounded-[1.5rem] border border-border-soft bg-surface p-5 shadow-soft sm:rounded-[2rem] sm:p-6">
             <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-soft-gold/20 text-warm-brown">{defaultIcons.book}</div>
-            <h2 className="font-display text-2xl font-bold text-text-primary sm:text-3xl">Arsip yang tenang, bukan daftar yang melelahkan.</h2>
+            <h2 className="font-display text-2xl font-bold text-text-primary sm:text-3xl">A calm archive, not an exhausting list.</h2>
             <p className="mt-3 max-w-3xl text-base leading-8 text-text-muted">{familyConfig.site.treeDescription}</p>
           </div>
           <div className="rounded-[1.5rem] border border-border-soft bg-dark-green p-5 text-white shadow-warm sm:rounded-[2rem] sm:p-6">
-            <p className="text-sm font-bold uppercase tracking-[0.14em] text-soft-gold">Fokus utama</p>
-            <h2 className="mt-3 font-display text-2xl font-bold sm:text-3xl">Silsilah dapat ditelusuri per cabang.</h2>
-            <p className="mt-4 text-sm leading-7 text-white/78">Gunakan filter cabang, pencarian anggota, mode keturunan, leluhur, dan keluarga inti untuk membaca data besar tanpa merasa sesak.</p>
+            <p className="text-sm font-bold uppercase tracking-[0.14em] text-soft-gold">Main focus</p>
+            <h2 className="mt-3 font-display text-2xl font-bold sm:text-3xl">Traceable genealogy per branch.</h2>
+            <p className="mt-4 text-sm leading-7 text-white/78">Use branch filters, member search, descendant mode, ancestors, and core family to read large data without feeling overwhelmed.</p>
           </div>
         </section>
       </PageShell>

@@ -2,36 +2,36 @@ import type { FamilySiteConfig } from "../types/config";
 
 const exampleConfig: FamilySiteConfig = {
   site: {
-    name: "Silsilah Keluarga",
-    familyName: "Keluarga Contoh",
-    subtitle: "Arsip keluarga digital",
-    homeEyebrow: "Arsip keluarga digital",
-    homeTitle: "Silsilah Keluarga Contoh",
+    name: "Family Tree",
+    familyName: "Example Family",
+    subtitle: "Digital family archive",
+    homeEyebrow: "Digital family archive",
+    homeTitle: "Example Family Tree",
     homeDescription:
-      "Simpan cerita, hubungan, dan warisan keluarga dalam arsip yang rapi dan mudah ditelusuri lintas generasi.",
+      "Preserve stories, relationships, and family legacy in a neat and easily navigable archive across generations.",
     homeIntro:
-      "Dimulai dari keluarga inti, arsip ini membantu setiap cabang keluarga tetap terbaca dengan jelas.",
-    treeTitle: "Pohon Keluarga Contoh",
+      "Starting from the core family, this archive helps every family branch stay clearly readable.",
+    treeTitle: "Example Family Tree",
     treeDescription:
-      "Jelajahi hubungan keluarga dari anggota utama, lalu telusuri cabang, leluhur, dan keturunan.",
-    galleryTitle: "Galeri Keluarga Contoh",
+      "Explore family relationships from key members, then trace branches, ancestors, and descendants.",
+    galleryTitle: "Example Family Gallery",
     galleryDescription:
-      "Ruang album digital untuk foto keluarga, reuni, dokumentasi cabang, dan arsip visual.",
-    timelineTitle: "Linimasa Keluarga",
+      "Digital album space for family photos, reunions, branch documentation, and visual archives.",
+    timelineTitle: "Family Timeline",
     timelineDescription:
-      "Peristiwa penting keluarga disusun sebagai perjalanan antar generasi.",
+      "Important family events organized as a journey between generations.",
     homeMemberId: "root-member-id",
-    defaultBranchId: "garis-utama",
+    defaultBranchId: "main-line",
     primaryVisual: {
       image: "https://picsum.photos/seed/family-template-archive/900/1100",
-      alt: "Arsip meja keluarga",
-      caption: "Ruang cerita keluarga",
+      alt: "Family archive desk",
+      caption: "Family story room",
     },
     heroVisuals: [
-      ["Pendiri", "keluarga utama", "https://picsum.photos/seed/family-template-founder/420/420"],
-      ["Pasangan", "keluarga utama", "https://picsum.photos/seed/family-template-spouse/420/420"],
-      ["Cabang keluarga", "terhubung rapi", "https://picsum.photos/seed/family-template-branches/420/420"],
-      ["Catatan lama", "tetap terbaca", "https://picsum.photos/seed/family-template-notes/420/420"],
+      ["Founder", "main family", "https://picsum.photos/seed/family-template-founder/420/420"],
+      ["Spouse", "main family", "https://picsum.photos/seed/family-template-spouse/420/420"],
+      ["Family branch", "neatly connected", "https://picsum.photos/seed/family-template-branches/420/420"],
+      ["Old notes", "clearly readable", "https://picsum.photos/seed/family-template-notes/420/420"],
     ].map(([title, subtitle, image]) => ({ title, subtitle, image })),
     galleryHeroImage: "https://picsum.photos/seed/family-template-gallery/900/620",
   },
@@ -46,11 +46,11 @@ const exampleConfig: FamilySiteConfig = {
     maxZoom: 1.5,
   },
   metadata: {
-    title: "Silsilah Keluarga",
-    description: "Template arsip digital untuk silsilah keluarga.",
+    title: "Family Tree",
+    description: "Digital archive template for family trees.",
   },
   labels: {
-    statusOptions: ["Garis Utama", "Keluarga Besar", "Menantu", "Anak", "Cucu", "Cicit", "Kerabat"],
+    statusOptions: ["Main Line", "Extended Family", "In-law", "Child", "Grandchild", "Great-grandchild", "Relative"],
   },
 };
 

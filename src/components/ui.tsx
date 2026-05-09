@@ -12,7 +12,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import type { FamilyMember } from "../types/family";
@@ -212,7 +212,7 @@ export const MemberCard = ({ member, compact = false }: { member: FamilyMember; 
             className="inline-flex min-h-10 items-center gap-2 rounded-full px-3 text-sm font-bold text-dark-green transition hover:bg-sage-green/12 active:translate-y-[1px]"
             to={detailTo}
           >
-            Lihat Detail
+            View Details
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" strokeWidth={iconStroke} />
           </Link>
         </div>
@@ -231,7 +231,7 @@ export const SearchBar = ({
   placeholder?: string;
 }) => (
   <label className="relative block">
-    <span className="sr-only">Pencarian</span>
+    <span className="sr-only">Search</span>
     <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-text-muted" strokeWidth={iconStroke} />
     <input
       className="min-h-12 w-full rounded-2xl border border-border-soft bg-surface py-3 pl-12 pr-4 text-base text-text-primary shadow-soft transition placeholder:text-text-muted/70 focus:border-dark-green focus:outline-none focus:ring-4 focus:ring-sage-green/12"
@@ -264,7 +264,7 @@ export const DropdownSelect = ({
   value,
   options,
   onChange,
-  placeholder = "Pilih opsi",
+  placeholder = "Select option",
   tone = "light",
   className = "",
 }: {
@@ -277,17 +277,55 @@ export const DropdownSelect = ({
   className?: string;
 }) => {
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
   const normalizedOptions = options.map(normalizeDropdownOption);
   const selectedOption = normalizedOptions.find((option) => option.value === value);
+
+  useEffect(() => {
+    const handleOutsideInteraction = (event: MouseEvent | FocusEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener("mousedown", handleOutsideInteraction);
+      document.addEventListener("focusin", handleOutsideInteraction);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideInteraction);
+      document.removeEventListener("focusin", handleOutsideInteraction);
+    };
+  }, [open]);
   const isDark = tone === "dark";
+
+  let buttonStyles = "border-border-soft bg-surface text-text-primary hover:border-sage-green/40 hover:bg-surface-soft/55";
+  if (isDark) {
+    if (open) {
+      buttonStyles = "border-white/58 bg-white/18 text-white ring-4 ring-white/10";
+    } else {
+      buttonStyles = "border-white/28 bg-white/12 text-white hover:border-white/46 hover:bg-white/16";
+    }
+  } else if (open) {
+    buttonStyles = "border-dark-green bg-surface text-text-primary ring-4 ring-sage-green/12";
+  }
+
+  let textStyles = isDark ? "text-white/72" : "text-text-muted";
+  if (selectedOption) {
+    textStyles = "";
+  }
+
+  let iconStyles = open ? "text-dark-green" : "text-text-muted";
+  if (isDark) {
+    iconStyles = "text-white/72 group-hover:text-white";
+  }
 
   return (
     <div
+      ref={containerRef}
       className={`relative block ${className}`}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-      }}
     >
       <span
         className={`mb-2 block ${
@@ -302,28 +340,18 @@ export const DropdownSelect = ({
         aria-controls={listboxId}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`group flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-bold shadow-soft transition active:translate-y-[1px] ${
-          isDark
-            ? open
-              ? "border-white/58 bg-white/18 text-white ring-4 ring-white/10"
-              : "border-white/28 bg-white/12 text-white hover:border-white/46 hover:bg-white/16"
-            : open
-              ? "border-dark-green bg-surface text-text-primary ring-4 ring-sage-green/12"
-              : "border-border-soft bg-surface text-text-primary hover:border-sage-green/40 hover:bg-surface-soft/55"
-        }`}
+        className={`group flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-bold shadow-soft transition active:translate-y-[1px] ${buttonStyles}`}
         type="button"
         onClick={() => setOpen((value) => !value)}
         onKeyDown={(event) => {
           if (event.key === "Escape") setOpen(false);
         }}
       >
-        <span className={`min-w-0 truncate ${selectedOption ? "" : isDark ? "text-white/72" : "text-text-muted"}`}>
+        <span className={`min-w-0 truncate ${textStyles}`}>
           {selectedOption?.label ?? placeholder}
         </span>
         <ChevronDown
-          className={`h-4 w-4 shrink-0 transition ${
-            open ? "rotate-180" : ""
-          } ${isDark ? "text-white/72 group-hover:text-white" : open ? "text-dark-green" : "text-text-muted"}`}
+          className={`h-4 w-4 shrink-0 transition ${open ? "rotate-180" : ""} ${iconStyles}`}
           strokeWidth={iconStroke}
         />
       </button>
@@ -344,26 +372,28 @@ export const DropdownSelect = ({
               normalizedOptions.map((option) => {
                 const selected = option.value === value;
                 const disabled = Boolean(option.disabled);
-              return (
-                <button
-                  key={option.value}
-                  role="option"
-                  aria-selected={selected}
+
+                let optionStyles = "font-semibold text-text-primary hover:bg-surface-soft";
+                if (selected) {
+                  optionStyles = "bg-dark-green font-bold text-white shadow-soft";
+                } else if (disabled) {
+                  optionStyles = "cursor-not-allowed font-semibold text-text-muted/55";
+                }
+
+                return (
+                  <button
+                    key={option.value}
+                    role="option"
+                    aria-selected={selected}
                     disabled={disabled}
-                    className={`grid min-h-11 w-full grid-cols-[minmax(0,1fr)_22px] items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition active:translate-y-[1px] ${
-                      selected
-                        ? "bg-dark-green font-bold text-white shadow-soft"
-                        : disabled
-                          ? "cursor-not-allowed font-semibold text-text-muted/55"
-                          : "font-semibold text-text-primary hover:bg-surface-soft"
-                  }`}
-                  type="button"
-                  onClick={() => {
+                    className={`grid min-h-11 w-full grid-cols-[minmax(0,1fr)_22px] items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition active:translate-y-[1px] ${optionStyles}`}
+                    type="button"
+                    onClick={() => {
                       if (disabled) return;
                       onChange(option.value);
-                    setOpen(false);
-                  }}
-                >
+                      setOpen(false);
+                    }}
+                  >
                     <span className="min-w-0">
                       <span className="block truncate">{option.label}</span>
                       {option.description && (
@@ -372,12 +402,12 @@ export const DropdownSelect = ({
                         </span>
                       )}
                     </span>
-                  {selected && <Check className="h-4 w-4" strokeWidth={2} />}
-                </button>
-              );
+                    {selected && <Check className="h-4 w-4" strokeWidth={2} />}
+                  </button>
+                );
               })
             ) : (
-              <p className="px-3 py-5 text-center text-sm font-semibold text-text-muted">Tidak ada pilihan</p>
+              <p className="px-3 py-5 text-center text-sm font-semibold text-text-muted">No options</p>
             )}
           </motion.div>
         )}
@@ -402,7 +432,7 @@ export const FilterSelect = ({
     value={value}
     options={options.map((option) => ({
       value: option,
-      label: option === "Semua Cabang" ? "Semua Keluarga" : option,
+      label: option === "All Branches" ? "All Families" : option,
     }))}
     onChange={onChange}
   />
@@ -413,7 +443,7 @@ export const MultiSelectList = ({
   values,
   options,
   onChange,
-  emptyLabel = "Tidak ada pilihan",
+  emptyLabel = "No options",
   className = "",
 }: {
   label: string;
@@ -494,15 +524,15 @@ export const EmptyState = ({ title, description }: { title: string; description?
 
 export const LoadingState = () => (
   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-    {Array.from({ length: 8 }).map((_, index) => (
-      <div key={index} className="animate-pulse rounded-[1.6rem] border border-border-soft bg-surface p-5 shadow-soft">
+    {["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"].map((key) => (
+      <div key={key} className="animate-pulse rounded-[1.6rem] border border-border-soft bg-surface p-5 shadow-soft">
         <div className="h-14 w-14 rounded-full bg-surface-soft" />
         <div className="mt-5 h-4 w-28 rounded-full bg-surface-soft" />
         <div className="mt-3 h-5 w-4/5 rounded-full bg-surface-soft" />
         <div className="mt-3 h-4 w-full rounded-full bg-surface-soft" />
       </div>
     ))}
-    <span className="sr-only">Memuat data keluarga...</span>
+    <span className="sr-only">Loading family data...</span>
   </div>
 );
 
@@ -566,9 +596,9 @@ export const ConfirmDialog = ({
             </div>
           </div>
           <div className="mt-6 flex flex-col justify-end gap-3 sm:flex-row">
-            <SecondaryButton onClick={onCancel}>Batal</SecondaryButton>
+            <SecondaryButton onClick={onCancel}>Cancel</SecondaryButton>
             <SecondaryButton tone="warning" onClick={onConfirm}>
-              Hapus Data
+              Delete Data
             </SecondaryButton>
           </div>
         </motion.div>
