@@ -44,7 +44,7 @@ export const maybeAiRelationship = async (fallback: RelationshipResult, fromName
     });
 
     if (!response.ok) return fallback;
-    const data = await response.json();
+    const data = (await response.json()) as any;
     const text = data?.candidates?.[0]?.content?.parts?.map((part: any) => part.text).filter(Boolean).join("\n") ?? "";
     const parsed = parseAiJson(text);
     if (!parsed?.explanation || !parsed.relationshipLabel) return fallback;

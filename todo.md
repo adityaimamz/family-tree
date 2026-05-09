@@ -791,27 +791,27 @@ Rina → Arman Rahman → Siti Rahman → Aditya Rahman
 
 Priority: **P1 / paling mudah dimatangkan**
 
-* [ ] Backend endpoint:
+* [x] Backend endpoint:
 
 ```txt
 POST /api/spaces/:spaceSlug/ai/generate-biography
 ```
 
-* [ ] Endpoint wajib require auth + FamilySpace membership
-* [ ] Role minimum untuk save: owner/admin
-* [ ] Input:
+* [x] Endpoint wajib require auth + FamilySpace membership
+* [x] Role minimum untuk save: owner/admin
+* [x] Input:
 
   * memberId optional
   * short notes
   * tone/style optional
-* [ ] Output:
+* [x] Output:
 
   * biography draft
   * privacy reminder
-* [ ] Frontend panel di Member Profile atau Stories page
-* [ ] Bisa generate dari notes sederhana
-* [ ] Bisa copy atau save ke biography/story draft
-* [ ] Sediakan deterministic fallback jika AI env belum tersedia
+* [x] Frontend panel di Member Profile atau Stories page
+* [x] Bisa generate dari notes sederhana
+* [x] Bisa copy atau save ke biography/story draft
+* [x] Sediakan deterministic fallback jika AI env belum tersedia
 
 Privacy cue:
 

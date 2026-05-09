@@ -228,3 +228,10 @@ export interface RelationshipExplanationHistory {
   updatedAt: string;
   viewCount: number;
 }
+
+export interface BiographyGenerationResult {
+  biographyDraft: string;
+  privacyReminder: string;
+  fallbackNote: string;
+  source: "ai" | "deterministic";
+}

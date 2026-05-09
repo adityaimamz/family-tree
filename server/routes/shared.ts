@@ -117,6 +117,15 @@ export const mapTreeMember = (member: any) => ({
   relationshipToRoot: member.relationshipToRoot,
 });
 
+// Map branch slug to human-readable name
+const mapBranchToName = (slug: string | null): string => {
+  if (!slug) return "Not recorded";
+  if (slug === "garis-utama") return "Main Line";
+  if (slug === "cabang-kedua") return "Second Branch";
+  if (slug === "cabang-ketiga") return "Third Branch";
+  return slug;
+};
+
 // Legacy mapMember for Bootstrap_Endpoint (includes birthPlace, biography, notes)
 export const mapMember = (member: any) => ({
   id: member.slugId,
@@ -124,7 +133,7 @@ export const mapMember = (member: any) => ({
   displayName: member.displayName,
   gender: member.gender,
   generation: member.generation,
-  familyBranch: member.familyBranchId,
+  familyBranch: mapBranchToName(member.familyBranchId),
   fatherId: member.fatherId,
   motherId: member.motherId,
   spouseIds: member.spouseIds ?? [],

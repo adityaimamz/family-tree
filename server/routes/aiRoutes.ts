@@ -15,6 +15,192 @@ import {
 } from "../relationship/types.js";
 
 const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
+const biographyPrivacyReminder = "AI drafts stay inside this family space until reviewed.";
+
+type BiographyTone = "warm" | "concise" | "legacy";
+type BiographySource = "ai" | "deterministic";
+type BiographyMember = {
+  slugId: string;
+  fullName: string;
+  displayName: string;
+  gender: string;
+  generation: number;
+  familyBranchId: string;
+  birthDate: string | null;
+  deathDate: string | null;
+  isDeceased: boolean;
+  deceasedLabel: string | null;
+  birthPlace: string | null;
+  biography: string;
+  notes: string;
+  statusLabel: string;
+  relationshipToRoot: string;
+};
+
+type BiographyGenerationResult = {
+  biographyDraft: string;
+  privacyReminder: string;
+  fallbackNote: string;
+  source: BiographySource;
+};
+
+const normalizeBiographyTone = (value: unknown): BiographyTone => {
+  if (value === "concise" || value === "legacy" || value === "warm") return value;
+  return "warm";
+};
+
+const parseAiBiographyJson = (text: string) => {
+  const match = /\{[\s\S]*\}/.exec(text);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]) as Partial<BiographyGenerationResult>;
+  } catch {
+    return null;
+  }
+};
+
+const compactLines = (values: Array<string | null | undefined>) =>
+  values
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+
+// Map branch slugs to human-readable names
+const mapBranchName = (slug: string | null): string => {
+  if (!slug) return "Not recorded";
+  if (slug === "garis-utama") return "Main Line";
+  if (slug === "cabang-kedua") return "Second Branch";
+  return slug;
+};
+
+// Map relationship to root to human-readable labels
+const mapRelationshipToRoot = (value: string | null): string => {
+  if (!value) return "Family Member";
+  if (value === "root" || value === "Family Founder") return "Family Founder";
+  if (value === "spouse" || value === "Spouse") return "Spouse";
+  if (value === "child" || value === "Child") return "Child";
+  if (value === "grandchild" || value === "Grandchild") return "Grandchild";
+  if (value === "in-law" || value === "In-Law") return "In-Law";
+  return value;
+};
+
+const deterministicBiography = (
+  member: BiographyMember | null,
+  notes: string,
+  tone: BiographyTone,
+): BiographyGenerationResult => {
+  const name = member?.displayName?.trim() || member?.fullName?.trim() || "This family member";
+  const branchName = mapBranchName(member?.familyBranchId ?? null);
+  const relToRoot = mapRelationshipToRoot(member?.relationshipToRoot ?? null);
+  
+  const identityFacts = member
+    ? compactLines([
+        relToRoot ? `${name} is recorded as ${relToRoot}.` : null,
+        branchName !== "Not recorded" ? `This profile belongs to the ${branchName} branch.` : null,
+        Number.isFinite(member.generation) ? `The archive places this record in generation ${member.generation}.` : null,
+        member.birthDate || member.birthPlace
+          ? `${name}'s birth context: ${compactLines([member.birthDate, member.birthPlace]).join(", ")}.`
+          : null,
+        member.isDeceased
+          ? `${name} is marked in the archive as ${member.deceasedLabel || member.statusLabel || "deceased"}.`
+          : member.statusLabel
+            ? `${name}'s profile status: ${member.statusLabel}.`
+            : null,
+      ])
+    : [];
+  const profileContext = member ? compactLines([member.biography, member.notes]) : [];
+  const noteSentence = `Family notes: ${notes.trim()}`;
+  const sourceContext = profileContext.length
+    ? ` Existing profile context: ${profileContext.join(" ")}`
+    : "";
+
+  let biographyDraft: string;
+  if (tone === "concise") {
+    biographyDraft = compactLines([
+      identityFacts[0],
+      noteSentence,
+      "This draft keeps only details already present in the family archive and the notes provided for review.",
+    ]).join(" ");
+  } else if (tone === "legacy") {
+    biographyDraft = compactLines([
+      `${name}'s story is preserved as part of the family's living archive.`,
+      ...identityFacts,
+      `${noteSentence}${sourceContext}`,
+      "The draft is ready for family review, correction, and source confirmation before it becomes the final biography.",
+    ]).join(" ");
+  } else {
+    biographyDraft = compactLines([
+      `${name} is remembered through the relationships, milestones, and small details preserved by the family.`,
+      ...identityFacts,
+      `${noteSentence}${sourceContext}`,
+      "Together, these details form a warm first draft that can be refined by relatives who know the story best.",
+    ]).join(" ");
+  }
+
+  return {
+    biographyDraft,
+    privacyReminder: biographyPrivacyReminder,
+    fallbackNote: "Generated with deterministic fallback from FamilySpace data and submitted notes.",
+    source: "deterministic",
+  };
+};
+
+const maybeAiBiography = async (
+  fallback: BiographyGenerationResult,
+  member: BiographyMember | null,
+  notes: string,
+  tone: BiographyTone,
+): Promise<BiographyGenerationResult> => {
+  const apiKey = process.env.VERTEX_API_KEY || process.env.API_KEY;
+  if (!apiKey) return fallback;
+
+  const model = process.env.VERTEX_MODEL || "gemini-2.5-flash";
+  const endpoint =
+    process.env.VERTEX_AI_GENERATE_URL ||
+    `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent`;
+  const prompt = [
+    "You draft private family biographies for WarisanAI.",
+    "Use only the member profile fields and short notes supplied below.",
+    "Do not invent dates, places, achievements, occupations, names, or events.",
+    "Write in English, with a respectful family-archive voice.",
+    `Tone: ${tone}.`,
+    `Privacy reminder must be exactly: ${biographyPrivacyReminder}`,
+    "Return compact JSON with keys: biographyDraft, privacyReminder, fallbackNote.",
+    `Member profile: ${JSON.stringify(member)}`,
+    `Short notes: ${notes}`,
+  ].join("\n");
+
+  try {
+    const response = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.25,
+          maxOutputTokens: 720,
+          responseMimeType: "application/json",
+        },
+      }),
+    });
+
+    if (!response.ok) return fallback;
+    const data = (await response.json()) as any;
+    const text = data?.candidates?.[0]?.content?.parts?.map((part: any) => part.text).filter(Boolean).join("\n") ?? "";
+    const parsed = parseAiBiographyJson(text);
+    if (!parsed?.biographyDraft || typeof parsed.biographyDraft !== "string") return fallback;
+
+    return {
+      biographyDraft: parsed.biographyDraft.trim(),
+      privacyReminder: biographyPrivacyReminder,
+      fallbackNote: typeof parsed.fallbackNote === "string" && parsed.fallbackNote.trim()
+        ? parsed.fallbackNote.trim()
+        : "Generated by AI from FamilySpace data and submitted notes.",
+      source: "ai",
+    };
+  } catch {
+    return fallback;
+  }
+};
 
 /**
  * Checks whether a cached relationship explanation is still fresh
@@ -67,6 +253,69 @@ const isCacheFresh = (
 };
 
 export const aiRoutes = Router();
+
+aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-biography", ...requireSpaceRead, async (req, res) => {
+  try {
+    if (!req.familySpace) {
+      res.status(500).json({ error: "FamilySpace context not loaded." });
+      return;
+    }
+
+    const memberId = asNonEmptyString(req.body?.memberId);
+    const notes = asNonEmptyString(req.body?.notes);
+    const tone = normalizeBiographyTone(req.body?.tone);
+
+    if (!notes) {
+      res.status(400).json({ error: "notes are required." });
+      return;
+    }
+
+    if (notes.length > 6000) {
+      res.status(400).json({ error: "notes must be 6000 characters or fewer." });
+      return;
+    }
+
+    const member = memberId
+      ? await prisma.familyMember.findUnique({
+          where: {
+            familySpaceId_slugId: {
+              familySpaceId: req.familySpace.id,
+              slugId: memberId,
+            },
+          },
+          select: {
+            slugId: true,
+            fullName: true,
+            displayName: true,
+            gender: true,
+            generation: true,
+            familyBranchId: true,
+            birthDate: true,
+            deathDate: true,
+            isDeceased: true,
+            deceasedLabel: true,
+            birthPlace: true,
+            biography: true,
+            notes: true,
+            statusLabel: true,
+            relationshipToRoot: true,
+          },
+        })
+      : null;
+
+    if (memberId && !member) {
+      res.status(404).json({ error: "Member was not found in this FamilySpace." });
+      return;
+    }
+
+    const fallback = deterministicBiography(member, notes, tone);
+    const result = await maybeAiBiography(fallback, member, notes, tone);
+
+    res.json(result);
+  } catch (error) {
+    handleError(res, error, "Failed to generate biography");
+  }
+});
 
 aiRoutes.post("/api/spaces/:spaceSlug/ai/explain-relationship", ...requireSpaceRead, async (req, res) => {
   try {
