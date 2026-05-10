@@ -115,6 +115,54 @@ textarea {
   mask-image: linear-gradient(135deg, rgba(0, 0, 0, 0.72), transparent 72%);
 }
 
+.auth-premium {
+  --neon-radius: 1rem;
+  --neon-background: hsl(var(--surface));
+  --neon-foreground: hsl(var(--text));
+  --neon-card: transparent;
+  --neon-card-foreground: hsl(var(--text));
+  --neon-popover: hsl(var(--surface));
+  --neon-popover-foreground: hsl(var(--text));
+  --neon-primary: hsl(var(--dark-green));
+  --neon-primary-foreground: hsl(var(--surface));
+  --neon-secondary: hsl(var(--surface-soft));
+  --neon-secondary-foreground: hsl(var(--text));
+  --neon-muted: hsl(var(--surface-soft));
+  --neon-muted-foreground: hsl(var(--muted));
+  --neon-accent: hsl(var(--sage-green) / 0.14);
+  --neon-accent-foreground: hsl(var(--dark-green));
+  --neon-destructive: hsl(var(--warning));
+  --neon-destructive-foreground: hsl(var(--warning));
+  --neon-border: hsl(var(--border));
+  --neon-input: hsl(var(--border));
+  --neon-ring: hsl(var(--sage-green) / 0.46);
+  color: hsl(var(--text));
+}
+
+.auth-premium [data-slot="card"],
+.auth-premium [data-slot="card-header"],
+.auth-premium [data-slot="card-content"],
+.auth-premium [data-slot="card-footer"] {
+  position: relative;
+}
+
+.auth-premium [data-slot="input"] {
+  font-variant-numeric: tabular-nums;
+}
+
+.auth-premium [data-slot="button"] svg {
+  stroke-width: 1.8;
+}
+
+.auth-premium [data-slot="form-message"] {
+  margin-top: 0.45rem;
+}
+
+.auth-premium [data-slot="card-footer"] a,
+.auth-premium [data-slot="card-footer"] button {
+  text-decoration-thickness: 0.08em;
+}
+
 .skeleton-luxe {
   position: relative;
   isolation: isolate;

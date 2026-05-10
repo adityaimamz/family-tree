@@ -25,7 +25,16 @@ const handleAuthToast = ({ message, variant = "default" }: NeonToastPayload) => 
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
-    <NeonAuthUIProvider authClient={neonAuth} redirectTo="/app" toast={handleAuthToast}>
+    <NeonAuthUIProvider
+      authClient={neonAuth}
+      redirectTo="/app"
+      toast={handleAuthToast}
+      social={{ providers: ["google"] }}
+      localization={{
+        OR_CONTINUE_WITH: "or continue with email",
+        SIGN_IN_WITH: "Continue with",
+      }}
+    >
       <App />
     </NeonAuthUIProvider>
   </BrowserRouter>,

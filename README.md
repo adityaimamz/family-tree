@@ -318,6 +318,15 @@ https://your-cloud-run-service-url.run.app
 
 If production login returns `403 Forbidden` or `Invalid origin`, the Cloud Run origin is likely missing from the Neon Auth allowed origins configuration.
 
+### Google OAuth provider
+
+The auth UI is configured to render Neon's real Google provider button. To make it work outside email/password auth:
+
+- Enable the Google OAuth provider in Neon Auth.
+- Add the Cloud Run origin, for example `https://your-cloud-run-service-url.run.app`, to Neon Auth allowed origins.
+- Add the Neon Auth callback URL shown in the Neon Console to Google OAuth authorized redirect URIs.
+- Do not commit Google OAuth client secrets or provider credentials.
+
 ## Local Development
 
 Install dependencies:
