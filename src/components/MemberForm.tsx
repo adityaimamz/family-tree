@@ -98,11 +98,10 @@ export const FormStepper = ({
                 onClick={() => onStepChange(step.id)}
               >
                 <span
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border transition sm:h-10 sm:w-10 ${
-                    active || completed
+                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border transition sm:h-10 sm:w-10 ${active || completed
                       ? "border-white/30 bg-white/20 text-current"
                       : "border-border-soft bg-surface text-warm-brown/70 group-hover:border-soft-gold/60 group-hover:bg-soft-gold/10"
-                  }`}
+                    }`}
                 >
                   <Icon className="h-5 w-5" strokeWidth={1.8} />
                 </span>
@@ -248,18 +247,18 @@ export const MemberForm = ({
               transition={{ type: "spring", stiffness: 140, damping: 22 }}
             >
               <FormSection title="Personal Information" description="Complete the name and status of the member. Names, titles, punctuation, and apostrophes are saved as entered.">
-          <Field label="Full name"><input className={inputClass} value={member.fullName} onChange={(event) => update("fullName", event.target.value)} placeholder="Example: Hj. Sofu’ah" /></Field>
-          <Field label="Display name"><input className={inputClass} value={member.displayName} onChange={(event) => update("displayName", event.target.value)} placeholder="Short name for card" /></Field>
-          <Field label="Prefix title"><input className={inputClass} placeholder="Example: H., Hj., Ns." /></Field>
-          <Field label="Suffix title"><input className={inputClass} placeholder="Example: S.T, S.Kom, MM" /></Field>
-          <FilterSelect label="Gender" value={member.gender} options={["male", "female", "unknown"]} onChange={(value) => update("gender", value as Gender)} />
-          <Field label="Generation"><input className={inputClass} min={0} type="number" value={member.generation} onChange={(event) => update("generation", Number(event.target.value))} /></Field>
-          <FilterSelect label="Family status" value={member.statusLabel} options={statuses} onChange={(value) => update("statusLabel", value as FamilyStatus)} />
-          <FilterSelect label="Life/Death status" value={member.isDeceased ? "Deceased" : "Alive"} options={["Alive", "Deceased"]} onChange={(value) => update("isDeceased", value === "Deceased")} />
-          <FilterSelect label="Deceased label" value={member.deceasedLabel ?? "None"} options={["None", "Late", "Deceased"]} onChange={(value) => update("deceasedLabel", value === "None" ? null : (value as "Late" | "Deceased"))} />
-          <Field label="Birth place"><input className={inputClass} value={member.birthPlace ?? ""} onChange={(event) => update("birthPlace", event.target.value || null)} placeholder="Unknown" /></Field>
-          <Field label="Birth date"><input className={inputClass} type="date" value={member.birthDate ?? ""} onChange={(event) => update("birthDate", event.target.value || null)} /></Field>
-          <Field label="Death date"><input className={inputClass} type="date" value={member.deathDate ?? ""} onChange={(event) => update("deathDate", event.target.value || null)} /></Field>
+                <Field label="Full name"><input className={inputClass} value={member.fullName} onChange={(event) => update("fullName", event.target.value)} placeholder="Example: Hj. Sofu’ah" /></Field>
+                <Field label="Display name"><input className={inputClass} value={member.displayName} onChange={(event) => update("displayName", event.target.value)} placeholder="Short name for card" /></Field>
+                <Field label="Prefix title"><input className={inputClass} placeholder="Example: H., Hj., Ns." /></Field>
+                <Field label="Suffix title"><input className={inputClass} placeholder="Example: S.T, S.Kom, MM" /></Field>
+                <FilterSelect label="Gender" value={member.gender} options={["male", "female", "unknown"]} onChange={(value) => update("gender", value as Gender)} />
+                <Field label="Generation"><input className={inputClass} min={0} type="number" value={member.generation} onChange={(event) => update("generation", Number(event.target.value))} /></Field>
+                <FilterSelect label="Family status" value={member.statusLabel} options={statuses} onChange={(value) => update("statusLabel", value as FamilyStatus)} />
+                <FilterSelect label="Life/Death status" value={member.isDeceased ? "Deceased" : "Alive"} options={["Alive", "Deceased"]} onChange={(value) => update("isDeceased", value === "Deceased")} />
+                <FilterSelect label="Deceased label" value={member.deceasedLabel ?? "None"} options={["None", "Late", "Deceased"]} onChange={(value) => update("deceasedLabel", value === "None" ? null : (value as "Late" | "Deceased"))} />
+                <Field label="Birth place"><input className={inputClass} value={member.birthPlace ?? ""} onChange={(event) => update("birthPlace", event.target.value || null)} placeholder="Unknown" /></Field>
+                <Field label="Birth date"><input className={inputClass} type="date" value={member.birthDate ?? ""} onChange={(event) => update("birthDate", event.target.value || null)} /></Field>
+                <Field label="Death date"><input className={inputClass} type="date" value={member.deathDate ?? ""} onChange={(event) => update("deathDate", event.target.value || null)} /></Field>
               </FormSection>
             </motion.div>
           )}
@@ -272,15 +271,15 @@ export const MemberForm = ({
               transition={{ type: "spring", stiffness: 140, damping: 22 }}
             >
               <FormSection title="Family Relationships" description="Choose family relations so the tree can be organized automatically and clearly.">
-          <RelationshipSelector label="Father" value={member.fatherId} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("fatherId", value as string | null)} />
-          <RelationshipSelector label="Mother" value={member.motherId} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("motherId", value as string | null)} />
-          <RelationshipSelector label="Spouse" multiple value={member.spouseIds} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("spouseIds", value as string[])} />
-          <Field label="Marriage date"><input className={inputClass} type="date" value={member.marriageDate ?? ""} onChange={(event) => update("marriageDate", event.target.value || null)} /></Field>
-          <RelationshipSelector label="Former spouse" multiple value={member.formerSpouseIds} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("formerSpouseIds", value as string[])} />
-          <RelationshipSelector label="Children" multiple value={member.childrenIds} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("childrenIds", value as string[])} />
-          <RelationshipSelector label="Siblings" multiple value={member.siblingIds} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("siblingIds", value as string[])} />
-          <FilterSelect label="Family branch" value={member.familyBranch} options={branches} onChange={(value) => update("familyBranch", value)} />
-          <Field label="Relationship with core family"><input className={inputClass} value={member.relationshipToRoot} onChange={(event) => update("relationshipToRoot", event.target.value)} placeholder={spaceLabels.relationshipPlaceholder} /></Field>
+                <RelationshipSelector label="Father" value={member.fatherId} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("fatherId", value as string | null)} />
+                <RelationshipSelector label="Mother" value={member.motherId} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("motherId", value as string | null)} />
+                <RelationshipSelector label="Spouse" multiple value={member.spouseIds} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("spouseIds", value as string[])} />
+                <Field label="Marriage date"><input className={inputClass} type="date" value={member.marriageDate ?? ""} onChange={(event) => update("marriageDate", event.target.value || null)} /></Field>
+                <RelationshipSelector label="Former spouse" multiple value={member.formerSpouseIds} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("formerSpouseIds", value as string[])} />
+                <RelationshipSelector label="Children" multiple value={member.childrenIds} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("childrenIds", value as string[])} />
+                <RelationshipSelector label="Siblings" multiple value={member.siblingIds} members={members.filter((item) => item.id !== member.id)} onChange={(value) => update("siblingIds", value as string[])} />
+                <FilterSelect label="Family branch" value={member.familyBranch} options={branches} onChange={(value) => update("familyBranch", value)} />
+                <Field label="Relationship with core family"><input className={inputClass} value={member.relationshipToRoot} onChange={(event) => update("relationshipToRoot", event.target.value)} placeholder={spaceLabels.relationshipPlaceholder} /></Field>
               </FormSection>
             </motion.div>
           )}
@@ -293,16 +292,16 @@ export const MemberForm = ({
               transition={{ type: "spring", stiffness: 140, damping: 22 }}
             >
               <FormSection title="Photos and Biography" description="Add warm and readable notes. Photos can be URLs; if empty, initials avatar is created automatically.">
-          <div className="md:col-span-2">
-            <PhotoUploadField
-              folder="members"
-              label="Foto"
-              value={member.photo ?? ""}
-              onChange={(value) => update("photo", value || null)}
-            />
-          </div>
-          <Field label="Additional notes"><input className={inputClass} value={member.notes} onChange={(event) => update("notes", event.target.value)} placeholder="Brief notes" /></Field>
-          <label className="md:col-span-2"><span className="mb-2 block text-sm font-semibold text-text-primary">Biography</span><textarea className={`${inputClass} min-h-36 resize-y`} value={member.biography} onChange={(event) => update("biography", event.target.value)} placeholder="Write a short story about the family member" /></label>
+                <div className="md:col-span-2">
+                  <PhotoUploadField
+                    folder="members"
+                    label="Foto"
+                    value={member.photo ?? ""}
+                    onChange={(value) => update("photo", value || null)}
+                  />
+                </div>
+                <div className="md:col-span-2"><Field label="Additional notes"><textarea className={`${inputClass} min-h-24 resize-y`} value={member.notes} onChange={(event) => update("notes", event.target.value)} placeholder="Brief notes" /></Field></div>
+                <label className="md:col-span-2"><span className="mb-2 block text-sm font-semibold text-text-primary">Biography</span><textarea className={`${inputClass} min-h-36 resize-y`} value={member.biography} onChange={(event) => update("biography", event.target.value)} placeholder="Write a short story about the family member" /></label>
               </FormSection>
             </motion.div>
           )}

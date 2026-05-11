@@ -100,6 +100,13 @@ export interface SpaceSummary {
   timelineCount: number;
   galleryCount: number;
   storiesCount: number;
+  /**
+   * Feature: ai-studio-experience (additive).
+   * slugId of the first member whose `notes` field is non-empty, or
+   * `null` when no member has notes. Powers the Dashboard AI Readiness
+   * Block's biography deep-link without loading the full members list.
+   */
+  memberWithNotesId?: string | null;
 }
 
 export interface GalleryItem {

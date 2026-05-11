@@ -146,18 +146,33 @@ describe("Property tests for spaceDashboard derivations", () => {
         fc.property(arbDashboardCounts, (counts) => {
           const steps = deriveSuggestedSteps(counts);
 
-          // For each step, verify its route corresponds to an actual gap
+          // When every gap is filled, `deriveSuggestedSteps` returns three
+          // AI-assisted steps (tree / members / timeline) instead of an
+          // empty list. In that case the route→gap mapping below does not
+          // apply: "members" and "timeline" here represent the biography
+          // and timeline-story AI shortcuts, not content gaps.
+          const allGapsFilled =
+            counts.membersCount > 0 &&
+            counts.generations >= 2 &&
+            counts.timelineCount > 0 &&
+            counts.galleryCount > 0 &&
+            counts.storiesCount > 0;
+
           steps.forEach((step) => {
             switch (step.to) {
               case "members":
                 // members step exists when membersCount is 0 or generations < 2
+                // OR as an AI-assisted biography shortcut when no gaps remain.
                 expect(
-                  counts.membersCount === 0 || counts.generations < 2
+                  counts.membersCount === 0 ||
+                    counts.generations < 2 ||
+                    allGapsFilled,
                 ).toBe(true);
                 break;
               case "timeline":
                 // timeline step exists when timelineCount is 0
-                expect(counts.timelineCount === 0).toBe(true);
+                // OR as an AI-assisted shortcut when no gaps remain.
+                expect(counts.timelineCount === 0 || allGapsFilled).toBe(true);
                 break;
               case "gallery":
                 // gallery step exists when galleryCount is 0
@@ -274,5 +289,88 @@ describe("Property tests for spaceDashboard derivations", () => {
       expect(deriveCompletionLabel(71)).toBe("Publication-ready archive");
       expect(deriveCompletionLabel(100)).toBe("Publication-ready archive");
     });
+  });
+});
+
+
+// =============================================================================
+// Feature: ai-studio-experience, Property 8: Dashboard AI Readiness Rules
+// Validates: Requirements 6.3, 6.4, 6.5, 6.6, 6.7
+// =============================================================================
+
+import {
+  deriveAIReadinessRecommendations,
+  type AIRecommendation,
+  type AIRecommendationKey,
+} from "./spaceDashboard.derive";
+
+describe("deriveAIReadinessRecommendations — Property 8", () => {
+  const arbInput = fc.record({
+    membersCount: fc.nat({ max: 50 }),
+    timelineCount: fc.nat({ max: 50 }),
+    storiesCount: fc.nat({ max: 50 }),
+    memberWithNotesId: fc.oneof(fc.constant(null), fc.uuid()),
+  });
+
+  const hasKey = (list: AIRecommendation[], key: AIRecommendationKey) =>
+    list.some((entry) => entry.key === key);
+
+  it("recommendations follow the four rules exactly", () => {
+    fc.assert(
+      fc.property(arbInput, (input) => {
+        const recommendations = deriveAIReadinessRecommendations(input);
+
+        expect(hasKey(recommendations, "relationship")).toBe(
+          input.membersCount >= 2,
+        );
+        expect(hasKey(recommendations, "biography")).toBe(
+          input.memberWithNotesId !== null,
+        );
+        expect(hasKey(recommendations, "timeline-story")).toBe(
+          input.timelineCount > 0,
+        );
+        expect(hasKey(recommendations, "review-stories")).toBe(
+          input.storiesCount > 0,
+        );
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it("empty array iff none of the four rules hold", () => {
+    fc.assert(
+      fc.property(arbInput, (input) => {
+        const recommendations = deriveAIReadinessRecommendations(input);
+        const noneHold =
+          input.membersCount < 2 &&
+          input.memberWithNotesId === null &&
+          input.timelineCount === 0 &&
+          input.storiesCount === 0;
+        expect(recommendations.length === 0).toBe(noneHold);
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it("biography deep-link embeds the member slug", () => {
+    const recommendations = deriveAIReadinessRecommendations({
+      membersCount: 0,
+      timelineCount: 0,
+      storiesCount: 0,
+      memberWithNotesId: "eliana-bastawi",
+    });
+    const biography = recommendations.find((r) => r.key === "biography");
+    expect(biography?.to).toBe("members/eliana-bastawi?ai=biography");
+  });
+
+  it("each key appears at most once per call", () => {
+    fc.assert(
+      fc.property(arbInput, (input) => {
+        const recommendations = deriveAIReadinessRecommendations(input);
+        const keys = recommendations.map((r) => r.key);
+        expect(keys.length).toBe(new Set(keys).size);
+      }),
+      { numRuns: 100 },
+    );
   });
 });

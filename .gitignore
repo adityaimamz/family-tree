@@ -39,7 +39,6 @@ coverage/
 Thumbs.db
 
 .agents
-.kiro
 /src/generated/prisma
 
 .vercel

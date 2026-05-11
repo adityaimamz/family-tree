@@ -83,6 +83,117 @@ type GenerateContentResponse = {
   }>;
 };
 
+// ---------------------------------------------------------------------------
+// Feature: ai-studio-experience — Enhanced_AI_Metadata helpers.
+//
+// All fields added below are optional and additive. Legacy clients reading
+// only the minimal response shape (biographyDraft, privacyReminder,
+// fallbackNote, source for biography; etc.) continue to work because
+// the original fields and their ordering are preserved in every response.
+// ---------------------------------------------------------------------------
+
+const DEFAULT_REVIEW_CHECKLIST = [
+  "Check names",
+  "Check dates",
+  "Check sensitive details",
+  "Ask a family reviewer before saving as final",
+] as const;
+
+type ConfidenceLabel = "direct" | "inferred" | "uncertain" | "high-detail" | "medium-detail" | "low-detail";
+
+const hasText = (value: string | null | undefined): boolean =>
+  typeof value === "string" && value.trim().length > 0;
+
+/** Plain-language `factsUsed` derived from the non-null member fields.
+ * Never invents data — each chip restates an archive field verbatim. */
+const computeBiographyFactsUsed = (member: BiographyMember | null): string[] => {
+  if (!member) return [];
+  const facts: string[] = [];
+  const displayName = (member.displayName || member.fullName || "").trim();
+  if (displayName) facts.push(`Display name: ${displayName}`);
+  const rel = mapRelationshipToRoot(member.relationshipToRoot ?? null);
+  if (rel && rel !== "Family Member") facts.push(`Relationship to root: ${rel}`);
+  const birthDate = (member.birthDate ?? "").trim();
+  if (birthDate) facts.push(`Birth date: ${birthDate}`);
+  const birthPlace = (member.birthPlace ?? "").trim();
+  if (birthPlace) facts.push(`Birth place: ${birthPlace}`);
+  if (hasText(member.biography)) facts.push("Existing biography on file");
+  if (hasText(member.notes)) facts.push("Notes on file");
+  if (hasText(member.statusLabel)) facts.push(`Status: ${member.statusLabel.trim()}`);
+  return facts;
+};
+
+const computeBiographyMissingContext = (
+  member: BiographyMember | null,
+): string[] => {
+  if (!member) return [];
+  const hints: string[] = [];
+  if (!hasText(member.birthDate)) hints.push("Add a birth date");
+  if (!hasText(member.birthPlace)) hints.push("Add a birth place");
+  if (!hasText(member.biography))
+    hints.push("Record a short biography so the draft has framing");
+  if (!hasText(member.notes))
+    hints.push("Add notes with memories or anecdotes the draft can weave in");
+  return hints;
+};
+
+const computeBiographyGeneratedFrom = (
+  tone: BiographyTone,
+  factsUsed: string[],
+): string[] => {
+  const chips: string[] = [`Tone: ${tone}`];
+  if (factsUsed.length > 0) {
+    chips.push(`${factsUsed.length} member profile fields`);
+  }
+  return chips;
+};
+
+const computeBiographyConfidenceLabel = (factsUsed: string[]): ConfidenceLabel => {
+  if (factsUsed.length >= 5) return "high-detail";
+  if (factsUsed.length >= 3) return "medium-detail";
+  return "low-detail";
+};
+
+const computeTimelineEventsUsed = (events: TimelineStoryEvent[]): string[] =>
+  events.map((event) => `${event.year}: ${event.title}`);
+
+const computeTimelineMissingContext = (events: TimelineStoryEvent[]): string[] => {
+  if (events.length === 0) {
+    return [
+      "Add a birth event",
+      "Add a marriage event",
+      "Add a move event",
+      "Add a reunion event",
+      "Record a deceased event",
+    ];
+  }
+  const presentTypes = new Set(events.map((event) => event.type.toLowerCase()));
+  const hints: string[] = [];
+  if (!presentTypes.has("birth")) hints.push("Add a birth event");
+  if (!presentTypes.has("marriage")) hints.push("Add a marriage event");
+  if (!presentTypes.has("deceased")) hints.push("Record a deceased event");
+  return hints;
+};
+
+const computeTimelineGeneratedFrom = (
+  tone: TimelineStoryTone,
+  eventCount: number,
+  memberCount: number,
+): string[] => {
+  const chips: string[] = [`Tone: ${tone}`];
+  if (eventCount > 0) chips.push(`${eventCount} milestones`);
+  if (memberCount > 0) chips.push(`${memberCount} relatives`);
+  return chips;
+};
+
+const mapConfidenceToLabel = (
+  confidence: "high" | "medium" | "low",
+): "direct" | "inferred" | "uncertain" => {
+  if (confidence === "high") return "direct";
+  if (confidence === "medium") return "inferred";
+  return "uncertain";
+};
+
 const normalizeBiographyTone = (value: unknown): BiographyTone => {
   if (value === "concise" || value === "legacy" || value === "warm") return value;
   return "warm";
@@ -93,24 +204,71 @@ const normalizeTimelineStoryTone = (value: unknown): TimelineStoryTone => {
   return "warm";
 };
 
-const parseAiBiographyJson = (text: string) => {
-  const match = /\{[\s\S]*\}/.exec(text);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[0]) as Partial<BiographyGenerationResult>;
-  } catch {
-    return null;
+/**
+ * Try to extract a JSON string value for a given key from possibly-truncated text.
+ * Falls back to regex extraction when JSON.parse fails (e.g. when LLM output is cut off).
+ */
+const extractJsonStringValue = (text: string, ...keys: string[]): string | undefined => {
+  for (const key of keys) {
+    // Match "key": "value" — value may contain escaped characters
+    const pattern = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`, "s");
+    const m = pattern.exec(text);
+    if (m && m[1] && m[1].trim().length > 20) {
+      // Unescape common JSON escapes
+      return m[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+    }
   }
+  return undefined;
+};
+
+const parseAiBiographyJson = (text: string) => {
+  // First try: full JSON parse
+  const match = /\{[\s\S]*\}/.exec(text);
+  if (match) {
+    try {
+      const raw = JSON.parse(match[0]) as Record<string, unknown>;
+      return {
+        biographyDraft: (raw.biographyDraft ?? raw.biography_draft ?? raw.draft) as string | undefined,
+        privacyReminder: (raw.privacyReminder ?? raw.privacy_reminder) as string | undefined,
+        fallbackNote: (raw.fallbackNote ?? raw.fallback_note) as string | undefined,
+      } as Partial<BiographyGenerationResult>;
+    } catch {
+      // JSON incomplete — fall through to regex extraction
+    }
+  }
+  // Fallback: regex extraction from truncated JSON
+  const draft = extractJsonStringValue(text, "biographyDraft", "biography_draft", "draft");
+  if (!draft) return null;
+  return {
+    biographyDraft: draft,
+    privacyReminder: extractJsonStringValue(text, "privacyReminder", "privacy_reminder"),
+    fallbackNote: extractJsonStringValue(text, "fallbackNote", "fallback_note"),
+  } as Partial<BiographyGenerationResult>;
 };
 
 const parseAiTimelineStoryJson = (text: string) => {
+  // First try: full JSON parse
   const match = /\{[\s\S]*\}/.exec(text);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[0]) as Partial<TimelineStoryResult>;
-  } catch {
-    return null;
+  if (match) {
+    try {
+      const raw = JSON.parse(match[0]) as Record<string, unknown>;
+      return {
+        timelineStoryDraft: (raw.timelineStoryDraft ?? raw.timeline_story_draft ?? raw.story_draft ?? raw.draft ?? raw.story) as string | undefined,
+        privacyReminder: (raw.privacyReminder ?? raw.privacy_reminder) as string | undefined,
+        fallbackNote: (raw.fallbackNote ?? raw.fallback_note) as string | undefined,
+      } as Partial<TimelineStoryResult>;
+    } catch {
+      // JSON incomplete — fall through to regex extraction
+    }
   }
+  // Fallback: regex extraction from truncated JSON
+  const draft = extractJsonStringValue(text, "timelineStoryDraft", "timeline_story_draft", "story_draft", "draft", "story");
+  if (!draft) return null;
+  return {
+    timelineStoryDraft: draft,
+    privacyReminder: extractJsonStringValue(text, "privacyReminder", "privacy_reminder"),
+    fallbackNote: extractJsonStringValue(text, "fallbackNote", "fallback_note"),
+  } as Partial<TimelineStoryResult>;
 };
 
 const compactLines = (values: Array<string | null | undefined>) =>
@@ -382,11 +540,12 @@ const maybeAiBiography = async (
   const model = process.env.VERTEX_MODEL || "gemini-2.5-flash";
   const endpoint =
     process.env.VERTEX_AI_GENERATE_URL ||
-    `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent`;
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const prompt = [
     "You draft private family biographies for WarisanAI.",
     "Use only the member profile fields and short notes supplied below.",
     "Do not invent dates, places, achievements, occupations, names, or events.",
+    "Every fact in the biography must be traceable to the member profile or the notes.",
     "Write in English, with a respectful family-archive voice.",
     `Tone: ${tone}.`,
     `Privacy reminder must be exactly: ${biographyPrivacyReminder}`,
@@ -413,18 +572,20 @@ const maybeAiBiography = async (
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.25,
-          maxOutputTokens: 720,
+          maxOutputTokens: 1500,
           responseMimeType: "application/json",
         },
       }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
       aiLog("biography_llm_response_not_ok", {
         feature: "biography",
         model,
         status: response.status,
         durationMs: Date.now() - startedAt,
+        errorPreview: errorText.slice(0, 500),
         fallback: true,
       }, "warn");
       return fallback;
@@ -438,6 +599,7 @@ const maybeAiBiography = async (
         model,
         durationMs: Date.now() - startedAt,
         responseTextLength: text.length,
+        rawResponsePreview: text.slice(0, 500),
         fallback: true,
       }, "warn");
       return fallback;
@@ -490,17 +652,27 @@ const maybeAiTimelineStory = async (
   const model = process.env.VERTEX_MODEL || "gemini-2.5-flash";
   const endpoint =
     process.env.VERTEX_AI_GENERATE_URL ||
-    `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent`;
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const compactEvents = events.map((event) => ({
+    year: event.year,
+    type: event.type,
+    title: event.title,
+    description: event.description,
+    memberNames: event.memberNames,
+    source: event.source,
+  }));
   const prompt = [
     "You draft private family timeline stories for WarisanAI.",
-    "Use only the FamilySpace timeline events supplied below.",
+    "Use only the supplied deterministic timeline result and evidence list.",
     "Do not invent dates, places, people, occupations, achievements, or extra events.",
+    "Every sentence must be traceable to the deterministic draft or evidence list.",
     "Write in English, with a warm private family archive voice.",
     `Tone: ${tone}.`,
     `Privacy reminder must be exactly: ${timelinePrivacyReminder}`,
     "Return compact JSON with keys: timelineStoryDraft, privacyReminder, fallbackNote.",
     `FamilySpace: ${familySpaceName}`,
-    `Timeline events: ${JSON.stringify(events)}`,
+    `Deterministic timeline result: ${JSON.stringify(fallback)}`,
+    `Evidence list: ${JSON.stringify(compactEvents)}`,
   ].join("\n");
 
   const startedAt = Date.now();
@@ -521,18 +693,20 @@ const maybeAiTimelineStory = async (
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.28,
-          maxOutputTokens: 900,
+          maxOutputTokens: 1500,
           responseMimeType: "application/json",
         },
       }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
       aiLog("timeline_story_llm_response_not_ok", {
         feature: "timeline_story",
         model,
         status: response.status,
         durationMs: Date.now() - startedAt,
+        errorPreview: errorText.slice(0, 500),
         fallback: true,
       }, "warn");
       return fallback;
@@ -546,6 +720,7 @@ const maybeAiTimelineStory = async (
         model,
         durationMs: Date.now() - startedAt,
         responseTextLength: text.length,
+        rawResponsePreview: text.slice(0, 500),
         fallback: true,
       }, "warn");
       return fallback;
@@ -698,6 +873,15 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-biography", ...requireSpaceRea
     const fallback = deterministicBiography(member, notes, tone);
     const result = await maybeAiBiography(fallback, member, notes, tone);
 
+    // Feature: ai-studio-experience (additive).
+    // Compute Enhanced_AI_Metadata server-side from archive data only.
+    // These fields are optional on the wire; legacy clients ignore them
+    // and the frontend `normalizeAIResponse` tolerates their absence.
+    const factsUsed = computeBiographyFactsUsed(member);
+    const missingContextSuggestions = computeBiographyMissingContext(member);
+    const generatedFrom = computeBiographyGeneratedFrom(tone, factsUsed);
+    const confidenceLabel = computeBiographyConfidenceLabel(factsUsed);
+
     aiLog("biography_response", {
       feature: "biography",
       spaceSlug: req.params.spaceSlug,
@@ -705,7 +889,21 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-biography", ...requireSpaceRea
       source: result.source,
       draftLength: result.biographyDraft.length,
     });
-    res.json(result);
+    res.json({
+      // Pre-existing fields — order, names, and types preserved exactly.
+      biographyDraft: result.biographyDraft,
+      privacyReminder: result.privacyReminder,
+      fallbackNote: result.fallbackNote,
+      source: result.source,
+      // Enhanced_AI_Metadata (all optional on the wire).
+      tone,
+      factsUsed,
+      missingContextSuggestions,
+      reviewChecklist: [...DEFAULT_REVIEW_CHECKLIST],
+      generatedFrom,
+      confidenceLabel,
+      warnings: [] as string[],
+    });
   } catch (error) {
     handleError(res, error, "Failed to generate biography");
   }
@@ -762,6 +960,11 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-timeline-story", ...requireSpa
     const fallback = deterministicTimelineStory(req.familySpace.name, events, tone);
     const result = await maybeAiTimelineStory(fallback, req.familySpace.name, events, tone);
 
+    // Feature: ai-studio-experience (additive).
+    const eventsUsed = computeTimelineEventsUsed(events);
+    const missingContextSuggestions = computeTimelineMissingContext(events);
+    const generatedFrom = computeTimelineGeneratedFrom(tone, events.length, members.length);
+
     aiLog("timeline_story_response", {
       feature: "timeline_story",
       spaceSlug: req.params.spaceSlug,
@@ -770,7 +973,22 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-timeline-story", ...requireSpa
       eventCount: result.eventCount,
       draftLength: result.timelineStoryDraft.length,
     });
-    res.json(result);
+    res.json({
+      // Pre-existing fields — order, names, and types preserved exactly.
+      timelineStoryDraft: result.timelineStoryDraft,
+      privacyReminder: result.privacyReminder,
+      fallbackNote: result.fallbackNote,
+      source: result.source,
+      eventCount: result.eventCount,
+      memberIds: result.memberIds,
+      // Enhanced_AI_Metadata (all optional on the wire).
+      tone,
+      eventsUsed,
+      missingContextSuggestions,
+      reviewChecklist: [...DEFAULT_REVIEW_CHECKLIST],
+      generatedFrom,
+      warnings: [] as string[],
+    });
   } catch (error) {
     handleError(res, error, "Failed to generate timeline story");
   }
@@ -853,16 +1071,28 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/explain-relationship", ...requireSpaceR
             },
           });
           const path = pathFromStoredIds(updated.pathMemberIds, relationshipMembers);
+          const cachedConfidence = asStoredConfidence(updated.confidence);
+          aiLog("relationship_cached_response", {
+            feature: "relationship",
+            source: asStoredSource(updated.source),
+            cached: true,
+            historyId: updated.id,
+          });
           res.json({
+            // Pre-existing fields preserved exactly.
             relationshipLabel: updated.relationshipLabel,
             explanation: updated.explanation,
             path,
             pathMemberIds: updated.pathMemberIds,
-            confidence: asStoredConfidence(updated.confidence),
+            confidence: cachedConfidence,
             fallbackNote: updated.fallbackNote,
             source: asStoredSource(updated.source),
             cached: true,
             historyId: updated.id,
+            // Enhanced_AI_Metadata (additive, optional).
+            confidenceLabel: mapConfidenceToLabel(cachedConfidence),
+            reviewChecklist: [...DEFAULT_REVIEW_CHECKLIST],
+            warnings: [] as string[],
           });
           return;
         }
@@ -910,10 +1140,15 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/explain-relationship", ...requireSpaceR
     });
 
     res.json({
+      // Pre-existing fields preserved exactly.
       ...result,
       pathMemberIds,
       cached: false,
       historyId: history.id,
+      // Enhanced_AI_Metadata (additive, optional).
+      confidenceLabel: mapConfidenceToLabel(result.confidence),
+      reviewChecklist: [...DEFAULT_REVIEW_CHECKLIST],
+      warnings: [] as string[],
     });
   } catch (error) {
     handleError(res, error, "Failed to explain relationship");

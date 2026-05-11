@@ -25,13 +25,6 @@ export type SuggestedStep = {
   icon: LucideIcon;
 };
 
-export type AiActionCta = {
-  title: "Explain Relationship" | "Generate Biography" | "Create Timeline Story" | "Review Story Drafts";
-  description: string;
-  to: "tree" | "members" | "timeline" | "stories";
-  icon: LucideIcon;
-};
-
 export type CompletionLabel = "Archive foundation" | "Growing archive" | "Publication-ready archive";
 
 export type ArchiveSignal = string;
@@ -43,37 +36,6 @@ export type DashboardCounts = {
   galleryCount: number;
   storiesCount: number;
 };
-
-// =============================================================================
-// AI Actions constant
-// =============================================================================
-
-export const AI_ACTIONS: AiActionCta[] = [
-  {
-    title: "Explain Relationship",
-    description: "Open the tree and ask how two relatives are connected.",
-    to: "tree",
-    icon: GitBranch,
-  },
-  {
-    title: "Generate Biography",
-    description: "Start from a member profile and turn short notes into a warm draft.",
-    to: "members",
-    icon: Users,
-  },
-  {
-    title: "Create Timeline Story",
-    description: "Turn preserved milestones into a readable family journey.",
-    to: "timeline",
-    icon: Calendar,
-  },
-  {
-    title: "Review Story Drafts",
-    description: "Continue family narratives before they become final archive stories.",
-    to: "stories",
-    icon: ClipboardList,
-  },
-];
 
 // =============================================================================
 // Pure Derivation Functions
@@ -267,4 +229,79 @@ export function deriveArchiveSignals(counts: DashboardCounts): ArchiveSignal[] {
     `${galleryCount} photo memories have saved context.`,
     `${storiesCount} story drafts are waiting for review.`,
   ];
+}
+
+
+export type AIRecommendationKey =
+  | "relationship"
+  | "biography"
+  | "timeline-story"
+  | "review-stories";
+
+export interface AIRecommendation {
+  key: AIRecommendationKey;
+  title: string;
+  description: string;
+  /** Relative path under `/app/:spaceSlug/`. */
+  to: string;
+}
+
+export interface AIReadinessInput {
+  membersCount: number;
+  timelineCount: number;
+  storiesCount: number;
+  memberWithNotesId: string | null;
+}
+
+/**
+ * Pure derivation. Each recommendation appears iff its archive-signal rule
+ * is satisfied; the array is empty iff none of the four rules hold so the
+ * block can render its own empty state.
+ */
+export function deriveAIReadinessRecommendations(
+  input: AIReadinessInput,
+): AIRecommendation[] {
+  const recommendations: AIRecommendation[] = [];
+
+  if (input.membersCount >= 2) {
+    recommendations.push({
+      key: "relationship",
+      title: "Explain a relationship",
+      description:
+        "Open the tree and ask how two relatives are connected, in plain language.",
+      to: "tree?ai=relationship",
+    });
+  }
+
+  if (input.memberWithNotesId) {
+    recommendations.push({
+      key: "biography",
+      title: "Generate a biography",
+      description:
+        "Turn the notes you already saved into a reviewable biography draft.",
+      to: `members/${input.memberWithNotesId}?ai=biography`,
+    });
+  }
+
+  if (input.timelineCount > 0) {
+    recommendations.push({
+      key: "timeline-story",
+      title: "Create a timeline story",
+      description:
+        "Weave your saved milestones into a warm, readable family journey.",
+      to: "timeline?ai=timeline-story",
+    });
+  }
+
+  if (input.storiesCount > 0) {
+    recommendations.push({
+      key: "review-stories",
+      title: "Review story drafts",
+      description:
+        "Continue refining saved drafts before they become final archive stories.",
+      to: "stories",
+    });
+  }
+
+  return recommendations;
 }

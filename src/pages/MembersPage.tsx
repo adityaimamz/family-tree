@@ -79,16 +79,21 @@ const DirectoryMemberCard = ({
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border-soft/80 pt-4">
-        <span
-          className={`inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-xs font-bold ${
-            biographyReady
-              ? "border-sage-green/20 bg-sage-green/10 text-dark-green"
-              : "border-soft-gold/25 bg-soft-gold/12 text-warm-brown"
-          }`}
-        >
-          <BookOpen className="h-3.5 w-3.5" strokeWidth={iconStroke} />
-          {biographyReady ? "Biography drafted" : "Needs biography"}
-        </span>
+        {biographyReady ? (
+          <span className="inline-flex min-h-9 items-center gap-2 rounded-full border border-sage-green/20 bg-sage-green/10 px-3 text-xs font-bold text-dark-green">
+            <BookOpen className="h-3.5 w-3.5" strokeWidth={iconStroke} />
+            Biography drafted
+          </span>
+        ) : (
+          <Link
+            to={member.id}
+            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-soft-gold/25 bg-soft-gold/12 px-3 text-xs font-bold text-warm-brown transition hover:-translate-y-0.5 hover:border-warm-brown/25 hover:bg-soft-gold/20 active:translate-y-[1px]"
+          >
+            <BookOpen className="h-3.5 w-3.5" strokeWidth={iconStroke} />
+            <span>Needs biography - go to Profile</span>
+            <ArrowRight className="h-3.5 w-3.5" strokeWidth={iconStroke} />
+          </Link>
+        )}
         <div className="flex items-center gap-2">
           {canEdit && (
             <button

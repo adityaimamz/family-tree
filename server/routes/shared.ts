@@ -29,6 +29,12 @@ export interface SpaceSummary {
   timelineCount: number;
   galleryCount: number;
   storiesCount: number;
+  // Feature: ai-studio-experience (additive).
+  // slugId of the first member (ordered by full name) whose `notes`
+  // field is non-empty, or `null` when no member has notes. Used by
+  // the Dashboard AI Readiness Block to deep-link into the right
+  // member profile without loading the full members list.
+  memberWithNotesId?: string | null;
 }
 
 export const computeSpaceSummary = async (familySpaceId: string): Promise<SpaceSummary> => {
@@ -40,6 +46,7 @@ export const computeSpaceSummary = async (familySpaceId: string): Promise<SpaceS
     timelineCount,
     galleryCount,
     storiesCount,
+    memberWithNotes,
   ] = await prisma.$transaction([
     prisma.familyMember.count({ where: { familySpaceId } }),
     prisma.familyMember.findMany({
@@ -52,6 +59,11 @@ export const computeSpaceSummary = async (familySpaceId: string): Promise<SpaceS
     prisma.timelineEvent.count({ where: { familySpaceId } }),
     prisma.galleryItem.count({ where: { familySpaceId } }),
     prisma.story.count({ where: { familySpaceId } }),
+    prisma.familyMember.findFirst({
+      where: { familySpaceId, notes: { not: "" } },
+      select: { slugId: true },
+      orderBy: { fullName: "asc" },
+    }),
   ]);
 
   return {
@@ -62,6 +74,7 @@ export const computeSpaceSummary = async (familySpaceId: string): Promise<SpaceS
     timelineCount,
     galleryCount,
     storiesCount,
+    memberWithNotesId: memberWithNotes?.slugId ?? null,
   };
 };
 
