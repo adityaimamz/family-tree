@@ -115,13 +115,13 @@ describe("Property tests for spaceDashboard derivations", () => {
           const checklist = deriveArchiveChecklist(counts, aiReady);
           const sixthItem = checklist[5];
 
-          // The 6th item label should mention story drafts or AI assistant
-          expect(sixthItem.label).toContain("Story drafts");
+          // The 6th item label should mention family stories or AI assistant
+          expect(sixthItem.label).toContain("Family stories");
 
           if (counts.storiesCount > 0) {
             // If there are stories, detail should mention the count
             expect(sixthItem.detail).toContain(String(counts.storiesCount));
-            expect(sixthItem.detail).toContain("story drafts");
+            expect(sixthItem.detail).toContain("family stories");
             expect(sixthItem.complete).toBe(true);
           } else if (aiReady) {
             // If no stories but AI ready, should mention AI context
@@ -254,7 +254,7 @@ describe("Property tests for spaceDashboard derivations", () => {
             `${counts.galleryCount} photo memories have saved context.`
           );
           expect(signals[4]).toBe(
-            `${counts.storiesCount} story drafts are waiting for review.`
+            `${counts.storiesCount} family stories are saved in this archive.`
           );
         }),
         { numRuns: 100 }

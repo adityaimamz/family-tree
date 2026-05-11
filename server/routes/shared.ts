@@ -215,7 +215,7 @@ export const mapStory = (story: any) => ({
   id: story.slugId,
   title: story.title,
   content: story.content,
-  status: story.status,
+  origin: story.origin,
   relatedMemberIds: (story.members ?? []).map((link: any) => link.member?.slugId).filter(Boolean),
   sourceNoteIds: (story.sourceNotes ?? []).map((link: any) => link.sourceNote?.slugId).filter(Boolean),
   createdAt: story.createdAt,
@@ -299,7 +299,7 @@ export const storyDataFromBody = (story: any, fallbackId?: string) => ({
   slugId: story.id || fallbackId,
   title: story.title ?? "",
   content: story.content ?? "",
-  status: story.status ?? "draft",
+  origin: story.origin ?? "manual",
   relatedMemberIds: asStringArray(story.relatedMemberIds),
   sourceNoteIds: asStringArray(story.sourceNoteIds),
 });

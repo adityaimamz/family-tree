@@ -62,7 +62,7 @@ export const SpaceDashboard = () => {
     { title: "Members", description: "Preserve people records", to: "members", icon: Users },
     { title: "Timeline", description: "Capture milestones", to: "timeline", icon: Calendar },
     { title: "Photo Memories", description: "Add visual context", to: "gallery", icon: Images },
-    { title: "Stories", description: "Review family narratives", to: "stories", icon: BookOpen },
+    { title: "Stories", description: "Read family narratives", to: "stories", icon: BookOpen },
     { title: "Settings", description: "Manage archive identity", to: "settings", icon: Settings },
   ];
 
@@ -97,7 +97,7 @@ export const SpaceDashboard = () => {
           <StatsCard icon={GitBranch} value={generations} title="Generations Preserved" description="Family levels connected" />
           <StatsCard icon={Calendar} value={timelineCount} title="Timeline Events" description="Milestones with context" />
           <StatsCard icon={Camera} value={galleryCount} title="Photo Memories" description="Images tied to family meaning" />
-          <StatsCard icon={BookOpen} value={storiesCount} title="Story Drafts" description="Narratives ready for review" />
+          <StatsCard icon={BookOpen} value={storiesCount} title="Family Stories" description="Narratives saved in this archive" />
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">

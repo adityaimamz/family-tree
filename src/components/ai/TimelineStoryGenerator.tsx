@@ -193,7 +193,7 @@ export function TimelineStoryGenerator({
         body: JSON.stringify({
           title,
           content: currentDraft,
-          status: "draft",
+          origin: "ai_timeline",
           relatedMemberIds: [],
           sourceNoteIds: [],
         }),

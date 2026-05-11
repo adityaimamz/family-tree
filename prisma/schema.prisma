@@ -17,10 +17,10 @@ enum FamilyRole {
   member
 }
 
-enum StoryStatus {
-  draft
-  in_review
-  approved
+enum StoryOrigin {
+  manual
+  ai_biography
+  ai_timeline
 }
 
 enum SourceType {
@@ -234,12 +234,12 @@ model GalleryItem {
 }
 
 model Story {
-  id            String      @id @default(uuid())
+  id            String       @id @default(uuid())
   familySpaceId String
   slugId        String
   title         String
   content       String
-  status        StoryStatus @default(draft)
+  origin        StoryOrigin @default(manual)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 

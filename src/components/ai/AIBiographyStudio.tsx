@@ -180,7 +180,7 @@ export function AIBiographyStudio({
         body: JSON.stringify({
           title: `${member.displayName || member.fullName} biography draft`,
           content: currentDraft,
-          status: "draft",
+          origin: "ai_biography",
           relatedMemberIds: [member.id],
           sourceNoteIds: [],
         }),

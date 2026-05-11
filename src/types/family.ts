@@ -143,13 +143,13 @@ export interface TimelineEvent {
   isAutomatic?: boolean;
 }
 
-export type StoryStatus = "draft" | "in_review" | "approved";
+export type StoryOrigin = "manual" | "ai_biography" | "ai_timeline";
 
 export interface Story {
   id: string;
   title: string;
   content: string;
-  status: StoryStatus;
+  origin: StoryOrigin;
   relatedMemberIds: string[];
   sourceNoteIds: string[];
   createdAt: string;

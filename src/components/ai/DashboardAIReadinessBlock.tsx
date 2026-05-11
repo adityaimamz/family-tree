@@ -56,9 +56,9 @@ const UNLOCK_SIGNALS: Array<{ label: string; detail: string; icon: LucideIcon }>
     icon: Calendar,
   },
   {
-    label: "Draft your first family story",
+    label: "Save your first family story",
     detail:
-      "Open the Stories workspace so AI-assisted drafts have a review home.",
+      "Open the Stories workspace so AI-assisted drafts have a reading home.",
     icon: ClipboardList,
   },
 ];

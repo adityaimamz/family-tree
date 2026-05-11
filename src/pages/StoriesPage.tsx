@@ -1,12 +1,12 @@
 import { motion } from "framer-motion";
-import { BookOpen, CheckCircle2, Clock3, Edit3, FileText, Inbox, Plus, ScrollText, Trash2 } from "lucide-react";
+import { BookOpen, Clock3, Edit3, FileText, HelpCircle, Inbox, Plus, ScrollText, Trash2, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AppModal } from "../components/ui/AppModal";
 import { Badge, ConfirmDialog, DropdownSelect, EmptyState, LoadingState, MultiSelectList, PageShell, SearchBar, SectionHeader, iconStroke, pageTransition } from "../components/ui";
 import { apiErrorMessage, spaceFetch } from "../lib/api";
 import { useSpaceStore } from "../hooks/useSpaceStore";
-import type { FamilyMember, SourceNote, SourceNoteType, Story, StoryStatus } from "../types/family";
+import type { FamilyMember, SourceNote, SourceNoteType, Story, StoryOrigin } from "../types/family";
 import { memberById } from "../utils/family";
 
 const inputClass =
@@ -21,26 +21,26 @@ const slugify = (value: string) =>
     .replace(/(^-|-$)/g, "")
     .slice(0, 64);
 
-const statusTone = (status: StoryStatus) => {
-  if (status === "approved") return "sage";
-  if (status === "in_review") return "gold";
+const originTone = (origin: StoryOrigin) => {
+  if (origin === "ai_biography") return "gold";
+  if (origin === "ai_timeline") return "sage";
   return "muted";
 };
 
-const statusLabel = (status: StoryStatus) => {
-  if (status === "in_review") return "in review";
-  return status;
+const originLabel = (origin: StoryOrigin) => {
+  if (origin === "ai_biography") return "AI-assisted biography";
+  if (origin === "ai_timeline") return "AI-assisted timeline";
+  return "Manual story";
 };
 
 const noteTypeLabel = (type: SourceNoteType) => type.replace("_", " ");
 
 const noteTypeOptions: SourceNoteType[] = ["note", "photo_context", "interview", "document", "chat"];
-const storyStatusOptions: StoryStatus[] = ["draft", "in_review", "approved"];
 
 type StoryFormState = {
   title: string;
   content: string;
-  status: StoryStatus;
+  origin: StoryOrigin;
   relatedMemberIds: string[];
   sourceNoteIds: string[];
 };
@@ -56,7 +56,7 @@ type SourceNoteFormState = {
 const emptyStoryForm = (): StoryFormState => ({
   title: "",
   content: "",
-  status: "draft",
+  origin: "manual",
   relatedMemberIds: [],
   sourceNoteIds: [],
 });
@@ -68,11 +68,6 @@ const emptyNoteForm = (): SourceNoteFormState => ({
   relatedMemberIds: [],
   storyIds: [],
 });
-
-const nextStoryStatus = (status: StoryStatus): StoryStatus => {
-  const index = storyStatusOptions.indexOf(status);
-  return storyStatusOptions[(index + 1) % storyStatusOptions.length];
-};
 
 function StoryFormFields({
   form,
@@ -96,14 +91,8 @@ function StoryFormFields({
       <textarea
         className={`${inputClass} min-h-36 resize-y`}
         value={form.content}
-        placeholder="Write the family story draft"
+        placeholder="Write a family story, memory, or narrative"
         onChange={(event) => onChange({ ...form, content: event.target.value })}
-      />
-      <DropdownSelect
-        label="Story status"
-        value={form.status}
-        options={storyStatusOptions.map((status) => ({ value: status, label: statusLabel(status) }))}
-        onChange={(value) => onChange({ ...form, status: value as StoryStatus })}
       />
       <div className="grid gap-3 md:grid-cols-2">
         <MultiSelectList
@@ -171,7 +160,7 @@ function SourceNoteFormFields({
           options={stories.map((story) => ({
             value: story.id,
             label: story.title,
-            description: statusLabel(story.status),
+            description: originLabel(story.origin),
           }))}
           onChange={(values) => onChange({ ...form, storyIds: values })}
           emptyLabel="No stories yet."
@@ -208,17 +197,8 @@ export const StoriesPage = () => {
   const [editNoteForm, setEditNoteForm] = useState<SourceNoteFormState>(() => emptyNoteForm());
   const [noteToDelete, setNoteToDelete] = useState<SourceNote | null>(null);
   const [storyQuery, setStoryQuery] = useState("");
-  const [storyStatusFilter, setStoryStatusFilter] = useState<StoryStatus | "all">("all");
 
   const membersMap = useMemo(() => memberById(members), [members]);
-  const statusCounts = useMemo(
-    () => ({
-      draft: stories.filter((story) => story.status === "draft").length,
-      inReview: stories.filter((story) => story.status === "in_review").length,
-      approved: stories.filter((story) => story.status === "approved").length,
-    }),
-    [stories],
-  );
   const memberOptions = useMemo(
     () => [...members].sort((a, b) => a.fullName.localeCompare(b.fullName)),
     [members],
@@ -227,7 +207,6 @@ export const StoriesPage = () => {
     const term = storyQuery.trim().toLowerCase();
 
     return stories.filter((story) => {
-      const matchesStatus = storyStatusFilter === "all" || story.status === storyStatusFilter;
       const matchesQuery =
         !term ||
         [story.title, story.content]
@@ -235,9 +214,9 @@ export const StoriesPage = () => {
           .toLowerCase()
           .includes(term);
 
-      return matchesStatus && matchesQuery;
+      return matchesQuery;
     });
-  }, [stories, storyQuery, storyStatusFilter]);
+  }, [stories, storyQuery]);
 
   const loadStories = async () => {
     if (!spaceSlug) return;
@@ -310,7 +289,7 @@ export const StoriesPage = () => {
     setEditStoryForm({
       title: story.title,
       content: story.content,
-      status: story.status,
+      origin: story.origin,
       relatedMemberIds: story.relatedMemberIds,
       sourceNoteIds: story.sourceNoteIds,
     });
@@ -365,21 +344,6 @@ export const StoriesPage = () => {
     );
     setStoryToDelete(null);
     addToast("Story deleted");
-  };
-
-  const cycleStoryStatus = async (story: Story) => {
-    const nextStatus = nextStoryStatus(story.status);
-    await updateStory(
-      story,
-      {
-        title: story.title,
-        content: story.content,
-        status: nextStatus,
-        relatedMemberIds: story.relatedMemberIds,
-        sourceNoteIds: story.sourceNoteIds,
-      },
-      `Story moved to ${statusLabel(nextStatus)}`,
-    );
   };
 
   const openEditNote = (note: SourceNote) => {
@@ -440,9 +404,9 @@ export const StoriesPage = () => {
     <motion.div {...pageTransition}>
       <PageShell>
         <SectionHeader
-          eyebrow="Stories and Memory Inbox"
+          eyebrow="Family stories"
           title="Family Stories"
-          description="Turn raw memories, interview notes, photo context, and document snippets into reviewed family narratives."
+          description="Where family memories become readable narratives."
           action={
             !canEdit() ? (
               <span className="rounded-2xl border border-sage-green/20 bg-sage-green/10 px-4 py-3 text-sm font-bold text-dark-green">
@@ -467,17 +431,29 @@ export const StoriesPage = () => {
           <div className="rounded-[1.45rem] border border-white/75 bg-surface/92 p-5 shadow-soft ring-1 ring-border-soft/60">
             <Inbox className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
             <p className="mt-4 font-display text-3xl font-bold text-text-primary">{sourceNotes.length}</p>
-            <p className="mt-1 text-sm font-semibold text-text-muted">Memory Inbox notes</p>
+            <p className="mt-1 text-sm font-semibold text-text-muted">Memory Inbox</p>
           </div>
           <div className="rounded-[1.45rem] border border-white/75 bg-surface/92 p-5 shadow-soft ring-1 ring-border-soft/60">
             <Clock3 className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
-            <p className="mt-4 font-display text-3xl font-bold text-text-primary">{statusCounts.draft + statusCounts.inReview}</p>
-            <p className="mt-1 text-sm font-semibold text-text-muted">Drafts in progress</p>
+            <p className="mt-4 font-display text-3xl font-bold text-text-primary">
+              {useMemo(() => {
+                const memberIds = new Set<string>();
+                stories.forEach((story) => story.relatedMemberIds.forEach((id) => memberIds.add(id)));
+                return memberIds.size;
+              }, [stories])}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-text-muted">People linked</p>
           </div>
           <div className="rounded-[1.45rem] border border-white/75 bg-surface/92 p-5 shadow-soft ring-1 ring-border-soft/60">
-            <CheckCircle2 className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
-            <p className="mt-4 font-display text-3xl font-bold text-text-primary">{statusCounts.approved}</p>
-            <p className="mt-1 text-sm font-semibold text-text-muted">Approved stories</p>
+            <FileText className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
+            <p className="mt-4 font-display text-3xl font-bold text-text-primary">
+              {useMemo(() => {
+                const noteIds = new Set<string>();
+                stories.forEach((story) => story.sourceNoteIds.forEach((id) => noteIds.add(id)));
+                return noteIds.size;
+              }, [stories])}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-text-muted">Source links</p>
           </div>
         </section>
 
@@ -486,7 +462,7 @@ export const StoriesPage = () => {
             <div className="rounded-[1.6rem] border border-white/75 bg-surface/94 p-5 shadow-soft ring-1 ring-border-soft/60">
               <h2 className="flex items-center gap-2 text-xl font-extrabold text-text-primary">
                 <Plus className="h-5 w-5 text-sage-green" strokeWidth={iconStroke} />
-                Create story draft
+                Write a family story
               </h2>
               <div className="mt-5 grid gap-4">
                 <StoryFormFields
@@ -543,15 +519,6 @@ export const StoriesPage = () => {
                   placeholder="Search stories by title or content"
                 />
               </div>
-              <DropdownSelect
-                label="Status"
-                value={storyStatusFilter}
-                options={[
-                  { value: "all", label: "All statuses" },
-                  ...storyStatusOptions.map((status) => ({ value: status, label: statusLabel(status) })),
-                ]}
-                onChange={(value) => setStoryStatusFilter(value as StoryStatus | "all")}
-              />
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border-soft/80 pt-4 text-sm font-semibold text-text-muted">
               <span className="rounded-full bg-sage-green/12 px-3 py-1.5 text-dark-green">
@@ -579,18 +546,7 @@ export const StoriesPage = () => {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap gap-2">
-                        {canEdit() ? (
-                          <button
-                            type="button"
-                            className="rounded-full transition hover:-translate-y-0.5 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-dark-green active:translate-y-[1px]"
-                            title="Click to cycle status"
-                            onClick={() => void cycleStoryStatus(story)}
-                          >
-                            <Badge tone={statusTone(story.status)}>Status: {statusLabel(story.status)}</Badge>
-                          </button>
-                        ) : (
-                          <Badge tone={statusTone(story.status)}>Status: {statusLabel(story.status)}</Badge>
-                        )}
+                        <Badge tone={originTone(story.origin)}>{originLabel(story.origin)}</Badge>
                         <Badge tone="muted">{story.sourceNoteIds.length} inbox notes</Badge>
                       </div>
                       <h2 className="mt-3 font-display text-2xl font-bold leading-tight text-text-primary">{story.title}</h2>
@@ -671,7 +627,7 @@ export const StoriesPage = () => {
             <h3 className="mt-4 text-xl font-bold text-text-primary">No stories yet</h3>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-text-muted">
               {canEdit()
-                ? "Start by creating a story manually, or use the AI Timeline Story generator on the Timeline page to auto-draft your first family story."
+                ? "Write a story manually, or save an AI-assisted draft from the Biography Studio or Timeline page."
                 : "Owners and admins have not published family stories yet."}
             </p>
             {canEdit() && spaceSlug && (
@@ -682,6 +638,27 @@ export const StoriesPage = () => {
                 Open Timeline
               </Link>
             )}
+          </div>
+        )}
+
+        {/* How this page works explainer */}
+        {stories.length > 0 && canEdit() && (
+          <div className="mb-8 rounded-[1.6rem] border border-sage-green/20 bg-sage-green/8 p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <HelpCircle className="h-5 w-5 shrink-0 text-sage-green" strokeWidth={iconStroke} />
+              <div>
+                <p className="text-sm font-extrabold uppercase tracking-[0.14em] text-sage-green">How this page works</p>
+                <ol className="mt-3 list-inside list-decimal space-y-1 text-sm font-semibold leading-6 text-text-muted">
+                  <li>Save raw memories in Memory Inbox</li>
+                  <li>Turn notes, AI drafts, or timeline events into stories</li>
+                  <li>Link stories to family members</li>
+                  <li>Update stories anytime when new details are found</li>
+                </ol>
+                <p className="mt-4 text-sm font-semibold text-text-muted">
+                  Family stories can be edited anytime by owners and admins.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 

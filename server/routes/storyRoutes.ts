@@ -83,7 +83,7 @@ storyRoutes.post("/api/spaces/:spaceSlug/stories", ...requireSpaceWrite, async (
           slugId: data.slugId,
           title: data.title,
           content: data.content,
-          status: data.status,
+          origin: data.origin,
         },
       });
 
@@ -168,7 +168,6 @@ storyRoutes.put("/api/spaces/:spaceSlug/stories/:storySlug", ...requireSpaceWrit
         data: {
           ...(typeof req.body?.title === "string" ? { title: data.title } : {}),
           ...(typeof req.body?.content === "string" ? { content: data.content } : {}),
-          ...(typeof req.body?.status === "string" ? { status: data.status } : {}),
         },
       });
 

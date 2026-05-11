@@ -102,10 +102,10 @@ export function deriveArchiveChecklist(
       complete: galleryCount > 0,
     },
     {
-      label: "Story drafts started or AI assistant ready",
+      label: "Family stories started or AI assistant ready",
       detail:
         storiesCount > 0
-          ? `${storiesCount} story drafts are waiting for review.`
+          ? `${storiesCount} family stories are saved in this archive.`
           : aiReady
             ? "There is enough archive context to start AI-assisted drafts."
             : "Add members or milestones before using AI-assisted drafts.",
@@ -227,7 +227,7 @@ export function deriveArchiveSignals(counts: DashboardCounts): ArchiveSignal[] {
     `${generations} generations are connected in this archive.`,
     `${timelineCount} milestones can become story anchors.`,
     `${galleryCount} photo memories have saved context.`,
-    `${storiesCount} story drafts are waiting for review.`,
+    `${storiesCount} family stories are saved in this archive.`,
   ];
 }
 
@@ -296,9 +296,9 @@ export function deriveAIReadinessRecommendations(
   if (input.storiesCount > 0) {
     recommendations.push({
       key: "review-stories",
-      title: "Review story drafts",
+      title: "Read family stories",
       description:
-        "Continue refining saved drafts before they become final archive stories.",
+        "Browse saved narratives and refine them with new details.",
       to: "stories",
     });
   }
