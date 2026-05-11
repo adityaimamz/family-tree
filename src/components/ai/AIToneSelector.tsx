@@ -10,18 +10,18 @@ export interface AIToneSelectorProps {
 const TONES: Array<{ value: AIDraftTone; label: string; description: string }> = [
   {
     value: "warm",
-    label: "warm",
-    description: "Reads like a family letter - personal, heartfelt, and story-driven",
+    label: "Warm",
+    description: "Reads like a family letter — personal, heartfelt, and story-driven",
   },
   {
     value: "concise",
-    label: "concise",
-    description: "Tight and factual - only key facts, no embellishment",
+    label: "Concise",
+    description: "Tight and factual — only key facts, no embellishment",
   },
   {
     value: "legacy",
-    label: "legacy",
-    description: "Archival and formal - suited for heritage documentation",
+    label: "Legacy",
+    description: "Archival and formal — suited for heritage documentation",
   },
 ];
 
@@ -60,9 +60,6 @@ export function AIToneSelector({
       >
         Tone
       </p>
-      <p className={`mt-1 text-xs font-semibold leading-5 ${helperColor}`}>
-        {selectedTone.description}
-      </p>
       <div role="radiogroup" aria-label="Draft tone" className="flex flex-wrap gap-2">
         {TONES.map((tone, index) => {
           const selected = value === tone.value;
@@ -96,6 +93,9 @@ export function AIToneSelector({
           );
         })}
       </div>
+      <p className={`mt-2 text-xs font-semibold italic leading-5 ${helperColor}`}>
+        {selectedTone.description}
+      </p>
     </div>
   );
 }

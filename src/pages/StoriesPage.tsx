@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
-import { BookOpen, CheckCircle2, Clock3, FileText, Inbox, Plus, ScrollText, Users } from "lucide-react";
+import { BookOpen, CheckCircle2, Clock3, Edit3, FileText, Inbox, Plus, ScrollText, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Badge, DropdownSelect, EmptyState, LoadingState, PageShell, SectionHeader, iconStroke, pageTransition } from "../components/ui";
+import { Link, useParams } from "react-router-dom";
+import { AppModal } from "../components/ui/AppModal";
+import { Badge, ConfirmDialog, DropdownSelect, EmptyState, LoadingState, MultiSelectList, PageShell, SearchBar, SectionHeader, iconStroke, pageTransition } from "../components/ui";
 import { apiErrorMessage, spaceFetch } from "../lib/api";
 import { useSpaceStore } from "../hooks/useSpaceStore";
-import type { SourceNote, SourceNoteType, Story, StoryStatus } from "../types/family";
+import type { FamilyMember, SourceNote, SourceNoteType, Story, StoryStatus } from "../types/family";
 import { memberById } from "../utils/family";
 
 const inputClass =
@@ -36,6 +37,161 @@ const noteTypeLabel = (type: SourceNoteType) => type.replace("_", " ");
 const noteTypeOptions: SourceNoteType[] = ["note", "photo_context", "interview", "document", "chat"];
 const storyStatusOptions: StoryStatus[] = ["draft", "in_review", "approved"];
 
+type StoryFormState = {
+  title: string;
+  content: string;
+  status: StoryStatus;
+  relatedMemberIds: string[];
+  sourceNoteIds: string[];
+};
+
+type SourceNoteFormState = {
+  title: string;
+  content: string;
+  type: SourceNoteType;
+  relatedMemberIds: string[];
+  storyIds: string[];
+};
+
+const emptyStoryForm = (): StoryFormState => ({
+  title: "",
+  content: "",
+  status: "draft",
+  relatedMemberIds: [],
+  sourceNoteIds: [],
+});
+
+const emptyNoteForm = (): SourceNoteFormState => ({
+  title: "",
+  content: "",
+  type: "note",
+  relatedMemberIds: [],
+  storyIds: [],
+});
+
+const nextStoryStatus = (status: StoryStatus): StoryStatus => {
+  const index = storyStatusOptions.indexOf(status);
+  return storyStatusOptions[(index + 1) % storyStatusOptions.length];
+};
+
+function StoryFormFields({
+  form,
+  members,
+  sourceNotes,
+  onChange,
+}: {
+  form: StoryFormState;
+  members: FamilyMember[];
+  sourceNotes: SourceNote[];
+  onChange: (form: StoryFormState) => void;
+}) {
+  return (
+    <div className="grid gap-4">
+      <input
+        className={inputClass}
+        value={form.title}
+        placeholder="Story title"
+        onChange={(event) => onChange({ ...form, title: event.target.value })}
+      />
+      <textarea
+        className={`${inputClass} min-h-36 resize-y`}
+        value={form.content}
+        placeholder="Write the family story draft"
+        onChange={(event) => onChange({ ...form, content: event.target.value })}
+      />
+      <DropdownSelect
+        label="Story status"
+        value={form.status}
+        options={storyStatusOptions.map((status) => ({ value: status, label: statusLabel(status) }))}
+        onChange={(value) => onChange({ ...form, status: value as StoryStatus })}
+      />
+      <div className="grid gap-3 md:grid-cols-2">
+        <MultiSelectList
+          label="Related members"
+          values={form.relatedMemberIds}
+          options={members.map((member) => ({
+            value: member.id,
+            label: member.displayName || member.fullName,
+            description: member.relationshipToRoot || member.familyBranch,
+          }))}
+          onChange={(values) => onChange({ ...form, relatedMemberIds: values })}
+          emptyLabel="No members available."
+        />
+        <MultiSelectList
+          label="Memory Inbox notes"
+          values={form.sourceNoteIds}
+          options={sourceNotes.map((note) => ({
+            value: note.id,
+            label: note.title,
+            description: noteTypeLabel(note.type),
+          }))}
+          onChange={(values) => onChange({ ...form, sourceNoteIds: values })}
+          emptyLabel="No memory notes yet."
+        />
+      </div>
+    </div>
+  );
+}
+
+function SourceNoteFormFields({
+  form,
+  members,
+  stories,
+  onChange,
+}: {
+  form: SourceNoteFormState;
+  members: FamilyMember[];
+  stories: Story[];
+  onChange: (form: SourceNoteFormState) => void;
+}) {
+  return (
+    <div className="grid gap-4">
+      <input
+        className={inputClass}
+        value={form.title}
+        placeholder="Memory note title"
+        onChange={(event) => onChange({ ...form, title: event.target.value })}
+      />
+      <textarea
+        className={`${inputClass} min-h-28 resize-y`}
+        value={form.content}
+        placeholder="Interview details, document context, photo notes, chat snippets, or raw memories"
+        onChange={(event) => onChange({ ...form, content: event.target.value })}
+      />
+      <DropdownSelect
+        label="Note type"
+        value={form.type}
+        options={noteTypeOptions.map((type) => ({ value: type, label: noteTypeLabel(type) }))}
+        onChange={(value) => onChange({ ...form, type: value as SourceNoteType })}
+      />
+      <div className="grid gap-3 md:grid-cols-2">
+        <MultiSelectList
+          label="Attach to stories"
+          values={form.storyIds}
+          options={stories.map((story) => ({
+            value: story.id,
+            label: story.title,
+            description: statusLabel(story.status),
+          }))}
+          onChange={(values) => onChange({ ...form, storyIds: values })}
+          emptyLabel="No stories yet."
+        />
+        <MultiSelectList
+          label="Related members"
+          values={form.relatedMemberIds}
+          options={members.map((member) => ({
+            value: member.id,
+            label: member.displayName || member.fullName,
+            description: member.relationshipToRoot || member.familyBranch,
+          }))}
+          onChange={(values) => onChange({ ...form, relatedMemberIds: values })}
+          emptyLabel="No members available."
+        />
+      </div>
+    </div>
+  );
+}
+
 export const StoriesPage = () => {
   const { spaceSlug } = useParams<{ spaceSlug: string }>();
   const { members, canEdit, addToast } = useSpaceStore();
@@ -43,20 +199,16 @@ export const StoriesPage = () => {
   const [sourceNotes, setSourceNotes] = useState<SourceNote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [storyForm, setStoryForm] = useState({
-    title: "",
-    content: "",
-    status: "draft" as StoryStatus,
-    relatedMemberIds: [] as string[],
-    sourceNoteIds: [] as string[],
-  });
-  const [noteForm, setNoteForm] = useState({
-    title: "",
-    content: "",
-    type: "note" as SourceNoteType,
-    relatedMemberIds: [] as string[],
-    storyIds: [] as string[],
-  });
+  const [storyForm, setStoryForm] = useState<StoryFormState>(() => emptyStoryForm());
+  const [noteForm, setNoteForm] = useState<SourceNoteFormState>(() => emptyNoteForm());
+  const [storyToEdit, setStoryToEdit] = useState<Story | null>(null);
+  const [editStoryForm, setEditStoryForm] = useState<StoryFormState>(() => emptyStoryForm());
+  const [storyToDelete, setStoryToDelete] = useState<Story | null>(null);
+  const [noteToEdit, setNoteToEdit] = useState<SourceNote | null>(null);
+  const [editNoteForm, setEditNoteForm] = useState<SourceNoteFormState>(() => emptyNoteForm());
+  const [noteToDelete, setNoteToDelete] = useState<SourceNote | null>(null);
+  const [storyQuery, setStoryQuery] = useState("");
+  const [storyStatusFilter, setStoryStatusFilter] = useState<StoryStatus | "all">("all");
 
   const membersMap = useMemo(() => memberById(members), [members]);
   const statusCounts = useMemo(
@@ -67,6 +219,25 @@ export const StoriesPage = () => {
     }),
     [stories],
   );
+  const memberOptions = useMemo(
+    () => [...members].sort((a, b) => a.fullName.localeCompare(b.fullName)),
+    [members],
+  );
+  const filteredStories = useMemo(() => {
+    const term = storyQuery.trim().toLowerCase();
+
+    return stories.filter((story) => {
+      const matchesStatus = storyStatusFilter === "all" || story.status === storyStatusFilter;
+      const matchesQuery =
+        !term ||
+        [story.title, story.content]
+          .join(" ")
+          .toLowerCase()
+          .includes(term);
+
+      return matchesStatus && matchesQuery;
+    });
+  }, [stories, storyQuery, storyStatusFilter]);
 
   const loadStories = async () => {
     if (!spaceSlug) return;
@@ -94,42 +265,6 @@ export const StoriesPage = () => {
     void loadStories();
   }, [spaceSlug]);
 
-  const toggleStoryMember = (memberId: string) => {
-    setStoryForm((current) => ({
-      ...current,
-      relatedMemberIds: current.relatedMemberIds.includes(memberId)
-        ? current.relatedMemberIds.filter((id) => id !== memberId)
-        : [...current.relatedMemberIds, memberId],
-    }));
-  };
-
-  const toggleStoryNote = (noteId: string) => {
-    setStoryForm((current) => ({
-      ...current,
-      sourceNoteIds: current.sourceNoteIds.includes(noteId)
-        ? current.sourceNoteIds.filter((id) => id !== noteId)
-        : [...current.sourceNoteIds, noteId],
-    }));
-  };
-
-  const toggleNoteStory = (storyId: string) => {
-    setNoteForm((current) => ({
-      ...current,
-      storyIds: current.storyIds.includes(storyId)
-        ? current.storyIds.filter((id) => id !== storyId)
-        : [...current.storyIds, storyId],
-    }));
-  };
-
-  const toggleNoteMember = (memberId: string) => {
-    setNoteForm((current) => ({
-      ...current,
-      relatedMemberIds: current.relatedMemberIds.includes(memberId)
-        ? current.relatedMemberIds.filter((id) => id !== memberId)
-        : [...current.relatedMemberIds, memberId],
-    }));
-  };
-
   const createStory = async () => {
     if (!spaceSlug || !storyForm.title.trim()) return;
     const id = slugify(storyForm.title) || `story-${Date.now()}`;
@@ -146,7 +281,7 @@ export const StoriesPage = () => {
 
     const created = (await response.json()) as Story;
     setStories((current) => [created, ...current]);
-    setStoryForm({ title: "", content: "", status: "draft", relatedMemberIds: [], sourceNoteIds: [] });
+    setStoryForm(emptyStoryForm());
     addToast("Story saved successfully");
   };
 
@@ -166,8 +301,139 @@ export const StoriesPage = () => {
 
     const created = (await response.json()) as SourceNote;
     setSourceNotes((current) => [created, ...current]);
-    setNoteForm({ title: "", content: "", type: "note", relatedMemberIds: [], storyIds: [] });
+    setNoteForm(emptyNoteForm());
     addToast("Source note saved successfully");
+  };
+
+  const openEditStory = (story: Story) => {
+    setStoryToEdit(story);
+    setEditStoryForm({
+      title: story.title,
+      content: story.content,
+      status: story.status,
+      relatedMemberIds: story.relatedMemberIds,
+      sourceNoteIds: story.sourceNoteIds,
+    });
+  };
+
+  const updateStory = async (story: Story, form: StoryFormState, message = "Story updated") => {
+    if (!spaceSlug || !form.title.trim()) return null;
+
+    const response = await spaceFetch(spaceSlug, `/stories/${story.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+
+    if (!response.ok) {
+      addToast(await apiErrorMessage(response, "Failed to update story"), "error");
+      return null;
+    }
+
+    const updated = (await response.json()) as Story;
+    setStories((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    addToast(message);
+    return updated;
+  };
+
+  const saveStoryEdit = async () => {
+    if (!storyToEdit) return;
+    const updated = await updateStory(storyToEdit, editStoryForm);
+    if (updated) {
+      setStoryToEdit(null);
+      setEditStoryForm(emptyStoryForm());
+      void loadStories();
+    }
+  };
+
+  const deleteStory = async () => {
+    if (!spaceSlug || !storyToDelete) return;
+
+    const response = await spaceFetch(spaceSlug, `/stories/${storyToDelete.id}`, { method: "DELETE" });
+    if (!response.ok) {
+      addToast(await apiErrorMessage(response, "Failed to delete story"), "error");
+      return;
+    }
+
+    const deletedId = storyToDelete.id;
+    setStories((current) => current.filter((story) => story.id !== deletedId));
+    setSourceNotes((current) =>
+      current.map((note) => ({
+        ...note,
+        storyIds: note.storyIds.filter((storyId) => storyId !== deletedId),
+      })),
+    );
+    setStoryToDelete(null);
+    addToast("Story deleted");
+  };
+
+  const cycleStoryStatus = async (story: Story) => {
+    const nextStatus = nextStoryStatus(story.status);
+    await updateStory(
+      story,
+      {
+        title: story.title,
+        content: story.content,
+        status: nextStatus,
+        relatedMemberIds: story.relatedMemberIds,
+        sourceNoteIds: story.sourceNoteIds,
+      },
+      `Story moved to ${statusLabel(nextStatus)}`,
+    );
+  };
+
+  const openEditNote = (note: SourceNote) => {
+    setNoteToEdit(note);
+    setEditNoteForm({
+      title: note.title,
+      content: note.content,
+      type: note.type,
+      relatedMemberIds: note.relatedMemberIds,
+      storyIds: note.storyIds,
+    });
+  };
+
+  const updateSourceNote = async () => {
+    if (!spaceSlug || !noteToEdit || !editNoteForm.title.trim()) return;
+
+    const response = await spaceFetch(spaceSlug, `/source-notes/${noteToEdit.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editNoteForm),
+    });
+
+    if (!response.ok) {
+      addToast(await apiErrorMessage(response, "Failed to update source note"), "error");
+      return;
+    }
+
+    const updated = (await response.json()) as SourceNote;
+    setSourceNotes((current) => current.map((note) => (note.id === updated.id ? updated : note)));
+    setNoteToEdit(null);
+    setEditNoteForm(emptyNoteForm());
+    addToast("Source note updated");
+    void loadStories();
+  };
+
+  const deleteSourceNote = async () => {
+    if (!spaceSlug || !noteToDelete) return;
+
+    const response = await spaceFetch(spaceSlug, `/source-notes/${noteToDelete.id}`, { method: "DELETE" });
+    if (!response.ok) {
+      addToast(await apiErrorMessage(response, "Failed to delete source note"), "error");
+      return;
+    }
+
+    const deletedId = noteToDelete.id;
+    setSourceNotes((current) => current.filter((note) => note.id !== deletedId));
+    setStories((current) =>
+      current.map((story) => ({
+        ...story,
+        sourceNoteIds: story.sourceNoteIds.filter((noteId) => noteId !== deletedId),
+      })),
+    );
+    setNoteToDelete(null);
+    addToast("Source note deleted");
   };
 
   return (
@@ -223,68 +489,12 @@ export const StoriesPage = () => {
                 Create story draft
               </h2>
               <div className="mt-5 grid gap-4">
-                <input
-                  className={inputClass}
-                  value={storyForm.title}
-                  placeholder="Story title"
-                  onChange={(event) => setStoryForm((current) => ({ ...current, title: event.target.value }))}
+                <StoryFormFields
+                  form={storyForm}
+                  members={memberOptions}
+                  sourceNotes={sourceNotes}
+                  onChange={setStoryForm}
                 />
-                <textarea
-                  className={`${inputClass} min-h-36 resize-y`}
-                  value={storyForm.content}
-                  placeholder="Write the family story draft"
-                  onChange={(event) => setStoryForm((current) => ({ ...current, content: event.target.value }))}
-                />
-                <DropdownSelect
-                  label="Story status"
-                  value={storyForm.status}
-                  options={storyStatusOptions.map((status) => ({ value: status, label: statusLabel(status) }))}
-                  onChange={(value) => setStoryForm((current) => ({ ...current, status: value as StoryStatus }))}
-                />
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div>
-                    <p className="mb-2 text-sm font-bold text-text-primary">Related members</p>
-                    <div className="max-h-52 overflow-y-auto rounded-2xl border border-border-soft bg-background p-2">
-                      {members.map((member) => (
-                        <button
-                          key={member.id}
-                          type="button"
-                          className={`mb-1 w-full rounded-xl px-3 py-2 text-left text-sm font-semibold transition active:translate-y-[1px] ${
-                            storyForm.relatedMemberIds.includes(member.id)
-                              ? "bg-dark-green text-white"
-                              : "text-text-primary hover:bg-surface-soft"
-                          }`}
-                          onClick={() => toggleStoryMember(member.id)}
-                        >
-                          {member.displayName || member.fullName}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="mb-2 text-sm font-bold text-text-primary">Memory Inbox notes</p>
-                    <div className="max-h-52 overflow-y-auto rounded-2xl border border-border-soft bg-background p-2">
-                      {sourceNotes.length ? (
-                        sourceNotes.map((note) => (
-                          <button
-                            key={note.id}
-                            type="button"
-                            className={`mb-1 w-full rounded-xl px-3 py-2 text-left text-sm font-semibold transition active:translate-y-[1px] ${
-                              storyForm.sourceNoteIds.includes(note.id)
-                                ? "bg-dark-green text-white"
-                                : "text-text-primary hover:bg-surface-soft"
-                            }`}
-                            onClick={() => toggleStoryNote(note.id)}
-                          >
-                            {note.title}
-                          </button>
-                        ))
-                      ) : (
-                        <p className="px-3 py-2 text-sm font-semibold text-text-muted">No memory notes yet.</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
                 <button
                   type="button"
                   className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-dark-green px-5 py-3 text-sm font-bold text-white shadow-warm transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px]"
@@ -304,62 +514,12 @@ export const StoriesPage = () => {
                 Store raw memories first, then connect them to members and story drafts when they are ready.
               </p>
               <div className="mt-5 grid gap-4">
-                <input
-                  className={inputClass}
-                  value={noteForm.title}
-                  placeholder="Memory note title"
-                  onChange={(event) => setNoteForm((current) => ({ ...current, title: event.target.value }))}
+                <SourceNoteFormFields
+                  form={noteForm}
+                  members={memberOptions}
+                  stories={stories}
+                  onChange={setNoteForm}
                 />
-                <textarea
-                  className={`${inputClass} min-h-28 resize-y`}
-                  value={noteForm.content}
-                  placeholder="Interview details, document context, photo notes, chat snippets, or raw memories"
-                  onChange={(event) => setNoteForm((current) => ({ ...current, content: event.target.value }))}
-                />
-                <DropdownSelect
-                  label="Note type"
-                  value={noteForm.type}
-                  options={noteTypeOptions.map((type) => ({ value: type, label: noteTypeLabel(type) }))}
-                  onChange={(value) => setNoteForm((current) => ({ ...current, type: value as SourceNoteType }))}
-                />
-                <div>
-                  <p className="mb-2 text-sm font-bold text-text-primary">Attach to stories</p>
-                  <div className="max-h-40 overflow-y-auto rounded-2xl border border-border-soft bg-background p-2">
-                    {stories.length ? (
-                      stories.map((story) => (
-                        <button
-                          key={story.id}
-                          type="button"
-                          className={`mb-1 w-full rounded-xl px-3 py-2 text-left text-sm font-semibold transition active:translate-y-[1px] ${
-                            noteForm.storyIds.includes(story.id) ? "bg-dark-green text-white" : "text-text-primary hover:bg-surface-soft"
-                          }`}
-                          onClick={() => toggleNoteStory(story.id)}
-                        >
-                          {story.title}
-                        </button>
-                      ))
-                    ) : (
-                      <p className="px-3 py-2 text-sm font-semibold text-text-muted">No stories yet.</p>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <p className="mb-2 text-sm font-bold text-text-primary">Related members</p>
-                  <div className="max-h-40 overflow-y-auto rounded-2xl border border-border-soft bg-background p-2">
-                    {members.map((member) => (
-                      <button
-                        key={member.id}
-                        type="button"
-                        className={`mb-1 w-full rounded-xl px-3 py-2 text-left text-sm font-semibold transition active:translate-y-[1px] ${
-                          noteForm.relatedMemberIds.includes(member.id) ? "bg-dark-green text-white" : "text-text-primary hover:bg-surface-soft"
-                        }`}
-                        onClick={() => toggleNoteMember(member.id)}
-                      >
-                        {member.displayName || member.fullName}
-                      </button>
-                    ))}
-                  </div>
-                </div>
                 <button
                   type="button"
                   className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-border-soft bg-surface px-5 py-3 text-sm font-bold text-text-primary shadow-soft transition hover:-translate-y-0.5 hover:bg-surface-soft active:translate-y-[1px]"
@@ -372,11 +532,46 @@ export const StoriesPage = () => {
           </section>
         )}
 
+        {!isLoading && stories.length > 0 && (
+          <section className="mb-6 rounded-[1.6rem] border border-white/75 bg-surface/94 p-4 shadow-soft ring-1 ring-border-soft/60">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-end">
+              <div>
+                <span className="mb-2 block text-sm font-semibold text-text-primary">Search</span>
+                <SearchBar
+                  value={storyQuery}
+                  onChange={setStoryQuery}
+                  placeholder="Search stories by title or content"
+                />
+              </div>
+              <DropdownSelect
+                label="Status"
+                value={storyStatusFilter}
+                options={[
+                  { value: "all", label: "All statuses" },
+                  ...storyStatusOptions.map((status) => ({ value: status, label: statusLabel(status) })),
+                ]}
+                onChange={(value) => setStoryStatusFilter(value as StoryStatus | "all")}
+              />
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border-soft/80 pt-4 text-sm font-semibold text-text-muted">
+              <span className="rounded-full bg-sage-green/12 px-3 py-1.5 text-dark-green">
+                {filteredStories.length} of {stories.length} stories
+              </span>
+              {storyQuery && (
+                <span className="rounded-full bg-soft-gold/14 px-3 py-1.5 text-warm-brown">
+                  Keyword: {storyQuery}
+                </span>
+              )}
+            </div>
+          </section>
+        )}
+
         {isLoading ? (
           <LoadingState />
         ) : stories.length ? (
-          <section className="grid gap-5">
-            {stories.map((story) => {
+          filteredStories.length ? (
+            <section className="grid gap-5">
+              {filteredStories.map((story) => {
               const relatedMembers = story.relatedMemberIds.map((id) => membersMap[id]).filter(Boolean);
               const linkedNotes = sourceNotes.filter((note) => story.sourceNoteIds.includes(note.id) || note.storyIds.includes(story.id));
               return (
@@ -384,7 +579,18 @@ export const StoriesPage = () => {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap gap-2">
-                        <Badge tone={statusTone(story.status)}>Status: {statusLabel(story.status)}</Badge>
+                        {canEdit() ? (
+                          <button
+                            type="button"
+                            className="rounded-full transition hover:-translate-y-0.5 focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-dark-green active:translate-y-[1px]"
+                            title="Click to cycle status"
+                            onClick={() => void cycleStoryStatus(story)}
+                          >
+                            <Badge tone={statusTone(story.status)}>Status: {statusLabel(story.status)}</Badge>
+                          </button>
+                        ) : (
+                          <Badge tone={statusTone(story.status)}>Status: {statusLabel(story.status)}</Badge>
+                        )}
                         <Badge tone="muted">{story.sourceNoteIds.length} inbox notes</Badge>
                       </div>
                       <h2 className="mt-3 font-display text-2xl font-bold leading-tight text-text-primary">{story.title}</h2>
@@ -428,15 +634,55 @@ export const StoriesPage = () => {
                       </div>
                     </div>
                   </div>
+
+                  {canEdit() && (
+                    <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-border-soft/70 pt-4">
+                      <button
+                        type="button"
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-border-soft bg-background px-4 py-2 text-sm font-bold text-text-primary shadow-soft transition hover:-translate-y-0.5 hover:bg-surface-soft active:translate-y-[1px]"
+                        onClick={() => openEditStory(story)}
+                      >
+                        <Edit3 className="h-4 w-4" strokeWidth={iconStroke} />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl border border-warning/25 bg-warning/10 px-4 py-2 text-sm font-bold text-warning shadow-soft transition hover:-translate-y-0.5 hover:bg-warning/15 active:translate-y-[1px]"
+                        onClick={() => setStoryToDelete(story)}
+                      >
+                        <Trash2 className="h-4 w-4" strokeWidth={iconStroke} />
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </article>
               );
-            })}
-          </section>
+              })}
+            </section>
+          ) : (
+            <EmptyState
+              title="No stories match that filter"
+              description="Try a broader keyword or switch the status filter back to all statuses."
+            />
+          )
         ) : (
-          <EmptyState
-            title="No stories yet"
-            description={canEdit() ? "Create the first story draft and connect it to members or Memory Inbox notes." : "Owners and admins have not published family stories yet."}
-          />
+          <div className="rounded-[2rem] border border-dashed border-border-soft bg-surface/70 p-10 text-center">
+            <BookOpen className="mx-auto h-10 w-10 text-sage-green" strokeWidth={iconStroke} />
+            <h3 className="mt-4 text-xl font-bold text-text-primary">No stories yet</h3>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-text-muted">
+              {canEdit()
+                ? "Start by creating a story manually, or use the AI Timeline Story generator on the Timeline page to auto-draft your first family story."
+                : "Owners and admins have not published family stories yet."}
+            </p>
+            {canEdit() && spaceSlug && (
+              <Link
+                to={`/app/${spaceSlug}/timeline`}
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-2xl bg-dark-green px-5 py-3 text-sm font-bold text-white shadow-warm transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px]"
+              >
+                Open Timeline
+              </Link>
+            )}
+          </div>
         )}
 
         {!isLoading && (
@@ -481,6 +727,26 @@ export const StoriesPage = () => {
                           </div>
                         )}
                       </div>
+                      {canEdit() && (
+                        <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-border-soft/70 pt-4">
+                          <button
+                            type="button"
+                            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl border border-border-soft bg-surface px-3 py-2 text-sm font-bold text-text-primary shadow-soft transition hover:-translate-y-0.5 hover:bg-surface-soft active:translate-y-[1px]"
+                            onClick={() => openEditNote(note)}
+                          >
+                            <Edit3 className="h-4 w-4" strokeWidth={iconStroke} />
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-2xl border border-warning/25 bg-warning/10 px-3 py-2 text-sm font-bold text-warning shadow-soft transition hover:-translate-y-0.5 hover:bg-warning/15 active:translate-y-[1px]"
+                            onClick={() => setNoteToDelete(note)}
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={iconStroke} />
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </article>
                   );
                 })}
@@ -493,6 +759,88 @@ export const StoriesPage = () => {
             )}
           </section>
         )}
+
+        <AppModal
+          open={Boolean(storyToEdit)}
+          title="Edit story"
+          description="Update the draft, review status, related members, and Memory Inbox notes."
+          size="lg"
+          onClose={() => setStoryToEdit(null)}
+        >
+          <div className="grid gap-5">
+            <StoryFormFields
+              form={editStoryForm}
+              members={memberOptions}
+              sourceNotes={sourceNotes}
+              onChange={setEditStoryForm}
+            />
+            <div className="flex flex-col justify-end gap-3 sm:flex-row">
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-border-soft bg-background px-5 py-3 text-sm font-bold text-text-primary shadow-soft transition hover:bg-surface-soft active:translate-y-[1px]"
+                onClick={() => setStoryToEdit(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-dark-green px-5 py-3 text-sm font-bold text-white shadow-warm transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px]"
+                onClick={() => void saveStoryEdit()}
+              >
+                Save changes
+              </button>
+            </div>
+          </div>
+        </AppModal>
+
+        <AppModal
+          open={Boolean(noteToEdit)}
+          title="Edit source note"
+          description="Revise this Memory Inbox note and the stories or members it supports."
+          size="lg"
+          onClose={() => setNoteToEdit(null)}
+        >
+          <div className="grid gap-5">
+            <SourceNoteFormFields
+              form={editNoteForm}
+              members={memberOptions}
+              stories={stories}
+              onChange={setEditNoteForm}
+            />
+            <div className="flex flex-col justify-end gap-3 sm:flex-row">
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-border-soft bg-background px-5 py-3 text-sm font-bold text-text-primary shadow-soft transition hover:bg-surface-soft active:translate-y-[1px]"
+                onClick={() => setNoteToEdit(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-dark-green px-5 py-3 text-sm font-bold text-white shadow-warm transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px]"
+                onClick={() => void updateSourceNote()}
+              >
+                Save changes
+              </button>
+            </div>
+          </div>
+        </AppModal>
+
+        <ConfirmDialog
+          open={Boolean(storyToDelete)}
+          title="Delete story?"
+          description="This removes the story draft and its source links from this FamilySpace. This action cannot be undone."
+          onCancel={() => setStoryToDelete(null)}
+          onConfirm={() => void deleteStory()}
+        />
+
+        <ConfirmDialog
+          open={Boolean(noteToDelete)}
+          title="Delete source note?"
+          description="This removes the Memory Inbox note and its story links from this FamilySpace. This action cannot be undone."
+          onCancel={() => setNoteToDelete(null)}
+          onConfirm={() => void deleteSourceNote()}
+        />
       </PageShell>
     </motion.div>
   );

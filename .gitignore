@@ -40,5 +40,6 @@ Thumbs.db
 
 .agents
 /src/generated/prisma
+.kiro
 
 .vercel

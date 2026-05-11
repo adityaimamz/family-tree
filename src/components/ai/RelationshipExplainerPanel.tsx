@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   Clipboard,
+  History,
   Network,
   RotateCcw,
   Search,
@@ -25,7 +26,6 @@ import {
   type NormalizeFallbacks,
   type RelationshipExplainRequest,
 } from "./index";
-import { normalizeAIResponse } from "./normalizeAIResponse";
 import { RelationshipPathVisualization } from "./RelationshipPathVisualization";
 import { apiErrorMessage, spaceFetch } from "../../lib/api";
 
@@ -264,7 +264,6 @@ export function RelationshipExplainerPanel({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [historyItems, setHistoryItems] = useState<RelationshipHistoryItem[]>([]);
-  const [selectedHistoryEnvelope, setSelectedHistoryEnvelope] = useState<ReturnType<typeof normalizeAIResponse> | null>(null);
 
   const {
     status,
@@ -286,7 +285,6 @@ export function RelationshipExplainerPanel({
       setSameMemberWarning(true);
       return;
     }
-    setSelectedHistoryEnvelope(null);
     setSameMemberWarning(false);
     void generate({ fromMemberId, toMemberId });
   }, [fromMemberId, toMemberId, generate]);
@@ -296,13 +294,12 @@ export function RelationshipExplainerPanel({
     [members],
   );
 
-  const activeEnvelope = selectedHistoryEnvelope ?? envelope;
+  const activeEnvelope = envelope;
 
   const handleReset = useCallback(() => {
     reset();
     setFromMemberId("");
     setToMemberId("");
-    setSelectedHistoryEnvelope(null);
     setSameMemberWarning(false);
     onPathChange?.([], "", "");
   }, [reset, onPathChange]);
@@ -317,7 +314,7 @@ export function RelationshipExplainerPanel({
         throw new Error(await apiErrorMessage(response, "Failed to load relationship history."));
       }
       const data = (await response.json()) as RelationshipHistoryItem[];
-      setHistoryItems(data);
+      setHistoryItems(data.slice(0, 15));
     } catch (error) {
       setHistoryError(error instanceof Error ? error.message : "Failed to load relationship history.");
     } finally {
@@ -326,45 +323,21 @@ export function RelationshipExplainerPanel({
   }, [spaceSlug]);
 
   const handleSelectHistory = useCallback((item: RelationshipHistoryItem) => {
-    const path = item.pathMemberIds
-      .map((id) => {
-        const member = memberMap.get(id);
-        if (!member) return null;
-        return { id, name: memberDisplayName(member) };
-      })
-      .filter((step): step is { id: string; name: string } => step !== null);
-
-    const nextEnvelope = normalizeAIResponse(
-      {
-        relationshipLabel: item.relationshipLabel,
-        explanation: item.explanation,
-        path,
-        confidence: item.confidence,
-        fallbackNote: item.fallbackNote,
-        source: item.source,
-        cached: true,
-        historyId: item.id,
-      },
-      { kind: "relationship" },
-      FALLBACKS,
-    );
-
     reset();
     setFromMemberId(item.fromMemberId);
     setToMemberId(item.toMemberId);
     setSameMemberWarning(false);
-    setSelectedHistoryEnvelope(nextEnvelope);
     setHistoryOpen(false);
-    onPathChange?.(path.map((step) => step.id), item.fromMemberId, item.toMemberId);
-  }, [memberMap, reset, onPathChange]);
+    void generate({ fromMemberId: item.fromMemberId, toMemberId: item.toMemberId });
+  }, [generate, reset]);
 
   // Sync path back to parent (Property 15 / Requirement 14).
   useEffect(() => {
-    if (status === "ready" && envelope?.path && !selectedHistoryEnvelope) {
+    if (status === "ready" && envelope?.path) {
       const pathIds = envelope.path.map((step) => step.id);
       onPathChange?.(pathIds, fromMemberId, toMemberId);
     }
-  }, [status, envelope, selectedHistoryEnvelope, fromMemberId, toMemberId, onPathChange]);
+  }, [status, envelope, fromMemberId, toMemberId, onPathChange]);
 
   const handleCopy = useCallback(async () => {
     if (!activeEnvelope) return;
@@ -380,7 +353,6 @@ export function RelationshipExplainerPanel({
   const handleFromChange = (id: string) => {
     setFromMemberId(id);
     setSameMemberWarning(false);
-    setSelectedHistoryEnvelope(null);
     reset();
     onPathChange?.([], "", "");
   };
@@ -388,7 +360,6 @@ export function RelationshipExplainerPanel({
   const handleToChange = (id: string) => {
     setToMemberId(id);
     setSameMemberWarning(false);
-    setSelectedHistoryEnvelope(null);
     reset();
     onPathChange?.([], "", "");
   };
@@ -503,14 +474,17 @@ export function RelationshipExplainerPanel({
             <span>Explain relationship</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => void handleOpenHistory()}
-            disabled={historyLoading}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white/22 bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/16 active:translate-y-[1px] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            View History
-          </button>
+          {permissions.canGenerate && (
+            <button
+              type="button"
+              onClick={() => void handleOpenHistory()}
+              disabled={historyLoading}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white/22 bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/16 active:translate-y-[1px] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <History className="h-4 w-4" strokeWidth={iconStroke} />
+              View history
+            </button>
+          )}
 
           {/* Role-gating banner for member role */}
           {!permissions.canGenerate && (
@@ -667,7 +641,10 @@ export function RelationshipExplainerPanel({
                               <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-text-muted">
                                 <span>{formatHistoryDate(item.updatedAt)}</span>
                                 <span className="rounded-full border border-border-soft bg-surface px-2 py-0.5 capitalize">
-                                  {item.source}
+                                  {item.source === "ai" ? "AI" : "Deterministic"}
+                                </span>
+                                <span>
+                                  {item.viewCount} {item.viewCount === 1 ? "view" : "views"}
                                 </span>
                               </div>
                               <p className="mt-2 text-sm font-extrabold text-text-primary">

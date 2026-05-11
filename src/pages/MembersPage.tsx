@@ -90,8 +90,7 @@ const DirectoryMemberCard = ({
             className="inline-flex min-h-9 items-center gap-2 rounded-full border border-soft-gold/25 bg-soft-gold/12 px-3 text-xs font-bold text-warm-brown transition hover:-translate-y-0.5 hover:border-warm-brown/25 hover:bg-soft-gold/20 active:translate-y-[1px]"
           >
             <BookOpen className="h-3.5 w-3.5" strokeWidth={iconStroke} />
-            <span>Needs biography - go to Profile</span>
-            <ArrowRight className="h-3.5 w-3.5" strokeWidth={iconStroke} />
+            <span>Needs biography · Open Profile →</span>
           </Link>
         )}
         <div className="flex items-center gap-2">
