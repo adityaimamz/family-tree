@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
-import { buildRegenerateBody } from "./useAIDraft";
+import { buildRegenerateBody } from "../../../src/hooks/useAIDraft";
 
 describe("buildRegenerateBody — Property 6: Idempotent Regenerate", () => {
   it("returns the exact same biography request body", () => {

@@ -9,13 +9,13 @@
 
 import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
-import { normalizeAIResponse } from "./normalizeAIResponse";
+import { normalizeAIResponse } from "../../../../src/components/ai/normalizeAIResponse";
 import {
   AIDraftTone,
   DEFAULT_REVIEW_CHECKLIST,
   FAMILY_REVIEW_REMINDER,
   NormalizeFallbacks,
-} from "./AIDraftEnvelope";
+} from "../../../../src/components/ai/AIDraftEnvelope";
 
 const arbTone = fc.constantFrom<AIDraftTone>("warm", "concise", "legacy");
 const arbKind = fc.constantFrom("biography", "timeline-story", "relationship" as const);

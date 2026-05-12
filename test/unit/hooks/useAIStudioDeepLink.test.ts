@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
-import { parseAIDeepLink } from "./useAIStudioDeepLink";
+import { parseAIDeepLink } from "../../../src/hooks/useAIStudioDeepLink";
 
 const VALID_TARGETS = ["relationship", "biography", "timeline-story"] as const;
 

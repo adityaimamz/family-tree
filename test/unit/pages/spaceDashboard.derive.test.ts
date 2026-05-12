@@ -10,7 +10,7 @@ import {
   deriveSuggestedSteps,
   deriveArchiveSignals,
   type DashboardCounts,
-} from "./spaceDashboard.derive";
+} from "../../../src/pages/spaceDashboard.derive";
 
 describe("Property tests for spaceDashboard derivations", () => {
   // Arbitrary for valid DashboardCounts
@@ -302,7 +302,7 @@ import {
   deriveAIReadinessRecommendations,
   type AIRecommendation,
   type AIRecommendationKey,
-} from "./spaceDashboard.derive";
+} from "../../../src/pages/spaceDashboard.derive";
 
 describe("deriveAIReadinessRecommendations — Property 8", () => {
   const arbInput = fc.record({

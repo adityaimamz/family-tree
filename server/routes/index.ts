@@ -4,6 +4,7 @@ import { branchRoutes } from "./branchRoutes.js";
 import { galleryRoutes } from "./galleryRoutes.js";
 import { inviteRoutes } from "./inviteRoutes.js";
 import { legacyRoutes } from "./legacyRoutes.js";
+import { membershipRoutes } from "./membershipRoutes.js";
 import { memberRoutes } from "./memberRoutes.js";
 import { nuclearFamilyRoutes } from "./nuclearFamilyRoutes.js";
 import { platformRoutes } from "./platformRoutes.js";
@@ -16,6 +17,7 @@ import { uploadRoutes } from "./uploadRoutes.js";
 export const registerRoutes = (app: Express) => {
   app.use(uploadRoutes);
   app.use(spaceRoutes);
+  app.use(membershipRoutes);
   app.use(memberRoutes);
   app.use(branchRoutes);
   app.use(nuclearFamilyRoutes);

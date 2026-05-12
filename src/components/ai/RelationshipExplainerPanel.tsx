@@ -8,6 +8,7 @@ import {
   Network,
   RotateCcw,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -264,6 +265,7 @@ export function RelationshipExplainerPanel({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [historyItems, setHistoryItems] = useState<RelationshipHistoryItem[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const {
     status,
@@ -330,6 +332,25 @@ export function RelationshipExplainerPanel({
     setHistoryOpen(false);
     void generate({ fromMemberId: item.fromMemberId, toMemberId: item.toMemberId });
   }, [generate, reset]);
+
+  const handleDeleteHistory = useCallback(async (e: React.MouseEvent, historyId: string) => {
+    e.stopPropagation();
+    setDeletingId(historyId);
+    try {
+      const response = await spaceFetch(spaceSlug, `/ai/relationship-history/${historyId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error(await apiErrorMessage(response, "Failed to delete history."));
+      }
+      setHistoryItems((prev) => prev.filter((item) => item.id !== historyId));
+      addToast("History deleted", "success");
+    } catch (error) {
+      addToast(error instanceof Error ? error.message : "Failed to delete history.", "error");
+    } finally {
+      setDeletingId(null);
+    }
+  }, [spaceSlug, addToast]);
 
   // Sync path back to parent (Property 15 / Requirement 14).
   useEffect(() => {
@@ -631,29 +652,45 @@ export function RelationshipExplainerPanel({
                         {historyItems.map((item) => {
                           const from = memberMap.get(item.fromMemberId);
                           const to = memberMap.get(item.toMemberId);
+                          const isDeleting = deletingId === item.id;
                           return (
-                            <button
-                              key={item.id}
-                              type="button"
-                              className="rounded-[1.2rem] border border-border-soft bg-background p-4 text-left shadow-soft transition hover:-translate-y-0.5 hover:bg-surface-soft active:translate-y-[1px]"
-                              onClick={() => handleSelectHistory(item)}
-                            >
-                              <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-text-muted">
-                                <span>{formatHistoryDate(item.updatedAt)}</span>
-                                <span className="rounded-full border border-border-soft bg-surface px-2 py-0.5 capitalize">
-                                  {item.source === "ai" ? "AI" : "Deterministic"}
-                                </span>
-                                <span>
-                                  {item.viewCount} {item.viewCount === 1 ? "view" : "views"}
-                                </span>
-                              </div>
-                              <p className="mt-2 text-sm font-extrabold text-text-primary">
-                                {from ? memberDisplayName(from) : item.fromMemberId} {"->"} {to ? memberDisplayName(to) : item.toMemberId}
-                              </p>
-                              <p className="mt-1 text-sm font-semibold capitalize text-text-muted">
-                                {item.relationshipLabel}
-                              </p>
-                            </button>
+                            <div key={item.id} className="group relative">
+                              <button
+                                type="button"
+                                className="w-full rounded-[1.2rem] border border-border-soft bg-background p-4 text-left shadow-soft transition hover:-translate-y-0.5 hover:bg-surface-soft active:translate-y-[1px] disabled:pointer-events-none disabled:opacity-50"
+                                onClick={() => handleSelectHistory(item)}
+                                disabled={isDeleting}
+                              >
+                                <div className="flex flex-wrap items-center gap-2 pr-8 text-xs font-bold text-text-muted">
+                                  <span>{formatHistoryDate(item.updatedAt)}</span>
+                                  <span className="rounded-full border border-border-soft bg-surface px-2 py-0.5 capitalize">
+                                    {item.source === "ai" ? "AI" : "Deterministic"}
+                                  </span>
+                                  <span>
+                                    {item.viewCount} {item.viewCount === 1 ? "view" : "views"}
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-sm font-extrabold text-text-primary">
+                                  {from ? memberDisplayName(from) : item.fromMemberId} {"->"} {to ? memberDisplayName(to) : item.toMemberId}
+                                </p>
+                                <p className="mt-1 text-sm font-semibold capitalize text-text-muted">
+                                  {item.relationshipLabel}
+                                </p>
+                              </button>
+                              <button
+                                type="button"
+                                aria-label="Delete history item"
+                                disabled={isDeleting}
+                                onClick={(e) => void handleDeleteHistory(e, item.id)}
+                                className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-xl border border-border-soft bg-background text-text-muted opacity-0 shadow-soft transition hover:border-red-200 hover:bg-red-50 hover:text-red-500 active:translate-y-[1px] disabled:cursor-not-allowed group-hover:opacity-100"
+                              >
+                                {isDeleting ? (
+                                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-text-muted border-t-transparent" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" strokeWidth={iconStroke} />
+                                )}
+                              </button>
+                            </div>
                           );
                         })}
                       </div>

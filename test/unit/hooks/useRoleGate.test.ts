@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
-import { deriveRolePermissions, type Role } from "./useRoleGate";
+import { deriveRolePermissions, type Role } from "../../../src/hooks/useRoleGate";
 
 describe("deriveRolePermissions — Property 5: Role Gating", () => {
   const allRoles: Array<Role | null | undefined> = [

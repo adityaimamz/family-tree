@@ -3,8 +3,8 @@
 
 import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
-import { aiDraftReducer, type AIDraftState, type AIDraftAction } from "./useAIDraft";
-import type { AIDraftEnvelope } from "../components/ai/AIDraftEnvelope";
+import { aiDraftReducer, type AIDraftState, type AIDraftAction } from "../../../src/hooks/useAIDraft";
+import type { AIDraftEnvelope } from "../../../src/components/ai/AIDraftEnvelope";
 
 const makeEnvelope = (body: string): AIDraftEnvelope => ({
   kind: "biography",

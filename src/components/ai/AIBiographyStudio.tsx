@@ -9,29 +9,19 @@ import {
   Save,
   Sparkles,
 } from "lucide-react";
-import { useCallback, useReducer, useRef, useState } from "react";
+import { useRef } from "react";
 import { iconStroke } from "../ui";
 import type { FamilyMember } from "../../types/family";
-import { useAIDraft } from "../../hooks/useAIDraft";
-import { useRoleGate, type Role } from "../../hooks/useRoleGate";
+import type { Role } from "../../hooks/useRoleGate";
 import { useAIStudioDeepLink } from "../../hooks/useAIStudioDeepLink";
-import { spaceFetch, apiErrorMessage } from "../../lib/api";
+import { useAIBiographyStudio } from "../../hooks/useAIBiographyStudio";
 import {
   AIDraftResultCard,
   ReadableBody,
   AIDraftSkeleton,
   AIErrorState,
   AIToneSelector,
-  buildBiographyGenerateBody,
-  buildSaveBiographyBody,
-  validateBiographyNotes,
-  deriveGeneratedFrom,
-  deriveMissingContextForBiography,
-  type AIDraftTone,
-  type BiographyGenerateRequest,
-  type NormalizeFallbacks,
 } from "./index";
-import { editModeReducer, createInitialEditState } from "./editModeReducer";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,140 +51,39 @@ export function AIBiographyStudio({
   const panelRef = useRef<HTMLElement>(null);
   useAIStudioDeepLink("biography", panelRef);
 
-  const permissions = useRoleGate(role);
-  const [tone, setTone] = useState<AIDraftTone>("warm");
-  const [notes, setNotes] = useState(member.notes || "");
-  const [showDataDisclosure, setShowDataDisclosure] = useState(false);
-  const [notesWarningOverridden, setNotesWarningOverridden] = useState(false);
-  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
-  const [isSavingBiography, setIsSavingBiography] = useState(false);
-  const [isSavingStory, setIsSavingStory] = useState(false);
-
-  const [editState, editDispatch] = useReducer(
-    editModeReducer,
-    createInitialEditState(""),
-  );
-
-  const fallbacks: NormalizeFallbacks = {
-    privacy: "AI drafts stay inside this family space until reviewed.",
-    fallbackNote:
-      "Generated with deterministic fallback from the member profile fields.",
-    factsUsed: deriveGeneratedFrom(member, tone),
-    missingContext: deriveMissingContextForBiography(member),
-    generatedFrom: deriveGeneratedFrom(member, tone),
-  };
-
   const {
+    tone,
+    setTone,
+    notes,
+    setNotes,
+    showDataDisclosure,
+    setShowDataDisclosure,
+    confirmRegenerate,
+    setConfirmRegenerate,
+    isSavingBiography,
+    isSavingStory,
+    editState,
+    editDispatch,
+    notesValidation,
+    showNotesWarning,
+    currentDraft,
+    permissions,
     status,
     envelope,
     error,
     isBusy,
-    generate,
-    regenerate,
-  } = useAIDraft<BiographyGenerateRequest>(spaceSlug, {
-    kind: "biography",
-    endpoint: "/ai/generate-biography",
-    buildBody: buildBiographyGenerateBody,
-    fallbacks,
-    tone: () => tone,
-  });
-
-  // Notes validation (Property 13 / Requirement 8.1).
-  const notesValidation = validateBiographyNotes(notes);
-  const showNotesWarning =
-    notesValidation.warn && !notesWarningOverridden && permissions.canGenerate;
-
-  const handleGenerate = useCallback(() => {
-    if (!permissions.canGenerate) return;
-    setNotesWarningOverridden(false);
-    void generate({ memberId: member.id, notes: notes.trim(), tone });
-  }, [permissions.canGenerate, generate, member.id, notes, tone]);
-
-  const handleGenerateAnyway = useCallback(() => {
-    setNotesWarningOverridden(true);
-    void generate({ memberId: member.id, notes: notes.trim(), tone });
-  }, [generate, member.id, notes, tone]);
-
-  const handleRegenerate = useCallback(() => {
-    if (editState.active) {
-      setConfirmRegenerate(true);
-      return;
-    }
-    void regenerate();
-  }, [editState.active, regenerate]);
-
-  const handleConfirmRegenerate = useCallback(() => {
-    editDispatch({ type: "cancel" });
-    setConfirmRegenerate(false);
-    void regenerate();
-  }, [regenerate]);
-
-  const handleCopy = useCallback(async () => {
-    if (!envelope) return;
-    const text = editState.active ? editState.draft : envelope.body;
-    try {
-      await navigator.clipboard.writeText(text);
-      addToast("Copied to clipboard", "success");
-    } catch {
-      addToast("Clipboard access was blocked", "error");
-    }
-  }, [envelope, editState, addToast]);
-
-  const handleEditDraft = useCallback(() => {
-    if (!envelope) return;
-    editDispatch({ type: "setDraft", draft: envelope.body });
-    editDispatch({ type: "setActive", active: true });
-  }, [envelope]);
-
-  const handleSaveEdits = useCallback(() => {
-    editDispatch({ type: "saveEdits" });
-  }, []);
-
-  const handleCancelEdit = useCallback(() => {
-    editDispatch({ type: "cancel" });
-  }, []);
-
-  const currentDraft = editState.active ? editState.draft : (envelope?.body ?? "");
-
-  const handleSaveBiography = useCallback(async () => {
-    if (!permissions.canSave || !currentDraft) return;
-    setIsSavingBiography(true);
-    try {
-      const updated = buildSaveBiographyBody(member, currentDraft);
-      await onSaveMember(updated, member.id);
-      addToast("Biography saved", "success");
-    } catch {
-      addToast("Failed to save biography", "error");
-    } finally {
-      setIsSavingBiography(false);
-    }
-  }, [permissions.canSave, currentDraft, member, onSaveMember, addToast]);
-
-  const handleSaveStory = useCallback(async () => {
-    if (!permissions.canSave || !currentDraft) return;
-    setIsSavingStory(true);
-    try {
-      const response = await spaceFetch(spaceSlug, "/stories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: `${member.displayName || member.fullName} biography draft`,
-          content: currentDraft,
-          origin: "ai_biography",
-          relatedMemberIds: [member.id],
-          sourceNoteIds: [],
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(await apiErrorMessage(response, "Failed to save story draft."));
-      }
-      addToast("Story draft saved", "success");
-    } catch {
-      addToast("Failed to save story draft", "error");
-    } finally {
-      setIsSavingStory(false);
-    }
-  }, [permissions.canSave, currentDraft, spaceSlug, member, addToast]);
+    notesWarningOverridden,
+    handleGenerate,
+    handleGenerateAnyway,
+    handleRegenerate,
+    handleConfirmRegenerate,
+    handleCopy,
+    handleEditDraft,
+    handleSaveEdits,
+    handleCancelEdit,
+    handleSaveBiography,
+    handleSaveStory,
+  } = useAIBiographyStudio({ member, spaceSlug, role, onSaveMember, addToast });
 
   // Action buttons for the result card.
   const renderActions = () => {
@@ -219,16 +108,7 @@ export function AIBiographyStudio({
           <RefreshCw className="h-4 w-4" strokeWidth={iconStroke} />
           Regenerate
         </button>
-        {!editState.active ? (
-          <button
-            type="button"
-            onClick={handleEditDraft}
-            className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-border-soft bg-surface px-4 py-2 text-sm font-bold text-text-primary transition hover:bg-surface-soft active:translate-y-[1px] active:scale-[0.98]"
-          >
-            <Edit3 className="h-4 w-4" strokeWidth={iconStroke} />
-            Edit draft
-          </button>
-        ) : (
+        {editState.active ? (
           <>
             <button
               type="button"
@@ -245,6 +125,15 @@ export function AIBiographyStudio({
               Cancel
             </button>
           </>
+        ) : (
+          <button
+            type="button"
+            onClick={handleEditDraft}
+            className="inline-flex min-h-10 items-center gap-2 rounded-2xl border border-border-soft bg-surface px-4 py-2 text-sm font-bold text-text-primary transition hover:bg-surface-soft active:translate-y-[1px] active:scale-[0.98]"
+          >
+            <Edit3 className="h-4 w-4" strokeWidth={iconStroke} />
+            Edit draft
+          </button>
         )}
         <button
           type="button"
@@ -358,7 +247,6 @@ export function AIBiographyStudio({
           value={notes}
           onChange={(e) => {
             setNotes(e.target.value);
-            setNotesWarningOverridden(false);
           }}
           placeholder="Write short notes about this family member — memories, anecdotes, facts the draft can weave in."
         />

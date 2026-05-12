@@ -14,20 +14,20 @@ import * as fc from "fast-check";
 import {
   deriveMissingContextForBiography,
   deriveMissingContextForTimeline,
-} from "./deriveMissingContext";
-import { deriveEventsUsed } from "./deriveEventsUsed";
-import { deriveGeneratedFrom } from "./deriveGeneratedFrom";
+} from "../../../../src/components/ai/deriveMissingContext";
+import { deriveEventsUsed } from "../../../../src/components/ai/deriveEventsUsed";
+import { deriveGeneratedFrom } from "../../../../src/components/ai/deriveGeneratedFrom";
 import {
   validateBiographyNotes,
   NOTES_WARNING_MESSAGE,
-} from "./validateBiographyNotes";
-import { buildClipboardPayload } from "./buildClipboardPayload";
+} from "../../../../src/components/ai/validateBiographyNotes";
+import { buildClipboardPayload } from "../../../../src/components/ai/buildClipboardPayload";
 import {
   buildSaveBiographyBody,
   buildSaveStoryBody,
-} from "./buildRequestBodies";
-import type { FamilyMember, TimelineEvent } from "../../types/family";
-import type { AIDraftEnvelope } from "./AIDraftEnvelope";
+} from "../../../../src/components/ai/buildRequestBodies";
+import type { FamilyMember, TimelineEvent } from "../../../../src/types/family";
+import type { AIDraftEnvelope } from "../../../../src/components/ai/AIDraftEnvelope";
 
 const baseMember: FamilyMember = {
   id: "m1",
