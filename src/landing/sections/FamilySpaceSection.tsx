@@ -15,7 +15,8 @@ import { features } from "../lib/data/sections";
 const featureIcons: LucideIcon[] = [GitBranch, BookOpen, Camera, Route, FileText, Network];
 
 const archiveConnections = [
-  "Source notes stay attached to every person, photo, and milestone.",
+  "Source notes help keep important context attached to family records.",
+  "Invite relatives with a simple family code and share the link through WhatsApp.",
   "Branches, biographies, and relationship paths use the same family records.",
   "AI drafts help organize memory, but relatives approve what becomes final.",
 ];

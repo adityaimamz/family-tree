@@ -34,8 +34,7 @@ export default function CtaSection() {
             Create a private home for your family history.
           </h2>
           <p className="mt-6 max-w-[58ch] text-base leading-8 text-surface/74">
-            Start with one archive, invite the people who remember the details, and keep every record organized without
-            making the family story public.
+            Create your FamilySpace, preserve the first records, then invite relatives to help complete the archive.
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -52,7 +51,7 @@ export default function CtaSection() {
               href="#demo"
               className="group inline-flex min-h-14 items-center justify-center gap-4 rounded-full border border-surface/28 bg-surface/[0.06] py-2 pl-6 pr-2 text-base font-semibold text-surface outline-none transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:bg-surface/[0.12] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-surface/25"
             >
-              View sample archive
+              See how it works
               <span className="grid h-10 w-10 place-items-center rounded-full bg-surface/12 text-surface transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1 group-hover:scale-105">
                 <ArrowRight className="h-5 w-5" strokeWidth={1.8} />
               </span>

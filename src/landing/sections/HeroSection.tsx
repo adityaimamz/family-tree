@@ -16,7 +16,7 @@ import { fadeUp, staggerContainer } from "../lib/animationVariants";
 const archiveRows = [
   { label: "Family tree records", value: "148 profiles", icon: GitBranch },
   { label: "Biographies in review", value: "37 drafts", icon: BookOpen },
-  { label: "Photos with context", value: "624 tagged", icon: Camera },
+  { label: "Photos with context", value: "624 preserved", icon: Camera },
 ];
 
 const activityRows = [
@@ -91,7 +91,7 @@ export default function HeroSection() {
               href="#demo"
               className="group inline-flex min-h-14 items-center justify-center gap-4 rounded-full border border-stroke bg-surface/88 py-2 pl-6 pr-2 text-base font-semibold text-ink outline-none transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:border-primary/40 hover:bg-surface active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-sage-light"
             >
-              View sample workspace
+              See how it works
               <span className="grid h-10 w-10 place-items-center rounded-full bg-primary-muted text-primary transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1 group-hover:scale-105">
                 <ArrowRight className="h-5 w-5" strokeWidth={1.8} />
               </span>
@@ -134,7 +134,7 @@ export default function HeroSection() {
                 </div>
                 <div className="hidden min-h-9 w-full max-w-[280px] items-center gap-2 rounded-2xl border border-stroke bg-bg-alt px-3 text-sm text-ink-muted sm:flex">
                   <Search className="h-4 w-4" strokeWidth={1.8} />
-                  Search stories, people, places
+                  Search relatives and archive records
                 </div>
                 <div className="flex items-center gap-2 rounded-2xl bg-primary-muted px-3 py-2 text-xs font-semibold text-primary">
                   <LockKeyhole className="h-3.5 w-3.5" strokeWidth={2} />
@@ -311,7 +311,7 @@ export default function HeroSection() {
                   <div className="mt-4 rounded-[1.5rem] border border-stroke bg-surface/78 p-4">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <p className="text-sm font-semibold text-ink">
-                        Live family activity
+                        Family collaboration preview
                       </p>
                       <div className="flex items-center gap-2 text-xs font-semibold text-primary">
                         <Clock3 className="h-4 w-4" strokeWidth={1.8} />
