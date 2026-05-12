@@ -222,7 +222,7 @@ export const JoinSpacePage = () => {
           </Link>
           <span className="hidden items-center gap-2 rounded-full border border-border-soft/60 bg-surface/70 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.22em] text-text-muted shadow-soft backdrop-blur sm:inline-flex">
             <Lock className="h-3 w-3 text-sage-green" strokeWidth={iconStroke} />
-            Encrypted private archive
+            Private family archive
           </span>
         </motion.div>
 
