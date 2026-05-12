@@ -59,6 +59,22 @@ inviteRoutes.post("/api/spaces/:spaceSlug/invites", ...requireSpaceAdmin, async 
       return;
     }
 
+    // Guard: only one active (non-revoked) invite allowed per space at a time
+    const existingActive = await prisma.familyInvite.findFirst({
+      where: {
+        familySpaceId: req.familySpace.id,
+        revokedAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (existingActive) {
+      res.status(409).json({
+        error: "An active invite already exists for this space. Revoke it before creating a new one.",
+      });
+      return;
+    }
+
     // Optional maxUses, default null (unlimited)
     let maxUses: number | null = null;
     if (req.body && req.body.maxUses !== undefined && req.body.maxUses !== null) {
