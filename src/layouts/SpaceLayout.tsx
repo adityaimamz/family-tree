@@ -262,6 +262,11 @@ export const SpaceLayout = () => {
             ? "You can manage records in this FamilySpace."
             : "Read-only access. Owners and admins manage records."}
         </p>
+        {!canEdit() && (
+          <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-soft-gold/30 bg-soft-gold/14 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-warm-brown">
+            Read-only
+          </span>
+        )}
       </div>
     </aside>
   );

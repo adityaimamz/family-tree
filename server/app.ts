@@ -15,12 +15,14 @@ const app = express();
 const distPath = path.resolve(process.cwd(), "dist");
 const indexHtmlPath = path.join(distPath, "index.html");
 
+const envOrigins = process.env.CORS_ALLOWED_ORIGINS
+  ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : [];
+
 const allowedOrigins = new Set(
   [
     process.env.APP_BASE_URL,
-    "https://warisan-ai-558467708906.asia-southeast2.run.app",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
+    ...envOrigins,
   ].filter(Boolean),
 );
 
@@ -55,8 +57,18 @@ const authLimiter = rateLimit({
   message: { error: "Too many auth requests. Please try again later." },
 });
 
+// Feature: invite-family — tighter limit to blunt brute-force guessing of codes.
+const joinLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 5,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many join attempts. Please try again later." },
+});
+
 app.use("/api", globalLimiter);
 app.use("/api/auth", authLimiter);
+app.use("/api/invites/join", joinLimiter);
 app.use("/api", apiLogger);
 app.use(express.json({ limit: "2mb" }));
 

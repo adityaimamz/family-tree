@@ -16,6 +16,7 @@ import { SpaceLayout } from "./layouts/SpaceLayout";
 import { SpaceProvider } from "./hooks/useSpaceStore";
 import { StoriesPage } from "./pages/StoriesPage";
 import { SpaceSettingsPage } from "./pages/SpaceSettingsPage";
+import { JoinSpacePage } from "./pages/JoinSpacePage";
 import { PlatformDashboard } from "./pages/platform/PlatformDashboard";
 import { PlatformSpacesPage } from "./pages/platform/PlatformSpacesPage";
 import { PlatformStatsPage } from "./pages/platform/PlatformStatsPage";
@@ -29,11 +30,12 @@ export default function App() {
   const isLandingRoute = location.pathname === "/" || location.pathname === "/landing" || location.pathname.startsWith("/landing/");
   const isAppRoute = location.pathname.startsWith("/app");
   const isPlatformRoute = location.pathname.startsWith("/platform");
+  const isJoinRoute = location.pathname.startsWith("/join");
   useSiteConfigEffects();
 
   return (
     <div className="flex min-h-[100dvh] flex-col">
-      {!isAppRoute && !isPlatformRoute && !isLandingRoute && !isAuthRoute && <Navbar />}
+      {!isAppRoute && !isPlatformRoute && !isLandingRoute && !isAuthRoute && !isJoinRoute && <Navbar />}
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           {/* Public routes */}
@@ -47,6 +49,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <SpaceListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/join"
+            element={
+              <ProtectedRoute>
+                <JoinSpacePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/join/:code"
+            element={
+              <ProtectedRoute>
+                <JoinSpacePage />
               </ProtectedRoute>
             }
           />
@@ -90,7 +108,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>
-      {!isAppRoute && !isPlatformRoute && !isLandingRoute && !isAuthRoute && <Footer />}
+      {!isAppRoute && !isPlatformRoute && !isLandingRoute && !isAuthRoute && !isJoinRoute && <Footer />}
 
       {/* Global Toast Container - only for non-app routes */}
       {!isAppRoute && !isPlatformRoute && (

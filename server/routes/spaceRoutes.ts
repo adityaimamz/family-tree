@@ -273,3 +273,102 @@ spaceRoutes.get("/api/spaces/:spaceSlug/bootstrap", ...requireSpaceRead, async (
     handleError(res, error, "Failed to load bootstrap data.");
   }
 });
+
+// List all memberships in a space (owner only) — used for transfer ownership UI
+spaceRoutes.get(
+  "/api/spaces/:spaceSlug/memberships",
+  requireAuth,
+  loadAppUser,
+  requireSpaceMembership,
+  requireSpaceRole(["owner"]),
+  async (req, res) => {
+    try {
+      if (!req.familySpace) {
+        res.status(500).json({ error: "FamilySpace context not loaded." });
+        return;
+      }
+
+      const memberships = await prisma.familyMembership.findMany({
+        where: { familySpaceId: req.familySpace.id },
+        include: { user: { select: { id: true, email: true, name: true } } },
+        orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+      });
+
+      res.json({
+        memberships: memberships.map((m) => ({
+          id: m.id,
+          userId: m.userId,
+          role: m.role,
+          displayName: (m as any).displayName ?? null,
+          email: m.user.email,
+          name: m.user.name,
+          createdAt: m.createdAt,
+        })),
+      });
+    } catch (error) {
+      handleError(res, error, "Failed to fetch memberships");
+    }
+  },
+);
+
+// Transfer ownership to another member (owner only)
+spaceRoutes.post(
+  "/api/spaces/:spaceSlug/transfer-ownership",
+  requireAuth,
+  loadAppUser,
+  requireSpaceMembership,
+  requireSpaceRole(["owner"]),
+  async (req, res) => {
+    try {
+      if (!req.familySpace || !req.appUser || !req.membership) {
+        res.status(500).json({ error: "Context not loaded." });
+        return;
+      }
+
+      const targetUserId = asNonEmptyString(req.body?.targetUserId);
+      if (!targetUserId) {
+        res.status(400).json({ error: "targetUserId is required." });
+        return;
+      }
+
+      if (targetUserId === req.appUser.id) {
+        res.status(400).json({ error: "You are already the owner." });
+        return;
+      }
+
+      const targetMembership = await prisma.familyMembership.findUnique({
+        where: {
+          userId_familySpaceId: {
+            userId: targetUserId,
+            familySpaceId: req.familySpace.id,
+          },
+        },
+      });
+
+      if (!targetMembership) {
+        res.status(404).json({ error: "Target user is not a member of this space." });
+        return;
+      }
+
+      // Transaction: promote target to owner, demote current owner to admin
+      await prisma.$transaction([
+        prisma.familyMembership.update({
+          where: { id: targetMembership.id },
+          data: { role: "owner" },
+        }),
+        prisma.familyMembership.update({
+          where: { id: req.membership.id },
+          data: { role: "admin" },
+        }),
+      ]);
+
+      res.json({
+        transferred: true,
+        newOwnerUserId: targetUserId,
+        yourNewRole: "admin",
+      });
+    } catch (error) {
+      handleError(res, error, "Failed to transfer ownership");
+    }
+  },
+);

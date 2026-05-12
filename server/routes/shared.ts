@@ -346,6 +346,35 @@ export const mapCurrentMembership = (membership: any, familySpace: any) => ({
   space: mapFamilySpace(membership.familySpace ?? familySpace),
 });
 
+// Feature: invite-family
+// Charset excludes I, O, 0, 1 to avoid visual ambiguity when typing codes manually.
+const INVITE_CODE_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const INVITE_CODE_HALF_LENGTH = 4;
+
+const randomInviteHalf = () => {
+  let out = "";
+  for (let index = 0; index < INVITE_CODE_HALF_LENGTH; index += 1) {
+    const charIndex = Math.floor(Math.random() * INVITE_CODE_CHARSET.length);
+    out += INVITE_CODE_CHARSET[charIndex];
+  }
+  return out;
+};
+
+/** Generate a random human-friendly invite code in the form `XXXX-XXXX`. */
+export const generateInviteCode = () => `${randomInviteHalf()}-${randomInviteHalf()}`;
+
+export const mapInvite = (invite: any) => ({
+  id: invite.id,
+  code: invite.code,
+  role: invite.role,
+  maxUses: invite.maxUses ?? null,
+  usedCount: invite.usedCount ?? 0,
+  expiresAt: invite.expiresAt ?? null,
+  revokedAt: invite.revokedAt ?? null,
+  createdAt: invite.createdAt,
+  updatedAt: invite.updatedAt,
+});
+
 export const slugify = (value: string) =>
   value
     .toLowerCase()

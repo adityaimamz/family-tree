@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Archive, ArrowRight, BookOpen, Calendar, Camera, Home, LogOut, Plus, ShieldCheck, Sprout, Users } from "lucide-react";
+import { Archive, ArrowRight, BookOpen, Calendar, Camera, Home, KeyRound, LogOut, Plus, ShieldCheck, Sprout, Users } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { EmptyState, LoadingState, PageShell, PrimaryButton, SectionHeader, iconStroke, pageTransition } from "../components/ui";
@@ -145,6 +145,18 @@ export const SpaceListPage = () => {
           eyebrow="Private archives"
           title="FamilySpace"
           description="Select a family space to manage the family tree, stories, photos, and memory archives privately."
+          action={
+            <Link
+              to="/join"
+              className="group inline-flex min-h-12 items-center gap-2 rounded-full bg-dark-green pl-5 pr-2 py-2 text-sm font-extrabold text-white shadow-warm transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:bg-warm-brown active:scale-[0.98] max-sm:w-full max-sm:justify-center"
+            >
+              <KeyRound className="h-4 w-4" strokeWidth={iconStroke} />
+              Have an invite code?
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-white transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-[1px] group-hover:scale-[1.05] group-hover:bg-white/25">
+                <ArrowRight className="h-4 w-4" strokeWidth={iconStroke} />
+              </span>
+            </Link>
+          }
         />
 
         {isLoading ? (

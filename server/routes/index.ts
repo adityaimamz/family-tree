@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { aiRoutes } from "./aiRoutes.js";
 import { branchRoutes } from "./branchRoutes.js";
 import { galleryRoutes } from "./galleryRoutes.js";
+import { inviteRoutes } from "./inviteRoutes.js";
 import { legacyRoutes } from "./legacyRoutes.js";
 import { memberRoutes } from "./memberRoutes.js";
 import { nuclearFamilyRoutes } from "./nuclearFamilyRoutes.js";
@@ -23,6 +24,7 @@ export const registerRoutes = (app: Express) => {
   app.use(storyRoutes);
   app.use(sourceNoteRoutes);
   app.use(aiRoutes);
+  app.use(inviteRoutes);
   app.use(platformRoutes);
   app.use(legacyRoutes);
 };

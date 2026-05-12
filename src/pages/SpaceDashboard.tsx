@@ -63,7 +63,9 @@ export const SpaceDashboard = () => {
     { title: "Timeline", description: "Capture milestones", to: "timeline", icon: Calendar },
     { title: "Photo Memories", description: "Add visual context", to: "gallery", icon: Images },
     { title: "Stories", description: "Read family narratives", to: "stories", icon: BookOpen },
-    { title: "Settings", description: "Manage archive identity", to: "settings", icon: Settings },
+    ...(canEditDashboard
+      ? [{ title: "Settings", description: "Manage archive identity", to: "settings", icon: Settings }]
+      : []),
   ];
 
   return (
