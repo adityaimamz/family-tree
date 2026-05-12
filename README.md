@@ -2,7 +2,7 @@
 
 WarisanAI is a full-stack, privacy-first family archive for preserving relationships, stories, photos, timelines, and family memories inside private `FamilySpace` workspaces.
 
-The project started from a family tree application and has evolved into a SaaS-lite prototype: a public landing page, authenticated FamilySpace app, role-based editing, platform operator console, PostgreSQL-backed family records, uploads, and AI-assisted archive drafting.
+The project started from a family tree application and has evolved into a SaaS-lite prototype: a public landing page, authenticated FamilySpace app, role-based editing, invite-based onboarding, platform operator console, PostgreSQL-backed family records, uploads, and AI-assisted archive drafting.
 
 > Public visitors see the landing page at `/`. Authenticated users manage private family archives inside `/app/:spaceSlug/*`.
 
@@ -22,7 +22,7 @@ WarisanAI does **not** claim end-to-end encryption. The current privacy promise 
 
 ### Public experience
 
-- Public WarisanAI landing page.
+- Public WarisanAI landing page with animated sections: Hero, Problem, FamilySpace, FamilyTree, Timeline, Memory, Biography, Relationship, Privacy, and CTA.
 - `/landing` alias for the public page.
 - Neon Auth sign-in/sign-up screens under `/auth/*`.
 
@@ -30,18 +30,28 @@ WarisanAI does **not** claim end-to-end encryption. The current privacy promise 
 
 - Authenticated FamilySpace list and create-space flow at `/app`.
 - Space-scoped dashboard overview with archive stats, archive health, suggested next steps, archive signals, AI entry points, and privacy/read-only notices.
-- Interactive family tree view.
+- Interactive family tree view with pan/zoom canvas, minimap, branch filtering, focus search, and auto-generation tree.
 - Member directory with owner/admin editing.
-- Member profile pages.
+- Member profile pages with biography, relationships, and source notes.
 - Timeline page with owner/admin event editing.
 - Gallery page with owner/admin photo-memory editing.
-- Stories page for narrative drafts.
-- Space settings page.
+- Stories page for narrative drafts (manual, AI biography, AI timeline origins).
+- Space settings page with sections: Space Profile, Account Profile, Members & Access management, Invites panel, and Danger Zone.
+
+### Invite system
+
+- Invite-based onboarding: owners/admins generate invite codes to add new members.
+- Join flow at `/join` and `/join/:code` for authenticated users.
+- Invite preview (shows space name, validity, and whether user is already a member).
+- One active invite per space at a time; revoke before creating a new one.
+- Optional `maxUses` limit per invite code.
+- Soft-revoke via `revokedAt` timestamp.
 
 ### Access and roles
 
 - Member-only read access for private family data.
 - Owner/admin mutation access inside a FamilySpace.
+- Membership management: list members, change roles (owner only), remove members, transfer ownership.
 - Separate platform operator role for `/platform/*` routes.
 - Platform admins do **not** automatically bypass FamilySpace membership for private archive data.
 
@@ -51,10 +61,12 @@ AI routes are implemented with deterministic fallbacks so the app can still prod
 
 Current AI-assisted backend capabilities:
 
-- Generate biography drafts from member records and notes.
-- Generate timeline story drafts from saved family milestones.
-- Explain relationships between two family members.
-- Cache relationship explanations in `RelationshipExplanationHistory`.
+- Generate biography drafts from member records and submitted notes (with tone selection).
+- Generate timeline story drafts from stored family milestones (with tone selection).
+- Explain relationships between two family members (with path visualization).
+- Cache relationship explanations in `RelationshipExplanationHistory` (AI results cached, deterministic results always re-attempted).
+- Relationship history listing and deletion.
+- Confidence labels, review checklists, facts-used metadata, and missing-context suggestions in all AI responses.
 - Use privacy-oriented copy such as: AI drafts stay inside this FamilySpace until reviewed.
 
 The AI implementation is intentionally conservative: prompts instruct the model not to invent dates, places, achievements, occupations, names, or events beyond the supplied archive data.
@@ -72,6 +84,7 @@ The AI implementation is intentionally conservative: prompts instruct the model 
 
 - UploadThing integration.
 - Direct optimized image upload endpoint for member and gallery photos.
+- Avatar upload endpoint (no space membership required, just authentication).
 - JPEG, PNG, and WebP image support.
 - Server-side image optimization with Sharp.
 
@@ -79,20 +92,21 @@ The AI implementation is intentionally conservative: prompts instruct the model 
 
 | Area | Technology |
 |---|---|
-| Frontend | React 18, TypeScript, Vite, React Router |
-| Styling | Tailwind CSS, CSS variables |
+| Frontend | React 18, TypeScript, Vite 6, React Router 6 |
+| Styling | Tailwind CSS 3, PostCSS, CSS variables |
 | Animation | Framer Motion |
 | Icons | Lucide React |
-| Backend | Express 5 |
-| Database | PostgreSQL with Prisma |
-| Database hosting target | Neon PostgreSQL |
+| Backend | Express 5, TypeScript |
+| Runtime | Node.js 22 |
+| Database | PostgreSQL with Prisma 7 |
+| Database hosting target | Neon PostgreSQL (serverless driver) |
 | Auth | Neon Auth JWT + `@neondatabase/neon-js` Auth UI |
 | JWT verification | `jose` remote JWKS verification |
 | Uploads | UploadThing + Sharp |
-| Security middleware | CORS allowlist, security headers, rate limiting |
-| Tests | Vitest, fast-check, Supertest |
-| Deployment | Docker + Google Cloud Run |
-| CI/CD target | Cloud Build trigger + Artifact Registry + Cloud Run deploy |
+| Security middleware | CORS allowlist, security headers, rate limiting (`express-rate-limit`) |
+| Tests | Vitest, fast-check (property-based), Supertest |
+| Deployment | Docker (Node 22 slim) + Google Cloud Run |
+| CI/CD | Cloud Build trigger + Artifact Registry + Cloud Run deploy |
 
 ## Routes
 
@@ -109,6 +123,8 @@ The AI implementation is intentionally conservative: prompts instruct the model 
 | Route | Purpose |
 |---|---|
 | `/app` | User's FamilySpaces and create-space form |
+| `/join` | Join a FamilySpace via invite code |
+| `/join/:code` | Join a FamilySpace with pre-filled invite code |
 | `/app/:spaceSlug` | Space dashboard overview |
 | `/app/:spaceSlug/tree` | Family tree |
 | `/app/:spaceSlug/members` | Member directory and owner/admin member editing |
@@ -116,7 +132,7 @@ The AI implementation is intentionally conservative: prompts instruct the model 
 | `/app/:spaceSlug/timeline` | Timeline and owner/admin event editing |
 | `/app/:spaceSlug/gallery` | Gallery and owner/admin item editing |
 | `/app/:spaceSlug/stories` | Story drafts and narrative archive |
-| `/app/:spaceSlug/settings` | FamilySpace identity/settings |
+| `/app/:spaceSlug/settings` | FamilySpace settings (profile, access, invites, danger zone) |
 
 ### Platform routes
 
@@ -147,22 +163,31 @@ Main tenant and identity models:
 
 | Model | Purpose |
 |---|---|
-| `AppUser` | App-level user mapped from Neon Auth |
+| `AppUser` | App-level user mapped from Neon Auth (email, name, avatar, platformRole) |
 | `FamilySpace` | Tenant boundary for one family archive |
-| `FamilyMembership` | User-to-space membership and family role |
+| `FamilyMembership` | User-to-space membership, family role, display name, and avatar |
+| `FamilyInvite` | Invite codes for onboarding new members into a FamilySpace |
 
 Space-scoped family resources:
 
 | Model | Purpose |
 |---|---|
-| `FamilyMember` | People in a FamilySpace |
-| `FamilyBranch` | Branch/group definitions |
+| `FamilyMember` | People in a FamilySpace (full genealogical data) |
+| `FamilyBranch` | Branch/group definitions with color and summary |
 | `NuclearFamily` | Parent-child family units used by the tree |
-| `TimelineEvent` | Manual timeline entries |
-| `GalleryItem` | Gallery albums/photos |
-| `Story` | Narrative content |
-| `SourceNote` | Source/evidence notes |
-| `RelationshipExplanationHistory` | Cached relationship explanation result and path |
+| `TimelineEvent` | Manual and automatic timeline entries |
+| `GalleryItem` | Gallery photos with metadata |
+| `Story` | Narrative content with origin tracking (manual, ai_biography, ai_timeline) |
+| `SourceNote` | Source/evidence notes (note, photo_context, interview, document, chat) |
+| `RelationshipExplanationHistory` | Cached relationship explanation result, path, and view count |
+
+Join tables:
+
+| Model | Purpose |
+|---|---|
+| `StoryMember` | Links stories to related family members |
+| `SourceNoteMember` | Links source notes to related family members |
+| `StorySourceNote` | Links stories to their source notes |
 
 Most human-facing ids use `slugId`, unique only inside one `familySpaceId`.
 
@@ -188,7 +213,29 @@ Most human-facing ids use `slugId`, unique only inside one `familySpaceId`.
 | `POST` | `/api/spaces` | authenticated; creates owner membership |
 | `GET` | `/api/spaces/:spaceSlug` | member+ |
 | `PATCH` | `/api/spaces/:spaceSlug` | owner/admin |
+| `GET` | `/api/spaces/:spaceSlug/summary` | member+ |
 | `GET` | `/api/spaces/:spaceSlug/membership` | member+ |
+| `PATCH` | `/api/spaces/:spaceSlug/membership/profile` | member+ (own profile) |
+| `GET` | `/api/spaces/:spaceSlug/bootstrap` | member+ (optional `?include=coreData`) |
+
+### Memberships
+
+| Method | Endpoint | Role |
+|---|---|---|
+| `GET` | `/api/spaces/:spaceSlug/memberships` | owner/admin |
+| `DELETE` | `/api/spaces/:spaceSlug/memberships/:membershipId` | owner/admin |
+| `PATCH` | `/api/spaces/:spaceSlug/memberships/:membershipId/role` | owner |
+| `POST` | `/api/spaces/:spaceSlug/transfer-ownership` | owner |
+
+### Invites
+
+| Method | Endpoint | Role |
+|---|---|---|
+| `GET` | `/api/spaces/:spaceSlug/invites` | owner/admin |
+| `POST` | `/api/spaces/:spaceSlug/invites` | owner/admin |
+| `PATCH` | `/api/spaces/:spaceSlug/invites/:inviteId/revoke` | owner/admin |
+| `GET` | `/api/invites/:code/preview` | authenticated |
+| `POST` | `/api/invites/join` | authenticated |
 
 ### Space-scoped resources
 
@@ -199,7 +246,7 @@ Most human-facing ids use `slugId`, unique only inside one `familySpaceId`.
 | Nuclear families | `GET /api/spaces/:spaceSlug/nuclear-families` | read-only in current app flow |
 | Timeline | `GET /api/spaces/:spaceSlug/timeline` | `POST`, `PUT`, `DELETE` owner/admin |
 | Gallery | `GET /api/spaces/:spaceSlug/gallery` | `POST`, `PUT`, `DELETE` owner/admin |
-| Stories | `GET /api/spaces/:spaceSlug/stories` | `POST` owner/admin |
+| Stories | `GET /api/spaces/:spaceSlug/stories` (paginated) | `POST`, `PUT`, `DELETE` owner/admin |
 | Source notes | `GET /api/spaces/:spaceSlug/source-notes` | `POST` owner/admin |
 
 ### AI routes
@@ -209,6 +256,8 @@ Most human-facing ids use `slugId`, unique only inside one `familySpaceId`.
 | `POST` | `/api/spaces/:spaceSlug/ai/generate-biography` | Draft a biography from member data and submitted notes |
 | `POST` | `/api/spaces/:spaceSlug/ai/generate-timeline-story` | Draft a timeline story from stored milestones |
 | `POST` | `/api/spaces/:spaceSlug/ai/explain-relationship` | Explain how two members are related |
+| `GET` | `/api/spaces/:spaceSlug/ai/relationship-history` | List cached relationship explanations (last 15) |
+| `DELETE` | `/api/spaces/:spaceSlug/ai/relationship-history/:historyId` | Delete a cached relationship explanation |
 
 ### Uploads
 
@@ -216,7 +265,7 @@ Most human-facing ids use `slugId`, unique only inside one `familySpaceId`.
 |---|---|---|
 | `POST` | `/api/uploads/photos?spaceSlug=:spaceSlug&folder=members&filename=name` | member+ |
 | `POST` | `/api/uploads/photos?spaceSlug=:spaceSlug&folder=gallery&filename=name` | member+ |
-| `POST` | `/api/uploadthing` | authenticated UploadThing handler |
+| `POST` | `/api/uploads/avatar?filename=name` | authenticated |
 
 ### Platform
 
@@ -238,6 +287,7 @@ Create `.env` in the project root for local development. Do not commit `.env`.
 DATABASE_URL="postgresql://user:password@host.neon.tech/dbname?sslmode=require"
 NODE_ENV="development"
 APP_BASE_URL="http://localhost:8080"
+CORS_ALLOWED_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
 VITE_NEON_AUTH_URL="https://your-neon-auth-host/neondb/auth"
 DEMO_AUTH_USER_ID="neon-auth-user-id-for-demo"
 UPLOADTHING_TOKEN="your-uploadthing-token"
@@ -245,7 +295,6 @@ API_KEY="your-ai-provider-api-key"
 VERTEX_API_KEY="your-vertex-or-google-ai-api-key"
 VERTEX_MODEL="gemini-2.5-flash"
 VERTEX_AI_GENERATE_URL="https://optional-custom-generate-endpoint"
-AUTH_DEBUG="1"
 ```
 
 ### Required for core app
@@ -262,8 +311,8 @@ AUTH_DEBUG="1"
 |---|---:|---|---|
 | `NODE_ENV` | Optional | Server/build | Use `production` in deployed service. |
 | `APP_BASE_URL` | Optional | Server CORS/auth redirect config | Public app URL such as Cloud Run URL. |
+| `CORS_ALLOWED_ORIGINS` | Optional | Server CORS | Comma-separated list of allowed origins. |
 | `DEMO_AUTH_USER_ID` | Optional | Prisma seed | If omitted, seed uses a placeholder user id. |
-| `AUTH_DEBUG` | Optional | Server auth logs | Set `0` to suppress auth debug logs outside production. |
 | `API_KEY` | Optional for AI | AI routes | Used as fallback provider API key. Keep secret. |
 | `VERTEX_API_KEY` | Optional for AI | AI routes | Preferred AI key when configured. Keep secret. |
 | `VERTEX_MODEL` | Optional | AI routes | Defaults to `gemini-2.5-flash`. |
@@ -388,6 +437,8 @@ Build production assets and server:
 npm run build
 ```
 
+This runs: `npx prisma generate && tsc -b && tsc -p tsconfig.server.json && vite build`
+
 Start production server:
 
 ```bash
@@ -398,7 +449,7 @@ The production Express server serves both API routes and Vite static assets from
 
 ## Deployment: Google Cloud Run
 
-The repository includes a Dockerfile for single-container deployment.
+The repository includes a Dockerfile for single-container deployment using Node.js 22 slim.
 
 ### Docker build requirements
 
@@ -425,7 +476,7 @@ Use a Cloud Build trigger with `/cloudbuild.yaml` as the configuration file and 
 
 Do not store secret values directly in `cloudbuild.yaml`. Keep real substitution values in the Cloud Build trigger settings.
 
-If the trigger uses a custom service account, Cloud Build may require explicit logging behavior. The current config should include one of the allowed logging options, for example:
+If the trigger uses a custom service account, Cloud Build may require explicit logging behavior. The current config includes:
 
 ```yaml
 options:
@@ -452,66 +503,141 @@ Remember: Cloud Run runtime env helps the server, but Vite frontend env must be 
 
 ```text
 prisma/
-  schema.prisma
-  seed.ts
-  migrations/
+  schema.prisma          # Data model (Prisma 7)
+  seed.ts                # Demo data seeder
+  migrations/            # SQL migrations
 
 server/
-  app.ts
-  authorization.ts
-  db.ts
-  neonAuth.ts
-  uploadthing.ts
+  index.ts               # Server entry point
+  app.ts                 # Express app setup
+  authorization.ts       # Auth middleware (loadAppUser, requireSpaceMembership, requireSpaceRole)
+  db.ts                  # Prisma client instance
+  neonAuth.ts            # Neon Auth JWT verification
+  uploadthing.ts         # UploadThing + Sharp image optimization
+  ai/
+    aiHelpers.ts         # Shared AI utilities (confidence, facts, review checklist)
+    aiJsonParsing.ts     # Safe JSON parsing for AI responses
+    biographyService.ts  # Biography generation (deterministic + AI)
+    timelineService.ts   # Timeline story generation (deterministic + AI)
+    relationshipCache.ts # Relationship cache freshness logic
+    types.ts             # AI type definitions
+  http/
+    error.ts             # Error handling utilities
+  middlewares/
+    apiLogger.ts         # Request logging
+    securityHeaders.ts   # Security headers middleware
+    spaceSlugFromQuery.ts # Extract spaceSlug from query params
   relationship/
+    aiExplain.ts         # AI relationship explanation
+    deterministic.ts     # Deterministic relationship path finding
+    types.ts             # Relationship type definitions
   routes/
-    aiRoutes.ts
-    branchRoutes.ts
-    galleryRoutes.ts
-    legacyRoutes.ts
-    memberRoutes.ts
-    nuclearFamilyRoutes.ts
-    platformRoutes.ts
-    sourceNoteRoutes.ts
-    spaceRoutes.ts
-    storyRoutes.ts
-    timelineRoutes.ts
+    index.ts             # Route registration
+    aiRoutes.ts          # AI generation endpoints
+    branchRoutes.ts      # Branch CRUD
+    galleryRoutes.ts     # Gallery CRUD
+    inviteRoutes.ts      # Invite system (create, revoke, preview, join)
+    legacyRoutes.ts      # Legacy 410 Gone endpoints
+    memberRoutes.ts      # Member CRUD
+    membershipRoutes.ts  # Membership management (list, role change, transfer, remove)
+    nuclearFamilyRoutes.ts # Nuclear family read
+    platformRoutes.ts    # Platform admin endpoints
+    shared.ts            # Shared route utilities (mappers, validators, pagination)
+    sourceNoteRoutes.ts  # Source note CRUD
+    spaceRoutes.ts       # Space CRUD + bootstrap + summary
+    storyRoutes.ts       # Story CRUD (paginated)
+    timelineRoutes.ts    # Timeline CRUD
+    uploadRoutes.ts      # Photo and avatar upload endpoints
 
 src/
-  App.tsx
+  App.tsx                # Root component with routing
+  main.tsx               # React entry point
+  index.css              # Global styles
   components/
+    ai/                  # AI feature components (biography studio, relationship explainer, timeline story)
+    dashboard/           # Dashboard stat cards
+    forms/               # Form modals (member, gallery, timeline, relationship selector)
+    tree/                # Tree visualization (canvas, minimap, controls, branch filter, focus search)
+    ui/                  # Shared UI components (modal, photo upload)
+    FamilyTree.tsx       # Legacy tree component
+    GalleryTimeline.tsx  # Gallery timeline view
+    Layout.tsx           # Navbar + Footer
+    MemberDetail.tsx     # Member detail view
+    MemberForm.tsx       # Member form
+    Navbar.tsx           # App navbar
+    ProtectedRoute.tsx   # Auth guard component
   config/
-  hooks/useSpaceStore.tsx
-  layouts/SpaceLayout.tsx
-  layouts/PlatformLayout.tsx
+    index.ts             # App configuration
+    defaultLabels.ts     # Default UI labels
+  constants/
+    treeLayout.ts        # Tree layout constants
+  hooks/
+    useAIBiographyStudio.ts  # AI biography studio hook
+    useAIDraft.ts            # Generic AI draft hook
+    useAIStudioDeepLink.ts   # AI studio deep link navigation
+    useCanvasGestures.ts     # Canvas touch/mouse gestures
+    useCanvasPanZoom.ts      # Canvas pan and zoom state
+    useFamilyStore.tsx       # Legacy family store
+    useRoleGate.ts           # Role-based UI gating
+    useSiteConfigEffects.ts  # Site config side effects
+    useSpaceStore.tsx        # Space-scoped state management
+    useTreeFocus.ts          # Tree focus/search state
+  landing/
+    lib/
+      data/              # Landing page data
+      animationVariants.ts # Shared animation variants
+    sections/            # Landing page sections (Hero, Problem, FamilySpace, etc.)
+  layouts/
+    PlatformLayout.tsx   # Platform console layout
+    SpaceLayout.tsx      # FamilySpace app layout
   lib/
+    api.ts               # API client utilities
+    auth.ts              # Auth utilities
+    authErrorBus.ts      # Auth error event bus
+    signOut.ts           # Sign-out logic
   pages/
-    LandingPage.tsx
     AuthPage.tsx
-    SpaceListPage.tsx
-    SpaceDashboard.tsx
-    TreePage.tsx
-    MembersPage.tsx
-    MemberProfilePage.tsx
-    TimelinePage.tsx
     GalleryPage.tsx
-    StoriesPage.tsx
+    HomePage.tsx
+    JoinSpacePage.tsx     # Invite join flow
+    LandingPage.tsx
+    MemberProfilePage.tsx
+    MembersPage.tsx
+    SpaceDashboard.tsx
+    spaceDashboard.derive.ts # Dashboard derived state
+    SpaceListPage.tsx
     SpaceSettingsPage.tsx
-    platform/
-  types/family.ts
+    StoriesPage.tsx
+    TimelinePage.tsx
+    TreePage.tsx
+    platform/            # Platform admin pages
+    settings/            # Space settings sub-sections
+  types/
+    config.ts            # Config type definitions
+    family.ts            # Family data types
+    tree.ts              # Tree visualization types
+  utils/
+    family.ts            # Family data utilities
+    spaceDisplay.ts      # Space display helpers
+    timeline.ts          # Timeline utilities
+    treeLayout.ts        # Tree layout calculations
+
+scripts/
+  promote-admin.ts       # CLI script to promote a user to platform_admin
 ```
 
 ## Scripts
 
 | Script | Description |
 |---|---|
-| `npm run dev` | Run frontend and backend together |
-| `npm run dev:frontend` | Run Vite only |
-| `npm run dev:backend` | Run Express only with `.env` |
+| `npm run dev` | Run frontend and backend together (via concurrently) |
+| `npm run dev:frontend` | Run Vite only (`--host 127.0.0.1`) |
+| `npm run dev:backend` | Run Express only with `.env` via tsx |
 | `npm run build` | Generate Prisma Client, type-check frontend/server, and build Vite assets |
 | `npm run start` | Run the production Express server |
 | `npm run preview` | Preview the production Vite build |
 | `npm run db:seed` | Seed demo FamilySpace data |
-| `npm run test` | Run Vitest |
+| `npm run test` | Run Vitest (watch mode) |
 | `npm run test:run` | Run Vitest once |
 
 ## Verification Checklist
@@ -539,12 +665,15 @@ Manual verification targets:
 - `/`
 - `/auth/sign-in`
 - `/app`
+- `/join`
 - `/app/:spaceSlug`
 - `/app/:spaceSlug/tree`
 - `/app/:spaceSlug/members`
+- `/app/:spaceSlug/members/:memberId`
 - `/app/:spaceSlug/timeline`
 - `/app/:spaceSlug/gallery`
 - `/app/:spaceSlug/stories`
+- `/app/:spaceSlug/settings`
 - `/platform`
 - old global API endpoints returning `410 Gone`
 
@@ -599,12 +728,16 @@ If the console shows `ERR_BLOCKED_BY_CLIENT` for `/_vercel/insights/script.js`, 
 - AI drafts should be treated as reviewable drafts, not final family history.
 - Do not store production secrets in GitHub.
 - Rotate secrets if they are exposed in screenshots, logs, or commits.
+- Rate limiting is applied to API routes via `express-rate-limit`.
+- Security headers are applied via custom middleware.
 
 ## Current Status
 
 WarisanAI is a demo-ready full-stack prototype moving from a family tree into a private family archive product. The current focus is polishing the app for a judging/demo flow:
 
-1. Public landing page explains the family memory preservation problem.
+1. Public landing page explains the family memory preservation problem with animated sections.
 2. Authenticated FamilySpace proves the product works with measurable archive progress.
 3. Tree, members, timeline, gallery, stories, and AI-assisted routes demonstrate real product value.
-4. Platform console shows SaaS-lite operational readiness without exposing private family archive contents.
+4. Invite-based onboarding allows families to grow their archive collaboratively.
+5. Space settings with membership management, profile customization, and invite administration.
+6. Platform console shows SaaS-lite operational readiness without exposing private family archive contents.
