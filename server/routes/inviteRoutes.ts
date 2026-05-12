@@ -265,17 +265,31 @@ inviteRoutes.post("/api/invites/join", requireAuth, loadAppUser, async (req, res
     }
 
     const membership = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.familyInvite.updateMany({
+        where: {
+          id: invite.id,
+          revokedAt: null,
+          OR: [
+            { maxUses: null },
+            { usedCount: { lt: invite.maxUses ?? undefined } },
+          ],
+          ...(invite.expiresAt
+            ? { expiresAt: { gt: new Date() } }
+            : {}),
+        },
+        data: { usedCount: { increment: 1 } },
+      });
+
+      if (claimed.count === 0) {
+        throw new Error("INVITE_SLOT_EXHAUSTED");
+      }
+
       const created = await tx.familyMembership.create({
         data: {
           userId: req.appUser!.id,
           familySpaceId: invite.familySpaceId,
           role: invite.role,
         },
-      });
-
-      await tx.familyInvite.update({
-        where: { id: invite.id },
-        data: { usedCount: { increment: 1 } },
       });
 
       return created;
@@ -287,6 +301,13 @@ inviteRoutes.post("/api/invites/join", requireAuth, loadAppUser, async (req, res
       membership: { role: membership.role },
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "INVITE_SLOT_EXHAUSTED") {
+      res.status(410).json({
+        error: "This invite is no longer valid (slot claimed by another user).",
+        invalidReason: "full",
+      });
+      return;
+    }
     handleError(res, error, "Failed to join FamilySpace");
   }
 });
