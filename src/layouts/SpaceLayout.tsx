@@ -1,3 +1,4 @@
+import { Skeleton } from "@syraui/core";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -74,7 +75,7 @@ const titleFromPath = (pathname: string) => {
 };
 
 const SkeletonBlock = ({ className = "" }: { className?: string }) => (
-  <span aria-hidden="true" className={cx("skeleton-luxe block rounded-full", className)} />
+  <span aria-hidden="true" className={cx("block rounded-full bg-surface-soft", className)} />
 );
 
 const SpaceLoadingSkeleton = () => {
@@ -89,13 +90,14 @@ const SpaceLoadingSkeleton = () => {
   ];
 
   return (
-    <motion.div
-      {...pageTransition}
-      className="min-h-[100dvh] bg-[radial-gradient(circle_at_14%_0%,hsl(var(--soft-gold)_/_0.2),transparent_30rem),radial-gradient(circle_at_92%_8%,hsl(var(--sage-green)_/_0.2),transparent_32rem),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--surface-soft)_/_0.42)_100%)] text-text-primary"
-      role="status"
-      aria-live="polite"
-      aria-label="Loading FamilySpace"
-    >
+    <Skeleton loading={true} speed={1.8}>
+      <motion.div
+        {...pageTransition}
+        className="min-h-[100dvh] bg-[radial-gradient(circle_at_14%_0%,hsl(var(--soft-gold)_/_0.2),transparent_30rem),radial-gradient(circle_at_92%_8%,hsl(var(--sage-green)_/_0.2),transparent_32rem),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--surface-soft)_/_0.42)_100%)] text-text-primary"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading FamilySpace"
+      >
       <div className="flex min-h-[100dvh] w-full">
         <aside className="surface-grain relative hidden h-[100dvh] w-[19rem] shrink-0 flex-col overflow-hidden border-r border-border-soft/75 bg-[linear-gradient(180deg,hsl(var(--surface)_/_0.92)_0%,hsl(var(--background))_52%,hsl(var(--surface-soft)_/_0.76)_100%)] px-4 py-5 shadow-[28px_0_90px_-58px_rgba(80,54,30,0.95)] ring-1 ring-border-soft/80 lg:flex">
           <div className="pointer-events-none absolute inset-x-5 top-0 h-40 rounded-full bg-soft-gold/16 blur-3xl" />
@@ -255,6 +257,7 @@ const SpaceLoadingSkeleton = () => {
       </div>
       <span className="sr-only">Loading FamilySpace...</span>
     </motion.div>
+    </Skeleton>
   );
 };
 

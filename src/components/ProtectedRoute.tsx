@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { Skeleton } from "@syraui/core";
 import { getNeonAuthToken } from "../lib/auth";
 
 type Props = { children: ReactNode };
@@ -21,9 +22,11 @@ export const ProtectedRoute = ({ children }: Props) => {
   if (status === "loading") {
     return (
       <div className="grid min-h-[100dvh] place-items-center bg-background">
-        <div className="animate-pulse rounded-2xl bg-sage-green/15 p-8">
-          <p className="text-sm font-semibold text-text-muted">Verifying session...</p>
-        </div>
+        <Skeleton loading={true}>
+          <div className="rounded-2xl bg-sage-green/15 p-8">
+            <p className="text-sm font-semibold text-text-muted">Verifying session...</p>
+          </div>
+        </Skeleton>
       </div>
     );
   }

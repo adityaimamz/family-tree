@@ -1,3 +1,4 @@
+import { Skeleton } from "@syraui/core";
 import { AnimatePresence, motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { BarChart3, Boxes, LayoutDashboard, LogOut, Menu, Server, Users, X } from "lucide-react";
@@ -89,7 +90,9 @@ export const PlatformLayout = () => {
     return (
       <div className="grid min-h-[100dvh] place-items-center bg-[radial-gradient(circle_at_14%_0%,hsl(var(--soft-gold)_/_0.16),transparent_28rem),radial-gradient(circle_at_92%_8%,hsl(var(--sage-green)_/_0.18),transparent_30rem),hsl(var(--background))]">
         <div className="rounded-[2rem] border border-white/75 bg-surface/90 p-8 text-center shadow-soft ring-1 ring-border-soft/60">
-          <div className="mx-auto h-12 w-12 animate-pulse rounded-2xl bg-sage-green/15" />
+          <Skeleton loading={true}>
+            <div className="mx-auto h-12 w-12 rounded-2xl bg-sage-green/15" />
+          </Skeleton>
           <p className="mt-4 text-sm font-semibold text-text-muted">Loading platform console...</p>
         </div>
       </div>
