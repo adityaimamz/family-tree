@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, BookOpenText, Clock3, GitBranch, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowRight, BookOpenText, Clock3, GitBranch, LockKeyhole, LogOut, ShieldCheck, Sparkles, UserCircle2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { getNeonAuthToken, clearNeonAuthTokenCache } from "../../lib/auth";
+import { performSignOut } from "../../lib/signOut";
 
 const navItems = [
   { href: "#features", label: "Problems", note: "Why memory fades", icon: Clock3 },
@@ -14,6 +16,19 @@ const navItems = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    getNeonAuthToken({ retries: 1, delayMs: 100 }).then((token) => {
+      setIsLoggedIn(!!token);
+    });
+  }, []);
+
+  const handleSignOut = async () => {
+    await performSignOut();
+    setIsLoggedIn(false);
+  };
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 36);
@@ -76,19 +91,40 @@ export default function Navbar() {
         </div>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <Link
-            to="/auth/sign-in"
-            className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-stroke bg-surface px-4 text-sm font-semibold text-ink outline-none transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-bg-alt active:translate-y-[1px] focus-visible:ring-4 focus-visible:ring-sage-light"
-          >
-            Sign in
-          </Link>
-          <Link
-            to="/auth/sign-up"
-            className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-surface shadow-[0_18px_34px_-26px_rgba(44,80,22,0.95)] outline-none transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px] focus-visible:ring-4 focus-visible:ring-sage-light"
-          >
-            Create archive
-            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" strokeWidth={1.8} />
-          </Link>
+          {isLoggedIn ? (
+            <>
+              <Link
+                to="/app"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-surface shadow-[0_18px_34px_-26px_rgba(44,80,22,0.95)] outline-none transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px] focus-visible:ring-4 focus-visible:ring-sage-light"
+              >
+                <UserCircle2 className="h-4 w-4" strokeWidth={1.8} />
+                My Archive
+              </Link>
+              <button
+                onClick={handleSignOut}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-stroke bg-surface px-4 text-sm font-semibold text-ink outline-none transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-bg-alt active:translate-y-[1px] focus-visible:ring-4 focus-visible:ring-sage-light"
+              >
+                <LogOut className="h-4 w-4" strokeWidth={1.8} />
+                Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/auth/sign-in"
+                className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-stroke bg-surface px-4 text-sm font-semibold text-ink outline-none transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-bg-alt active:translate-y-[1px] focus-visible:ring-4 focus-visible:ring-sage-light"
+              >
+                Sign in
+              </Link>
+              <Link
+                to="/auth/sign-up"
+                className="group inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-surface shadow-[0_18px_34px_-26px_rgba(44,80,22,0.95)] outline-none transition hover:-translate-y-0.5 hover:bg-warm-brown active:translate-y-[1px] focus-visible:ring-4 focus-visible:ring-sage-light"
+              >
+                Create archive
+                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" strokeWidth={1.8} />
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -166,21 +202,43 @@ export default function Navbar() {
               </div>
 
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Link
-                  to="/auth/sign-in"
-                  className="inline-flex min-h-12 items-center justify-center rounded-[1.25rem] border border-stroke bg-surface px-4 text-sm font-semibold text-ink shadow-[0_14px_34px_-28px_rgba(80,54,30,0.72)]"
-                  onClick={closeMenu}
-                >
-                  Sign in
-                </Link>
-                <Link
-                  to="/auth/sign-up"
-                  className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-[1.25rem] bg-primary px-4 text-sm font-semibold text-surface shadow-[0_18px_38px_-28px_rgba(44,80,22,0.95)]"
-                  onClick={closeMenu}
-                >
-                  Create archive
-                  <ArrowRight className="h-4 w-4 transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1" strokeWidth={1.8} />
-                </Link>
+                {isLoggedIn ? (
+                  <>
+                    <Link
+                      to="/app"
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1.25rem] bg-primary px-4 text-sm font-semibold text-surface shadow-[0_18px_38px_-28px_rgba(44,80,22,0.95)]"
+                      onClick={closeMenu}
+                    >
+                      <UserCircle2 className="h-4 w-4" strokeWidth={1.8} />
+                      My Archive
+                    </Link>
+                    <button
+                      onClick={() => { closeMenu(); handleSignOut(); }}
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1.25rem] border border-stroke bg-surface px-4 text-sm font-semibold text-ink shadow-[0_14px_34px_-28px_rgba(80,54,30,0.72)]"
+                    >
+                      <LogOut className="h-4 w-4" strokeWidth={1.8} />
+                      Sign out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/auth/sign-in"
+                      className="inline-flex min-h-12 items-center justify-center rounded-[1.25rem] border border-stroke bg-surface px-4 text-sm font-semibold text-ink shadow-[0_14px_34px_-28px_rgba(80,54,30,0.72)]"
+                      onClick={closeMenu}
+                    >
+                      Sign in
+                    </Link>
+                    <Link
+                      to="/auth/sign-up"
+                      className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-[1.25rem] bg-primary px-4 text-sm font-semibold text-surface shadow-[0_18px_38px_-28px_rgba(44,80,22,0.95)]"
+                      onClick={closeMenu}
+                    >
+                      Create archive
+                      <ArrowRight className="h-4 w-4 transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-1" strokeWidth={1.8} />
+                    </Link>
+                  </>
+                )}
               </div>
             </motion.div>
           )}

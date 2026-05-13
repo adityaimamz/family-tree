@@ -45,8 +45,7 @@ export default function PrivacySection() {
             Keep family history in the hands of the family.
           </h2>
           <p className="mt-6 max-w-[58ch] text-base leading-8 text-ink-secondary">
-            WarisanAI is designed around invited relatives, clear roles, family-approved drafts, and records that keep
-            source context visible as the archive grows.
+            Only invited FamilySpace members can view the archive. Owners and admins manage invite codes, member roles, and access changes.
           </p>
         </motion.div>
 

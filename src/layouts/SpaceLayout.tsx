@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
-import { EmptyState, iconStroke, pageTransition } from "../components/ui";
+import { EmptyState, LoadingState, PageShell, SectionHeader, iconStroke, pageTransition } from "../components/ui";
 import { useSpaceStore } from "../hooks/useSpaceStore";
 import { performSignOut } from "../lib/signOut";
 import { cx, getInitials } from "../utils/family";
@@ -74,190 +74,68 @@ const titleFromPath = (pathname: string) => {
   return "Overview";
 };
 
-const SkeletonBlock = ({ className = "" }: { className?: string }) => (
-  <span aria-hidden="true" className={cx("block rounded-full bg-surface-soft", className)} />
+const contentTitleFromPath = (pathname: string, spaceName: string) => {
+  if (pathname.endsWith("/members")) return "Members Directory";
+  if (pathname.includes("/members/")) return "Member Profile";
+  if (pathname.endsWith("/tree")) return "Family Tree";
+  if (pathname.endsWith("/timeline")) return "Timeline";
+  if (pathname.endsWith("/gallery")) return "Photo Memories";
+  if (pathname.endsWith("/stories")) return "Family Stories";
+  if (pathname.endsWith("/settings")) return "Settings";
+  return spaceName;
+};
+
+const contentEyebrowFromPath = (pathname: string) => {
+  if (pathname.endsWith("/members")) return "Family records";
+  if (pathname.includes("/members/")) return "Family profile";
+  if (pathname.endsWith("/tree")) return "Family tree";
+  if (pathname.endsWith("/timeline")) return "Living family history";
+  if (pathname.endsWith("/gallery")) return "Photo memories";
+  if (pathname.endsWith("/stories")) return "Stories and Memory Inbox";
+  if (pathname.endsWith("/settings")) return "FamilySpace settings";
+  return "Archive overview";
+};
+
+const contentDescriptionFromPath = (pathname: string) => {
+  if (pathname.endsWith("/members")) return "Search for family members by name, relationship to root, generation, status, or family branch.";
+  if (pathname.includes("/members/")) return "Review one family member's relationships, memories, and biography draft tools.";
+  if (pathname.endsWith("/tree")) return "Explore relationships across generations and ask AI how two relatives are connected.";
+  if (pathname.endsWith("/timeline")) return "Connect milestones, photos, biographies, and memories into a readable family timeline.";
+  if (pathname.endsWith("/gallery")) return "Preserve family photos with dates, event context, and the stories behind each image.";
+  if (pathname.endsWith("/stories")) return "Turn raw memories, interview notes, photo context, and document snippets into reviewed family narratives.";
+  if (pathname.endsWith("/settings")) return "Manage archive identity and your account profile for this FamilySpace.";
+  return "A private family archive for preserving relationships, stories, photos, and memories across generations.";
+};
+
+const SpaceBootLoader = () => (
+  <div className="grid min-h-[100dvh] place-items-center bg-[radial-gradient(circle_at_14%_0%,hsl(var(--soft-gold)_/_0.16),transparent_28rem),radial-gradient(circle_at_92%_8%,hsl(var(--sage-green)_/_0.18),transparent_30rem),hsl(var(--background))] px-4">
+    <div className="rounded-[2rem] border border-white/75 bg-surface/90 p-8 text-center shadow-soft ring-1 ring-border-soft/60">
+      <div className="mx-auto h-12 w-12 animate-pulse rounded-2xl bg-sage-green/15" />
+      <p className="mt-4 text-sm font-semibold text-text-muted">Loading FamilySpace...</p>
+    </div>
+  </div>
 );
 
-const SpaceLoadingSkeleton = () => {
-  const navWidths = ["w-24", "w-32", "w-28", "w-24", "w-28", "w-24", "w-24"];
-  const treeNodes = [
-    "left-[14%] top-[18%]",
-    "left-[42%] top-[12%]",
-    "left-[66%] top-[25%]",
-    "left-[24%] top-[58%]",
-    "left-[52%] top-[54%]",
-    "left-[76%] top-[64%]",
-  ];
+const SpaceContentSkeleton = ({
+  pathname,
+  spaceName,
+}: {
+  pathname: string;
+  spaceName: string;
+}) => {
+  const title = contentTitleFromPath(pathname, spaceName);
+  const eyebrow = contentEyebrowFromPath(pathname);
+  const description = contentDescriptionFromPath(pathname);
 
   return (
-    <Skeleton loading={true} speed={1.8}>
-      <motion.div
-        {...pageTransition}
-        className="min-h-[100dvh] bg-[radial-gradient(circle_at_14%_0%,hsl(var(--soft-gold)_/_0.2),transparent_30rem),radial-gradient(circle_at_92%_8%,hsl(var(--sage-green)_/_0.2),transparent_32rem),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--surface-soft)_/_0.42)_100%)] text-text-primary"
-        role="status"
-        aria-live="polite"
-        aria-label="Loading FamilySpace"
-      >
-      <div className="flex min-h-[100dvh] w-full">
-        <aside className="surface-grain relative hidden h-[100dvh] w-[19rem] shrink-0 flex-col overflow-hidden border-r border-border-soft/75 bg-[linear-gradient(180deg,hsl(var(--surface)_/_0.92)_0%,hsl(var(--background))_52%,hsl(var(--surface-soft)_/_0.76)_100%)] px-4 py-5 shadow-[28px_0_90px_-58px_rgba(80,54,30,0.95)] ring-1 ring-border-soft/80 lg:flex">
-          <div className="pointer-events-none absolute inset-x-5 top-0 h-40 rounded-full bg-soft-gold/16 blur-3xl" />
-          <div className="relative z-[1]">
-            <div className="mb-5 inline-flex min-h-10 items-center gap-2 rounded-full border border-border-soft/80 bg-surface/88 px-3 shadow-[0_14px_34px_-28px_rgba(80,54,30,0.9)]">
-              <SkeletonBlock className="h-6 w-6" />
-              <SkeletonBlock className="h-3 w-24" />
-            </div>
-
-            <div className="rounded-[1.9rem] bg-surface/72 p-1.5 shadow-[0_26px_62px_-42px_rgba(80,54,30,0.86)] ring-1 ring-warm-brown/16">
-              <div className="relative overflow-hidden rounded-[1.45rem] border border-border-soft/65 bg-[linear-gradient(145deg,hsl(var(--surface)_/_0.96)_0%,hsl(var(--background))_68%,hsl(var(--soft-gold)_/_0.18)_100%)] p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.92)]">
-                <div className="pointer-events-none absolute right-0 top-0 h-24 w-24 rounded-full bg-sage-green/14 blur-2xl" />
-                <div className="relative flex items-start justify-between gap-3">
-                  <SkeletonBlock className="h-14 w-14 rounded-[1.15rem]" />
-                  <SkeletonBlock className="h-7 w-20" />
-                </div>
-                <SkeletonBlock className="mt-4 h-5 w-44 max-w-full" />
-                <SkeletonBlock className="mt-3 h-3 w-36 max-w-full" />
-              </div>
-            </div>
-          </div>
-
-          <nav className="relative z-[1] mt-6 flex min-h-0 flex-1 flex-col gap-5 overflow-hidden pr-1">
-            {spaceNavGroups.map((group, groupIndex) => (
-              <div key={group.label}>
-                <SkeletonBlock className="mb-3 ml-3 h-2.5 w-20" />
-                <div className="grid gap-1.5">
-                  {group.items.map((item, itemIndex) => (
-                    <div
-                      key={item.label}
-                      className="flex min-h-12 items-center gap-3 rounded-[1.1rem] bg-surface/66 px-3 py-2.5 shadow-[0_12px_26px_-24px_rgba(80,54,30,0.72)] ring-1 ring-border-soft/35"
-                    >
-                      <SkeletonBlock className="h-8 w-8 rounded-xl" />
-                      <SkeletonBlock className={`h-3.5 ${navWidths[groupIndex * 3 + itemIndex] ?? "w-24"}`} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </nav>
-
-          <div className="relative z-[1] mt-6 rounded-[1.45rem] border border-sage-green/24 bg-[linear-gradient(135deg,hsl(var(--sage-green)_/_0.16),hsl(var(--surface)_/_0.9)_76%)] p-4 shadow-[0_18px_42px_-32px_rgba(80,54,30,0.82)]">
-            <div className="flex items-start gap-3">
-              <SkeletonBlock className="h-9 w-9" />
-              <div className="flex-1">
-                <SkeletonBlock className="h-4 w-28" />
-                <SkeletonBlock className="mt-3 h-3 w-20" />
-              </div>
-            </div>
-            <SkeletonBlock className="mt-4 h-3 w-full" />
-            <SkeletonBlock className="mt-2 h-3 w-4/5" />
-          </div>
-        </aside>
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="top-0 z-30 border-b border-border-soft/70 bg-background/86 px-3 py-2 backdrop-blur-xl sm:px-6">
-            <div className="flex min-h-14 items-center justify-between gap-3 rounded-[1.35rem] border border-border-soft/70 bg-surface/88 px-3 shadow-[0_20px_56px_-42px_rgba(80,54,30,0.92)] ring-1 ring-border-soft/70 sm:px-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <SkeletonBlock className="h-11 w-11 rounded-2xl" />
-                <div className="min-w-0 py-1">
-                  <SkeletonBlock className="h-3 w-36 max-w-[42vw]" />
-                  <SkeletonBlock className="mt-2 h-6 w-44 max-w-[54vw]" />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="hidden min-h-11 items-center gap-3 rounded-full border border-border-soft/75 bg-background/84 px-2 py-1.5 shadow-soft sm:flex">
-                  <SkeletonBlock className="h-9 w-9" />
-                  <div className="min-w-0 pr-3">
-                    <SkeletonBlock className="h-3.5 w-28" />
-                    <SkeletonBlock className="mt-2 h-3 w-16" />
-                  </div>
-                </div>
-                <div className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border-soft/75 bg-background/84 px-2 py-1.5 shadow-soft">
-                  <SkeletonBlock className="h-8 w-8" />
-                  <SkeletonBlock className="hidden h-3 w-14 sm:block" />
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <main className="min-w-0 flex-1 overflow-hidden">
-            <div className="mx-auto w-full max-w-[1400px] px-3 pb-12 pt-4 sm:px-5 sm:pb-16 sm:pt-6 lg:px-8">
-              <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div className="max-w-3xl">
-                  <SkeletonBlock className="h-3 w-32" />
-                  <SkeletonBlock className="mt-4 h-11 w-[min(34rem,86vw)] rounded-[1.25rem]" />
-                  <SkeletonBlock className="mt-4 h-4 w-[min(44rem,88vw)]" />
-                  <SkeletonBlock className="mt-2 h-4 w-[min(30rem,76vw)]" />
-                </div>
-                <div className="flex gap-2">
-                  <SkeletonBlock className="h-11 w-28 rounded-2xl" />
-                  <SkeletonBlock className="h-11 w-11 rounded-2xl" />
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {["members", "stories", "photos", "timeline"].map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-[1.6rem] border border-border-soft/70 bg-[linear-gradient(145deg,hsl(var(--surface)_/_0.96),hsl(var(--background)_/_0.72))] p-5 shadow-[0_24px_52px_-36px_rgba(80,54,30,0.82)] ring-1 ring-white/78"
-                  >
-                    <SkeletonBlock className="h-11 w-11 rounded-2xl" />
-                    <SkeletonBlock className="mt-5 h-8 w-20 rounded-xl" />
-                    <SkeletonBlock className="mt-3 h-3 w-28" />
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-5 grid gap-5 xl:grid-cols-12">
-                <section className="surface-grain relative min-h-[24rem] overflow-hidden rounded-[1.8rem] border border-border-soft/70 bg-surface/96 p-5 shadow-[0_24px_58px_-40px_rgba(80,54,30,0.82)] ring-1 ring-white/80 xl:col-span-8">
-                  <div className="relative h-full min-h-[20rem] overflow-hidden rounded-[1.35rem] border border-border-soft/75 bg-[linear-gradient(135deg,hsl(var(--background)_/_0.84),hsl(var(--surface)_/_0.72))]">
-                    <div className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full bg-soft-gold/12 blur-3xl" />
-                    <div className="absolute left-[18%] top-[32%] h-px w-[52%] rotate-12 bg-warm-brown/18" />
-                    <div className="absolute left-[24%] top-[47%] h-px w-[48%] -rotate-12 bg-warm-brown/16" />
-                    <div className="absolute left-[44%] top-[18%] h-[54%] w-px bg-warm-brown/14" />
-                    {treeNodes.map((position, index) => (
-                      <div
-                        key={position}
-                        className={`absolute ${position} w-28 max-w-[42vw] rounded-[1.25rem] border border-border-soft/60 bg-surface/94 p-3 shadow-[0_18px_42px_-30px_rgba(80,54,30,0.8)] ring-1 ring-white/80 sm:w-32 sm:max-w-[36vw]`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <SkeletonBlock className="h-10 w-10" />
-                          <div className="flex-1">
-                            <SkeletonBlock className="h-3.5 w-full" />
-                            <SkeletonBlock className="mt-2 h-2.5 w-2/3" />
-                          </div>
-                        </div>
-                        {index < 3 && <SkeletonBlock className="mt-3 h-2.5 w-4/5" />}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                <div className="grid gap-5 xl:col-span-4">
-                  {["activity", "access"].map((item) => (
-                    <section
-                      key={item}
-                      className="rounded-[1.6rem] border border-border-soft/70 bg-[linear-gradient(145deg,hsl(var(--surface)_/_0.96),hsl(var(--background)_/_0.74))] p-5 shadow-[0_24px_52px_-38px_rgba(80,54,30,0.82)] ring-1 ring-white/78"
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <SkeletonBlock className="h-4 w-28" />
-                        <SkeletonBlock className="h-9 w-9 rounded-2xl" />
-                      </div>
-                      <div className="mt-5 grid gap-3">
-                        <SkeletonBlock className="h-14 w-full rounded-2xl ring-1 ring-border-soft/30" />
-                        <SkeletonBlock className="h-14 w-full rounded-2xl ring-1 ring-border-soft/30" />
-                        <SkeletonBlock className="h-14 w-4/5 rounded-2xl ring-1 ring-border-soft/30" />
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </main>
-        </div>
-      </div>
-      <span className="sr-only">Loading FamilySpace...</span>
-    </motion.div>
-    </Skeleton>
+    <PageShell>
+      <SectionHeader
+        eyebrow={eyebrow}
+        title={title}
+        description={description}
+      />
+      <LoadingState />
+    </PageShell>
   );
 };
 
@@ -276,8 +154,8 @@ export const SpaceLayout = () => {
     [userDisplayName],
   );
 
-  if (isLoading) {
-    return <SpaceLoadingSkeleton />;
+  if (isLoading && (!currentSpace || !membership)) {
+    return <SpaceBootLoader />;
   }
 
   if (!currentSpace || !membership) {
@@ -385,6 +263,11 @@ export const SpaceLayout = () => {
             ? "You can manage records in this FamilySpace."
             : "Read-only access. Owners and admins manage records."}
         </p>
+        {!canEdit() && (
+          <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-soft-gold/30 bg-soft-gold/14 px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-warm-brown">
+            Read-only
+          </span>
+        )}
       </div>
     </aside>
   );
@@ -462,7 +345,14 @@ export const SpaceLayout = () => {
           </header>
 
           <main className="min-w-0 flex-1 overflow-auto">
-            <Outlet />
+            {isLoading ? (
+              <SpaceContentSkeleton
+                pathname={location.pathname}
+                spaceName={currentSpace.name}
+              />
+            ) : (
+              <Outlet />
+            )}
           </main>
         </div>
       </div>

@@ -17,10 +17,10 @@ enum FamilyRole {
   member
 }
 
-enum StoryStatus {
-  draft
-  in_review
-  approved
+enum StoryOrigin {
+  manual
+  ai_biography
+  ai_timeline
 }
 
 enum SourceType {
@@ -44,6 +44,7 @@ model AppUser {
   memberships                       FamilyMembership[]
   uploadedGalleryItems              GalleryItem[]                     @relation("GalleryUploadedBy")
   relationshipExplanationHistories  RelationshipExplanationHistory[]
+  createdInvites                    FamilyInvite[]                    @relation("InviteCreatedBy")
 }
 
 model FamilySpace {
@@ -63,6 +64,7 @@ model FamilySpace {
   stories                         Story[]
   sourceNotes                     SourceNote[]
   relationshipExplanationHistories RelationshipExplanationHistory[]
+  invites                         FamilyInvite[]
 }
 
 model RelationshipExplanationHistory {
@@ -234,12 +236,12 @@ model GalleryItem {
 }
 
 model Story {
-  id            String      @id @default(uuid())
+  id            String       @id @default(uuid())
   familySpaceId String
   slugId        String
   title         String
   content       String
-  status        StoryStatus @default(draft)
+  origin        StoryOrigin @default(manual)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -302,4 +304,24 @@ model StorySourceNote {
 
   @@id([storyId, sourceNoteId])
   @@index([sourceNoteId])
+}
+
+model FamilyInvite {
+  id            String     @id @default(uuid())
+  familySpaceId String
+  code          String     @unique
+  role          FamilyRole @default(member)
+  createdById   String?
+  expiresAt     DateTime?
+  maxUses       Int?
+  usedCount     Int        @default(0)
+  revokedAt     DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  familySpace FamilySpace @relation(fields: [familySpaceId], references: [id], onDelete: Cascade)
+  createdBy   AppUser?    @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([familySpaceId])
+  @@index([code])
 }

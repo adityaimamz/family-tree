@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
-import { Archive, ArrowRight, BookOpen, Calendar, Camera, Plus, ShieldCheck, Sprout, Users } from "lucide-react";
+import { Archive, ArrowRight, BookOpen, Calendar, Camera, Home, KeyRound, LogOut, Plus, ShieldCheck, Sprout, Users } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { EmptyState, LoadingState, PageShell, PrimaryButton, SectionHeader, iconStroke, pageTransition } from "../components/ui";
 import { apiErrorMessage, authFetch } from "../lib/api";
 import { getNeonAuthToken } from "../lib/auth";
+import { performSignOut } from "../lib/signOut";
 import type { AppUser, FamilyMembership } from "../types/family";
 
 const roleLabel = (role: FamilyMembership["role"]) => {
@@ -118,10 +119,44 @@ export const SpaceListPage = () => {
   return (
     <motion.div {...pageTransition}>
       <PageShell>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <Link
+            to="/"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border-soft/75 bg-background/84 px-4 py-1.5 text-sm font-bold text-text-primary shadow-soft transition hover:-translate-y-0.5 hover:bg-white active:translate-y-[1px]"
+          >
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-sage-green/12 text-dark-green transition group-hover:bg-dark-green group-hover:text-white">
+              <Home className="h-4 w-4" strokeWidth={iconStroke} />
+            </span>
+            <span className="pr-2">Back to homepage</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => void performSignOut()}
+            className="group inline-flex min-h-11 items-center gap-2 rounded-full border border-border-soft/75 bg-background/84 px-2 py-1.5 text-sm font-bold text-text-primary shadow-soft transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:bg-white active:translate-y-[1px]"
+          >
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-warm-brown/10 text-warm-brown transition group-hover:bg-warm-brown group-hover:text-white">
+              <LogOut className="h-4 w-4" strokeWidth={iconStroke} />
+            </span>
+            <span className="pr-3">Sign out</span>
+          </button>
+        </div>
+
         <SectionHeader
           eyebrow="Private archives"
           title="FamilySpace"
           description="Select a family space to manage the family tree, stories, photos, and memory archives privately."
+          action={
+            <Link
+              to="/join"
+              className="group inline-flex min-h-12 items-center gap-2 rounded-full bg-dark-green pl-5 pr-2 py-2 text-sm font-extrabold text-white shadow-warm transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 hover:bg-warm-brown active:scale-[0.98] max-sm:w-full max-sm:justify-center"
+            >
+              <KeyRound className="h-4 w-4" strokeWidth={iconStroke} />
+              Have an invite code?
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-white transition duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-[1px] group-hover:scale-[1.05] group-hover:bg-white/25">
+                <ArrowRight className="h-4 w-4" strokeWidth={iconStroke} />
+              </span>
+            </Link>
+          }
         />
 
         {isLoading ? (

@@ -13,9 +13,10 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { iconStroke, pageTransition } from "../components/ui";
 import { familyConfig } from "../config";
+import { getNeonAuthToken } from "../lib/auth";
 import {
   AUTH_ERROR_EVENT,
   clearLastAuthError,
@@ -105,6 +106,7 @@ const authViewClassNames = {
 
 export function AuthPage() {
   const location = useLocation();
+  const navigate = useNavigate();
   const authPath = authPathFrom(location.pathname);
   const currentMeta = authMeta[authPath];
   const providerFirstAuthPath = authPath === "sign-in" || authPath === "sign-up";
@@ -115,6 +117,18 @@ export function AuthPage() {
       }
     : authViewClassNames;
   const [authToast, setAuthToast] = useState<AuthToastPayload | null>(() => readLastAuthError());
+
+  // Redirect to /app if user already has a valid session (e.g. after OAuth callback)
+  useEffect(() => {
+    let cancelled = false;
+    getNeonAuthToken({ retries: 2, delayMs: 300 }).then((token) => {
+      if (!cancelled && token) {
+        const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
+        navigate(from || "/app", { replace: true });
+      }
+    });
+    return () => { cancelled = true; };
+  }, [navigate, location.state]);
 
   useEffect(() => {
     const handleAuthError = (event: Event) => {

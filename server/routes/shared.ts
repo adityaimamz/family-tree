@@ -29,6 +29,12 @@ export interface SpaceSummary {
   timelineCount: number;
   galleryCount: number;
   storiesCount: number;
+  // Feature: ai-studio-experience (additive).
+  // slugId of the first member (ordered by full name) whose `notes`
+  // field is non-empty, or `null` when no member has notes. Used by
+  // the Dashboard AI Readiness Block to deep-link into the right
+  // member profile without loading the full members list.
+  memberWithNotesId?: string | null;
 }
 
 export const computeSpaceSummary = async (familySpaceId: string): Promise<SpaceSummary> => {
@@ -40,6 +46,7 @@ export const computeSpaceSummary = async (familySpaceId: string): Promise<SpaceS
     timelineCount,
     galleryCount,
     storiesCount,
+    memberWithNotes,
   ] = await prisma.$transaction([
     prisma.familyMember.count({ where: { familySpaceId } }),
     prisma.familyMember.findMany({
@@ -52,6 +59,11 @@ export const computeSpaceSummary = async (familySpaceId: string): Promise<SpaceS
     prisma.timelineEvent.count({ where: { familySpaceId } }),
     prisma.galleryItem.count({ where: { familySpaceId } }),
     prisma.story.count({ where: { familySpaceId } }),
+    prisma.familyMember.findFirst({
+      where: { familySpaceId, notes: { not: "" } },
+      select: { slugId: true },
+      orderBy: { fullName: "asc" },
+    }),
   ]);
 
   return {
@@ -62,6 +74,7 @@ export const computeSpaceSummary = async (familySpaceId: string): Promise<SpaceS
     timelineCount,
     galleryCount,
     storiesCount,
+    memberWithNotesId: memberWithNotes?.slugId ?? null,
   };
 };
 
@@ -202,7 +215,7 @@ export const mapStory = (story: any) => ({
   id: story.slugId,
   title: story.title,
   content: story.content,
-  status: story.status,
+  origin: story.origin,
   relatedMemberIds: (story.members ?? []).map((link: any) => link.member?.slugId).filter(Boolean),
   sourceNoteIds: (story.sourceNotes ?? []).map((link: any) => link.sourceNote?.slugId).filter(Boolean),
   createdAt: story.createdAt,
@@ -286,7 +299,7 @@ export const storyDataFromBody = (story: any, fallbackId?: string) => ({
   slugId: story.id || fallbackId,
   title: story.title ?? "",
   content: story.content ?? "",
-  status: story.status ?? "draft",
+  origin: story.origin ?? "manual",
   relatedMemberIds: asStringArray(story.relatedMemberIds),
   sourceNoteIds: asStringArray(story.sourceNoteIds),
 });
@@ -331,6 +344,35 @@ export const mapCurrentMembership = (membership: any, familySpace: any) => ({
   displayName: membership.displayName ?? null,
   avatarUrl: membership.avatarUrl ?? null,
   space: mapFamilySpace(membership.familySpace ?? familySpace),
+});
+
+// Feature: invite-family
+// Charset excludes I, O, 0, 1 to avoid visual ambiguity when typing codes manually.
+const INVITE_CODE_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const INVITE_CODE_HALF_LENGTH = 4;
+
+const randomInviteHalf = () => {
+  let out = "";
+  for (let index = 0; index < INVITE_CODE_HALF_LENGTH; index += 1) {
+    const charIndex = Math.floor(Math.random() * INVITE_CODE_CHARSET.length);
+    out += INVITE_CODE_CHARSET[charIndex];
+  }
+  return out;
+};
+
+/** Generate a random human-friendly invite code in the form `XXXX-XXXX`. */
+export const generateInviteCode = () => `${randomInviteHalf()}-${randomInviteHalf()}`;
+
+export const mapInvite = (invite: any) => ({
+  id: invite.id,
+  code: invite.code,
+  role: invite.role,
+  maxUses: invite.maxUses ?? null,
+  usedCount: invite.usedCount ?? 0,
+  expiresAt: invite.expiresAt ?? null,
+  revokedAt: invite.revokedAt ?? null,
+  createdAt: invite.createdAt,
+  updatedAt: invite.updatedAt,
 });
 
 export const slugify = (value: string) =>

@@ -13,10 +13,27 @@ import {
   memberName,
   pathFromStoredIds,
 } from "../relationship/types.js";
+import { normalizeBiographyTone, normalizeTimelineStoryTone } from "../ai/aiHelpers.js";
+import {
+  computeBiographyFactsUsed,
+  computeBiographyMissingContext,
+  computeBiographyGeneratedFrom,
+  computeBiographyConfidenceLabel,
+  computeTimelineEventsUsed,
+  computeTimelineMissingContext,
+  computeTimelineGeneratedFrom,
+  mapConfidenceToLabel,
+  DEFAULT_REVIEW_CHECKLIST,
+} from "../ai/aiHelpers.js";
+import { deterministicBiography, maybeAiBiography } from "../ai/biographyService.js";
+import {
+  buildTimelineStoryEvents,
+  deterministicTimelineStory,
+  maybeAiTimelineStory,
+} from "../ai/timelineService.js";
+import { isCacheFresh } from "../ai/relationshipCache.js";
 
 const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
-const biographyPrivacyReminder = "AI drafts stay inside this family space until reviewed.";
-const timelinePrivacyReminder = "AI timeline stories stay inside this family space until reviewed.";
 
 const aiLog = (
   event: string,
@@ -24,610 +41,6 @@ const aiLog = (
   level: "info" | "warn" = "info",
 ) => {
   console[level](`[ai] ${event}`, data);
-};
-
-type BiographyTone = "warm" | "concise" | "legacy";
-type BiographySource = "ai" | "deterministic";
-type TimelineStoryTone = "warm" | "concise" | "legacy";
-type TimelineStorySource = "ai" | "deterministic";
-type BiographyMember = {
-  slugId: string;
-  fullName: string;
-  displayName: string;
-  gender: string;
-  generation: number;
-  familyBranchId: string;
-  birthDate: string | null;
-  deathDate: string | null;
-  isDeceased: boolean;
-  deceasedLabel: string | null;
-  birthPlace: string | null;
-  biography: string;
-  notes: string;
-  statusLabel: string;
-  relationshipToRoot: string;
-};
-
-type BiographyGenerationResult = {
-  biographyDraft: string;
-  privacyReminder: string;
-  fallbackNote: string;
-  source: BiographySource;
-};
-
-type TimelineStoryEvent = {
-  id: string;
-  year: string;
-  type: string;
-  title: string;
-  description: string;
-  memberIds: string[];
-  memberNames: string[];
-  source: "timeline" | "member";
-};
-
-type TimelineStoryResult = {
-  timelineStoryDraft: string;
-  privacyReminder: string;
-  fallbackNote: string;
-  source: TimelineStorySource;
-  eventCount: number;
-  memberIds: string[];
-};
-
-type GenerateContentResponse = {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{ text?: string }>;
-    };
-  }>;
-};
-
-const normalizeBiographyTone = (value: unknown): BiographyTone => {
-  if (value === "concise" || value === "legacy" || value === "warm") return value;
-  return "warm";
-};
-
-const normalizeTimelineStoryTone = (value: unknown): TimelineStoryTone => {
-  if (value === "concise" || value === "legacy" || value === "warm") return value;
-  return "warm";
-};
-
-const parseAiBiographyJson = (text: string) => {
-  const match = /\{[\s\S]*\}/.exec(text);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[0]) as Partial<BiographyGenerationResult>;
-  } catch {
-    return null;
-  }
-};
-
-const parseAiTimelineStoryJson = (text: string) => {
-  const match = /\{[\s\S]*\}/.exec(text);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[0]) as Partial<TimelineStoryResult>;
-  } catch {
-    return null;
-  }
-};
-
-const compactLines = (values: Array<string | null | undefined>) =>
-  values
-    .map((value) => value?.trim())
-    .filter((value): value is string => Boolean(value));
-
-// Map branch slugs to human-readable names
-const mapBranchName = (slug: string | null): string => {
-  if (!slug) return "Not recorded";
-  if (slug === "garis-utama") return "Main Line";
-  if (slug === "cabang-kedua") return "Second Branch";
-  return slug;
-};
-
-// Map relationship to root to human-readable labels
-const mapRelationshipToRoot = (value: string | null): string => {
-  if (!value) return "Family Member";
-  if (value === "root" || value === "Family Founder") return "Family Founder";
-  if (value === "spouse" || value === "Spouse") return "Spouse";
-  if (value === "child" || value === "Child") return "Child";
-  if (value === "grandchild" || value === "Grandchild") return "Grandchild";
-  if (value === "in-law" || value === "In-Law") return "In-Law";
-  return value;
-};
-
-const memberDisplayName = (member: { displayName?: string | null; fullName: string }) =>
-  member.displayName?.trim() || member.fullName;
-
-const timelineSortValue = (year: string) => {
-  const match = /\d{4}/.exec(year);
-  if (!match) return Number.MAX_SAFE_INTEGER;
-  return Number(match[0]);
-};
-
-const buildTimelineStoryEvents = (
-  members: Array<{
-    slugId: string;
-    fullName: string;
-    displayName: string;
-    birthDate: string | null;
-    marriageDate: string | null;
-    deathDate: string | null;
-    spouseIds: string[];
-  }>,
-  timelineEvents: Array<{
-    slugId: string;
-    year: string;
-    type: string;
-    title: string;
-    description: string;
-    relatedMemberIds: string[];
-    memberIds: string[];
-  }>,
-): TimelineStoryEvent[] => {
-  const memberById = new Map(members.map((member) => [member.slugId, member]));
-  const events: TimelineStoryEvent[] = timelineEvents.map((event) => {
-    const relatedIds = Array.from(new Set([...(event.relatedMemberIds ?? []), ...(event.memberIds ?? [])]));
-    return {
-      id: event.slugId,
-      year: event.year,
-      type: event.type,
-      title: event.title,
-      description: event.description,
-      memberIds: relatedIds,
-      memberNames: relatedIds.map((id) => memberById.get(id)).filter((m): m is Exclude<typeof m, undefined> => Boolean(m)).map((member) => memberDisplayName(member)),
-      source: "timeline",
-    };
-  });
-
-  const marriageKeys = new Set<string>();
-  for (const member of members) {
-    const name = memberDisplayName(member);
-    if (member.birthDate) {
-      events.push({
-        id: `member-birth-${member.slugId}`,
-        year: member.birthDate,
-        type: "Birth",
-        title: `${name} was born`,
-        description: `${name}'s birth is recorded in the family archive.`,
-        memberIds: [member.slugId],
-        memberNames: [name],
-        source: "member",
-      });
-    }
-
-    if (member.marriageDate) {
-      const spouseIds = member.spouseIds?.length ? member.spouseIds : [];
-      const spouseNames = spouseIds.map((id) => memberById.get(id)).filter((m): m is Exclude<typeof m, undefined> => Boolean(m)).map((spouse) => memberDisplayName(spouse));
-      const key = [member.slugId, ...spouseIds].sort((a, b) => a.localeCompare(b)).join("-");
-      if (!marriageKeys.has(key)) {
-        marriageKeys.add(key);
-        events.push({
-          id: `member-marriage-${key}`,
-          year: member.marriageDate,
-          type: "Marriage",
-          title: spouseNames.length ? `${name} married ${spouseNames.join(" and ")}` : `${name}'s marriage was recorded`,
-          description: spouseNames.length
-            ? `${name} and ${spouseNames.join(" and ")} are connected by a marriage record.`
-            : `${name}'s marriage date is recorded in the family archive.`,
-          memberIds: Array.from(new Set([member.slugId, ...spouseIds])),
-          memberNames: [name, ...spouseNames],
-          source: "member",
-        });
-      }
-    }
-
-    if (member.deathDate) {
-      events.push({
-        id: `member-death-${member.slugId}`,
-        year: member.deathDate,
-        type: "Deceased",
-        title: `${name} passed away`,
-        description: `${name}'s passing is recorded in the family archive.`,
-        memberIds: [member.slugId],
-        memberNames: [name],
-        source: "member",
-      });
-    }
-  }
-
-  return events.sort((a, b) => timelineSortValue(a.year) - timelineSortValue(b.year) || a.title.localeCompare(b.title));
-};
-
-const deterministicTimelineStory = (
-  familySpaceName: string,
-  events: TimelineStoryEvent[],
-  tone: TimelineStoryTone,
-): TimelineStoryResult => {
-  const memberIds = Array.from(new Set(events.flatMap((event) => event.memberIds)));
-  if (!events.length) {
-    return {
-      timelineStoryDraft: `${familySpaceName} does not have timeline events recorded yet. Add births, marriages, moves, reunions, photos, and family milestones to turn this archive into a readable family journey.`,
-      privacyReminder: timelinePrivacyReminder,
-      fallbackNote: "Generated with deterministic fallback because no timeline events were available.",
-      source: "deterministic",
-      eventCount: 0,
-      memberIds,
-    };
-  }
-
-  const firstEvent = events[0];
-  const lastEvent = events.at(-1);
-
-  if (!firstEvent || !lastEvent) {
-    throw new Error("Unexpected empty events array after length check");
-  }
-  const typeSummary = Array.from(new Set(events.map((event) => event.type))).join(", ");
-  const eventLines = events.slice(0, 9).map((event) => {
-    const people = event.memberNames.length ? ` involving ${event.memberNames.join(", ")}` : "";
-    return `${event.year}: ${event.title}${people}. ${event.description}`;
-  });
-
-  let timelineStoryDraft: string;
-  if (tone === "concise") {
-    timelineStoryDraft = [
-      `${familySpaceName}'s timeline currently spans from ${firstEvent.year} to ${lastEvent.year}.`,
-      `The archive connects ${events.length} recorded milestones across ${typeSummary}.`,
-      eventLines.join(" "),
-      "This draft uses only timeline and member records already stored inside the FamilySpace.",
-    ].join(" ");
-  } else if (tone === "legacy") {
-    timelineStoryDraft = [
-      `${familySpaceName} is preserved through a sequence of family milestones, beginning with ${firstEvent.title} and continuing through ${lastEvent.title}.`,
-      `Across ${events.length} moments, the archive traces ${typeSummary.toLowerCase()} as part of a shared family inheritance.`,
-      eventLines.join(" "),
-      "Together, these records create a first family journey draft for relatives to review, correct, and enrich with photos or source notes.",
-    ].join(" ");
-  } else {
-    timelineStoryDraft = [
-      `${familySpaceName}'s story unfolds through the milestones its family has chosen to preserve.`,
-      `From ${firstEvent.year} to ${lastEvent.year}, the archive connects ${events.length} moments of birth, relationship, memory, and change.`,
-      eventLines.join(" "),
-      "Read together, these records become more than dates: they form a warm first draft of the family's journey across generations.",
-    ].join(" ");
-  }
-
-  return {
-    timelineStoryDraft,
-    privacyReminder: timelinePrivacyReminder,
-    fallbackNote: "Generated with deterministic fallback from FamilySpace timeline and member data.",
-    source: "deterministic",
-    eventCount: events.length,
-    memberIds,
-  };
-};
-
-const deterministicBiography = (
-  member: BiographyMember | null,
-  notes: string,
-  tone: BiographyTone,
-): BiographyGenerationResult => {
-  const name = member?.displayName?.trim() || member?.fullName?.trim() || "This family member";
-  const branchName = mapBranchName(member?.familyBranchId ?? null);
-  const relToRoot = mapRelationshipToRoot(member?.relationshipToRoot ?? null);
-  
-  let statusText = null;
-  if (member?.isDeceased) {
-    statusText = `${name} is marked in the archive as ${member.deceasedLabel || member.statusLabel || "deceased"}.`;
-  } else if (member?.statusLabel) {
-    statusText = `${name}'s profile status: ${member.statusLabel}.`;
-  }
-
-  const identityFacts = member
-    ? compactLines([
-        relToRoot ? `${name} is recorded as ${relToRoot}.` : null,
-        branchName === "Not recorded" ? null : `This profile belongs to the ${branchName} branch.`,
-        Number.isFinite(member.generation) ? `The archive places this record in generation ${member.generation}.` : null,
-        member.birthDate || member.birthPlace
-          ? `${name}'s birth context: ${compactLines([member.birthDate, member.birthPlace]).join(", ")}.`
-          : null,
-        statusText,
-      ])
-    : [];
-  const profileContext = member ? compactLines([member.biography, member.notes]) : [];
-  const noteSentence = `Family notes: ${notes.trim()}`;
-  const sourceContext = profileContext.length
-    ? ` Existing profile context: ${profileContext.join(" ")}`
-    : "";
-
-  let biographyDraft: string;
-  if (tone === "concise") {
-    biographyDraft = compactLines([
-      identityFacts[0],
-      noteSentence,
-      "This draft keeps only details already present in the family archive and the notes provided for review.",
-    ]).join(" ");
-  } else if (tone === "legacy") {
-    biographyDraft = compactLines([
-      `${name}'s story is preserved as part of the family's living archive.`,
-      ...identityFacts,
-      `${noteSentence}${sourceContext}`,
-      "The draft is ready for family review, correction, and source confirmation before it becomes the final biography.",
-    ]).join(" ");
-  } else {
-    biographyDraft = compactLines([
-      `${name} is remembered through the relationships, milestones, and small details preserved by the family.`,
-      ...identityFacts,
-      `${noteSentence}${sourceContext}`,
-      "Together, these details form a warm first draft that can be refined by relatives who know the story best.",
-    ]).join(" ");
-  }
-
-  return {
-    biographyDraft,
-    privacyReminder: biographyPrivacyReminder,
-    fallbackNote: "Generated with deterministic fallback from FamilySpace data and submitted notes.",
-    source: "deterministic",
-  };
-};
-
-const maybeAiBiography = async (
-  fallback: BiographyGenerationResult,
-  member: BiographyMember | null,
-  notes: string,
-  tone: BiographyTone,
-): Promise<BiographyGenerationResult> => {
-  const apiKey = process.env.VERTEX_API_KEY || process.env.API_KEY;
-  if (!apiKey) {
-    aiLog("biography_fallback_no_api_key", {
-      feature: "biography",
-      tone,
-      hasMember: Boolean(member),
-      notesLength: notes.length,
-    }, "warn");
-    return fallback;
-  }
-
-  const model = process.env.VERTEX_MODEL || "gemini-2.5-flash";
-  const endpoint =
-    process.env.VERTEX_AI_GENERATE_URL ||
-    `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent`;
-  const prompt = [
-    "You draft private family biographies for WarisanAI.",
-    "Use only the member profile fields and short notes supplied below.",
-    "Do not invent dates, places, achievements, occupations, names, or events.",
-    "Write in English, with a respectful family-archive voice.",
-    `Tone: ${tone}.`,
-    `Privacy reminder must be exactly: ${biographyPrivacyReminder}`,
-    "Return compact JSON with keys: biographyDraft, privacyReminder, fallbackNote.",
-    `Member profile: ${JSON.stringify(member)}`,
-    `Short notes: ${notes}`,
-  ].join("\n");
-
-  const startedAt = Date.now();
-  aiLog("biography_llm_request_start", {
-    feature: "biography",
-    model,
-    endpointMode: process.env.VERTEX_AI_GENERATE_URL ? "custom" : "default",
-    tone,
-    hasMember: Boolean(member),
-    notesLength: notes.length,
-  });
-
-  try {
-    const response = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.25,
-          maxOutputTokens: 720,
-          responseMimeType: "application/json",
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      aiLog("biography_llm_response_not_ok", {
-        feature: "biography",
-        model,
-        status: response.status,
-        durationMs: Date.now() - startedAt,
-        fallback: true,
-      }, "warn");
-      return fallback;
-    }
-    const data = (await response.json()) as GenerateContentResponse;
-    const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text).filter(Boolean).join("\n") ?? "";
-    const parsed = parseAiBiographyJson(text);
-    if (!parsed?.biographyDraft || typeof parsed.biographyDraft !== "string") {
-      aiLog("biography_llm_invalid_json", {
-        feature: "biography",
-        model,
-        durationMs: Date.now() - startedAt,
-        responseTextLength: text.length,
-        fallback: true,
-      }, "warn");
-      return fallback;
-    }
-
-    aiLog("biography_llm_success", {
-      feature: "biography",
-      model,
-      durationMs: Date.now() - startedAt,
-      draftLength: parsed.biographyDraft.length,
-      source: "ai",
-    });
-    return {
-      biographyDraft: parsed.biographyDraft.trim(),
-      privacyReminder: biographyPrivacyReminder,
-      fallbackNote: typeof parsed.fallbackNote === "string" && parsed.fallbackNote.trim()
-        ? parsed.fallbackNote.trim()
-        : "Generated by AI from FamilySpace data and submitted notes.",
-      source: "ai",
-    };
-  } catch (error) {
-    aiLog("biography_llm_error", {
-      feature: "biography",
-      model,
-      durationMs: Date.now() - startedAt,
-      errorName: error instanceof Error ? error.name : "UnknownError",
-      fallback: true,
-    }, "warn");
-    return fallback;
-  }
-};
-
-const maybeAiTimelineStory = async (
-  fallback: TimelineStoryResult,
-  familySpaceName: string,
-  events: TimelineStoryEvent[],
-  tone: TimelineStoryTone,
-): Promise<TimelineStoryResult> => {
-  const apiKey = process.env.VERTEX_API_KEY || process.env.API_KEY;
-  if (!apiKey) {
-    aiLog("timeline_story_fallback_no_api_key", {
-      feature: "timeline_story",
-      tone,
-      eventCount: events.length,
-      memberCount: fallback.memberIds.length,
-    }, "warn");
-    return fallback;
-  }
-
-  const model = process.env.VERTEX_MODEL || "gemini-2.5-flash";
-  const endpoint =
-    process.env.VERTEX_AI_GENERATE_URL ||
-    `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent`;
-  const prompt = [
-    "You draft private family timeline stories for WarisanAI.",
-    "Use only the FamilySpace timeline events supplied below.",
-    "Do not invent dates, places, people, occupations, achievements, or extra events.",
-    "Write in English, with a warm private family archive voice.",
-    `Tone: ${tone}.`,
-    `Privacy reminder must be exactly: ${timelinePrivacyReminder}`,
-    "Return compact JSON with keys: timelineStoryDraft, privacyReminder, fallbackNote.",
-    `FamilySpace: ${familySpaceName}`,
-    `Timeline events: ${JSON.stringify(events)}`,
-  ].join("\n");
-
-  const startedAt = Date.now();
-  aiLog("timeline_story_llm_request_start", {
-    feature: "timeline_story",
-    model,
-    endpointMode: process.env.VERTEX_AI_GENERATE_URL ? "custom" : "default",
-    tone,
-    eventCount: events.length,
-    memberCount: fallback.memberIds.length,
-  });
-
-  try {
-    const response = await fetch(`${endpoint}?key=${encodeURIComponent(apiKey)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.28,
-          maxOutputTokens: 900,
-          responseMimeType: "application/json",
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      aiLog("timeline_story_llm_response_not_ok", {
-        feature: "timeline_story",
-        model,
-        status: response.status,
-        durationMs: Date.now() - startedAt,
-        fallback: true,
-      }, "warn");
-      return fallback;
-    }
-    const data = (await response.json()) as GenerateContentResponse;
-    const text = data.candidates?.[0]?.content?.parts?.map((part) => part.text).filter(Boolean).join("\n") ?? "";
-    const parsed = parseAiTimelineStoryJson(text);
-    if (!parsed?.timelineStoryDraft || typeof parsed.timelineStoryDraft !== "string") {
-      aiLog("timeline_story_llm_invalid_json", {
-        feature: "timeline_story",
-        model,
-        durationMs: Date.now() - startedAt,
-        responseTextLength: text.length,
-        fallback: true,
-      }, "warn");
-      return fallback;
-    }
-
-    aiLog("timeline_story_llm_success", {
-      feature: "timeline_story",
-      model,
-      durationMs: Date.now() - startedAt,
-      draftLength: parsed.timelineStoryDraft.length,
-      source: "ai",
-    });
-    return {
-      timelineStoryDraft: parsed.timelineStoryDraft.trim(),
-      privacyReminder: timelinePrivacyReminder,
-      fallbackNote: typeof parsed.fallbackNote === "string" && parsed.fallbackNote.trim()
-        ? parsed.fallbackNote.trim()
-        : "Generated by AI from FamilySpace timeline and member data.",
-      source: "ai",
-      eventCount: fallback.eventCount,
-      memberIds: fallback.memberIds,
-    };
-  } catch (error) {
-    aiLog("timeline_story_llm_error", {
-      feature: "timeline_story",
-      model,
-      durationMs: Date.now() - startedAt,
-      errorName: error instanceof Error ? error.name : "UnknownError",
-      fallback: true,
-    }, "warn");
-    return fallback;
-  }
-};
-
-/**
- * Checks whether a cached relationship explanation is still fresh
- * based on the current state of the relationship graph.
- *
- * @param cached - The cached RelationshipExplanationHistory record
- * @param relationshipMembers - The current list of RelationshipMember objects
- * @returns true if the cache is still valid, false if stale
- */
-const isCacheFresh = (
-  cached: { pathMemberIds: string[]; fromMemberId: string; toMemberId: string },
-  relationshipMembers: RelationshipMember[],
-): boolean => {
-  // Build a map of current members by ID
-  const memberById = new Map(relationshipMembers.map((m) => [m.id, m]));
-
-  // Verify every id in the cached path exists in the current members
-  for (const id of cached.pathMemberIds) {
-    if (!memberById.has(id)) {
-      return false;
-    }
-  }
-
-  // Recompute the deterministic relationship and compare path IDs
-  const recomputed = deterministicRelationship(
-    relationshipMembers,
-    cached.fromMemberId,
-    cached.toMemberId,
-  );
-
-  if (!recomputed) {
-    return false;
-  }
-
-  const recomputedIds = recomputed.path.map((p) => p.id);
-
-  // Compare lengths first for early exit
-  if (recomputedIds.length !== cached.pathMemberIds.length) {
-    return false;
-  }
-
-  // Compare element-wise
-  for (let i = 0; i < recomputedIds.length; i++) {
-    if (recomputedIds[i] !== cached.pathMemberIds[i]) {
-      return false;
-    }
-  }
-
-  return true;
 };
 
 export const aiRoutes = Router();
@@ -698,6 +111,11 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-biography", ...requireSpaceRea
     const fallback = deterministicBiography(member, notes, tone);
     const result = await maybeAiBiography(fallback, member, notes, tone);
 
+    const factsUsed = computeBiographyFactsUsed(member);
+    const missingContextSuggestions = computeBiographyMissingContext(member);
+    const generatedFrom = computeBiographyGeneratedFrom(tone, factsUsed);
+    const confidenceLabel = computeBiographyConfidenceLabel(factsUsed);
+
     aiLog("biography_response", {
       feature: "biography",
       spaceSlug: req.params.spaceSlug,
@@ -705,7 +123,19 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-biography", ...requireSpaceRea
       source: result.source,
       draftLength: result.biographyDraft.length,
     });
-    res.json(result);
+    res.json({
+      biographyDraft: result.biographyDraft,
+      privacyReminder: result.privacyReminder,
+      fallbackNote: result.fallbackNote,
+      source: result.source,
+      tone,
+      factsUsed,
+      missingContextSuggestions,
+      reviewChecklist: [...DEFAULT_REVIEW_CHECKLIST],
+      generatedFrom,
+      confidenceLabel,
+      warnings: [] as string[],
+    });
   } catch (error) {
     handleError(res, error, "Failed to generate biography");
   }
@@ -762,6 +192,10 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-timeline-story", ...requireSpa
     const fallback = deterministicTimelineStory(req.familySpace.name, events, tone);
     const result = await maybeAiTimelineStory(fallback, req.familySpace.name, events, tone);
 
+    const eventsUsed = computeTimelineEventsUsed(events);
+    const missingContextSuggestions = computeTimelineMissingContext(events);
+    const generatedFrom = computeTimelineGeneratedFrom(tone, events.length, members.length);
+
     aiLog("timeline_story_response", {
       feature: "timeline_story",
       spaceSlug: req.params.spaceSlug,
@@ -770,7 +204,20 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-timeline-story", ...requireSpa
       eventCount: result.eventCount,
       draftLength: result.timelineStoryDraft.length,
     });
-    res.json(result);
+    res.json({
+      timelineStoryDraft: result.timelineStoryDraft,
+      privacyReminder: result.privacyReminder,
+      fallbackNote: result.fallbackNote,
+      source: result.source,
+      eventCount: result.eventCount,
+      memberIds: result.memberIds,
+      tone,
+      eventsUsed,
+      missingContextSuggestions,
+      reviewChecklist: [...DEFAULT_REVIEW_CHECKLIST],
+      generatedFrom,
+      warnings: [] as string[],
+    });
   } catch (error) {
     handleError(res, error, "Failed to generate timeline story");
   }
@@ -840,11 +287,12 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/explain-relationship", ...requireSpaceR
         },
       });
       if (existing) {
-        // Check if the cached entry is still fresh based on current graph state
-        const cacheIsFresh = isCacheFresh(existing, relationshipMembers);
+        const cacheIsValid = isCacheFresh(existing, relationshipMembers);
+        const cachedSource = asStoredSource(existing.source);
 
-        if (cacheIsFresh) {
-          // Cache is fresh: increment viewCount, update lastViewedAt, respond with cached: true
+        // Only serve from cache if the stored result was AI-assisted.
+        // Deterministic results should always attempt a fresh LLM call.
+        if (cacheIsValid && cachedSource === "ai") {
           const updated = await prisma.relationshipExplanationHistory.update({
             where: { id: existing.id },
             data: {
@@ -853,20 +301,29 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/explain-relationship", ...requireSpaceR
             },
           });
           const path = pathFromStoredIds(updated.pathMemberIds, relationshipMembers);
+          const cachedConfidence = asStoredConfidence(updated.confidence);
+          aiLog("relationship_cached_response", {
+            feature: "relationship",
+            source: cachedSource,
+            cached: true,
+            historyId: updated.id,
+          });
           res.json({
             relationshipLabel: updated.relationshipLabel,
             explanation: updated.explanation,
             path,
             pathMemberIds: updated.pathMemberIds,
-            confidence: asStoredConfidence(updated.confidence),
+            confidence: cachedConfidence,
             fallbackNote: updated.fallbackNote,
-            source: asStoredSource(updated.source),
+            source: cachedSource,
             cached: true,
             historyId: updated.id,
+            confidenceLabel: mapConfidenceToLabel(cachedConfidence),
+            reviewChecklist: [...DEFAULT_REVIEW_CHECKLIST],
+            warnings: [] as string[],
           });
           return;
         }
-        // Cache is stale: fall through to recompute-and-upsert branch
       }
     }
 
@@ -914,9 +371,55 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/explain-relationship", ...requireSpaceR
       pathMemberIds,
       cached: false,
       historyId: history.id,
+      confidenceLabel: mapConfidenceToLabel(result.confidence),
+      reviewChecklist: [...DEFAULT_REVIEW_CHECKLIST],
+      warnings: [] as string[],
     });
   } catch (error) {
     handleError(res, error, "Failed to explain relationship");
+  }
+});
+
+aiRoutes.delete("/api/spaces/:spaceSlug/ai/relationship-history/:historyId", ...requireSpaceRead, async (req, res) => {
+  try {
+    if (!req.familySpace) {
+      res.status(500).json({ error: "FamilySpace context not loaded." });
+      return;
+    }
+
+    const historyId = Array.isArray(req.params.historyId)
+      ? req.params.historyId[0]
+      : req.params.historyId;
+
+    if (!historyId) {
+      res.status(400).json({ error: "historyId is required." });
+      return;
+    }
+
+    const existing = await prisma.relationshipExplanationHistory.findUnique({
+      where: { id: historyId },
+      select: { id: true, familySpaceId: true },
+    });
+
+    if (!existing || existing.familySpaceId !== req.familySpace.id) {
+      res.status(404).json({ error: "History record not found." });
+      return;
+    }
+
+    await prisma.relationshipExplanationHistory.delete({
+      where: { id: historyId },
+    });
+
+    aiLog("relationship_history_deleted", {
+      feature: "relationship",
+      historyId,
+      familySpaceId: req.familySpace.id,
+      appUserId: req.appUser?.id ?? null,
+    });
+
+    res.status(204).end();
+  } catch (error) {
+    handleError(res, error, "Failed to delete relationship history");
   }
 });
 

@@ -10,12 +10,12 @@ import {
   Images,
   Settings,
   ShieldCheck,
-  Sparkles,
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { StatsCard } from "../components/dashboard/StatsCard";
 import { PageShell, SectionHeader, iconStroke, pageTransition } from "../components/ui";
+import { DashboardAIReadinessBlock } from "../components/ai";
 import { useSpaceStore } from "../hooks/useSpaceStore";
 import {
   deriveAiReady,
@@ -23,7 +23,6 @@ import {
   deriveCompletionLabel,
   deriveSuggestedSteps,
   deriveArchiveSignals,
-  AI_ACTIONS,
 } from "./spaceDashboard.derive";
 
 export const SpaceDashboard = () => {
@@ -48,13 +47,25 @@ export const SpaceDashboard = () => {
   const suggestedSteps = deriveSuggestedSteps(counts);
   const archiveSignals = deriveArchiveSignals(counts);
 
+  // Feature: ai-studio-experience — dashboard readiness wiring.
+  // Prefer the backend-computed `memberWithNotesId`; fall back to scanning
+  // the loaded members list so the block works even when the summary
+  // pre-dates the additive backend field.
+  const memberWithNotesId =
+    summary?.memberWithNotesId ??
+    members.find((member) => member.notes.trim().length > 0)?.id ??
+    null;
+  const canEditDashboard = canEdit();
+
   const quickActions = [
     { title: "Family Tree", description: "Understand relationships", to: "tree", icon: GitBranch },
     { title: "Members", description: "Preserve people records", to: "members", icon: Users },
     { title: "Timeline", description: "Capture milestones", to: "timeline", icon: Calendar },
     { title: "Photo Memories", description: "Add visual context", to: "gallery", icon: Images },
-    { title: "Stories", description: "Review family narratives", to: "stories", icon: BookOpen },
-    { title: "Settings", description: "Manage archive identity", to: "settings", icon: Settings },
+    { title: "Stories", description: "Read family narratives", to: "stories", icon: BookOpen },
+    ...(canEditDashboard
+      ? [{ title: "Settings", description: "Manage archive identity", to: "settings", icon: Settings }]
+      : []),
   ];
 
   return (
@@ -88,7 +99,7 @@ export const SpaceDashboard = () => {
           <StatsCard icon={GitBranch} value={generations} title="Generations Preserved" description="Family levels connected" />
           <StatsCard icon={Calendar} value={timelineCount} title="Timeline Events" description="Milestones with context" />
           <StatsCard icon={Camera} value={galleryCount} title="Photo Memories" description="Images tied to family meaning" />
-          <StatsCard icon={BookOpen} value={storiesCount} title="Story Drafts" description="Narratives ready for review" />
+          <StatsCard icon={BookOpen} value={storiesCount} title="Family Stories" description="Narratives saved in this archive" />
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
@@ -190,45 +201,12 @@ export const SpaceDashboard = () => {
           </div>
 
           <aside className="grid gap-5">
-            <section className="relative overflow-hidden rounded-[1.8rem] border border-dark-green/15 bg-[linear-gradient(145deg,hsl(var(--dark-green))_0%,hsl(var(--warm-brown))_120%)] p-5 text-white shadow-[0_24px_70px_-42px_rgba(45,68,43,0.82)] sm:p-6">
-              <div className="pointer-events-none absolute inset-0 archive-grid opacity-[0.08]" />
-              <div className="relative">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-white/70">AI Family Assistant</p>
-                    <h2 className="mt-3 font-display text-2xl font-bold tracking-tight">Turn scattered family memories into reviewable stories.</h2>
-                  </div>
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/10 text-white ring-1 ring-white/20">
-                    <Sparkles className="h-5 w-5" strokeWidth={iconStroke} />
-                  </span>
-                </div>
-
-                <p className="mt-4 text-sm font-medium leading-6 text-white/76">
-                  Use AI to draft biographies, explain family relationships, and turn milestones into timeline stories. Drafts stay inside this FamilySpace until reviewed by the family.
-                </p>
-
-                <div className="mt-5 grid gap-3">
-                  {AI_ACTIONS.map(({ title, description, to, icon: Icon }) => (
-                    <Link
-                      key={title}
-                      to={to}
-                      className="group flex min-h-16 items-start justify-between gap-4 rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-3 text-left shadow-soft transition hover:-translate-y-0.5 hover:bg-white/10 active:translate-y-[1px]"
-                    >
-                      <span className="flex min-w-0 gap-3">
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/10 text-white ring-1 ring-white/20">
-                          <Icon className="h-4 w-4" strokeWidth={iconStroke} />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-sm font-extrabold text-white">{title}</span>
-                          <span className="mt-1 block text-sm leading-6 text-white/76">{description}</span>
-                        </span>
-                      </span>
-                      <ArrowRight className="mt-3 h-4 w-4 shrink-0 text-white/60 transition group-hover:translate-x-0.5" strokeWidth={iconStroke} />
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </section>
+            <DashboardAIReadinessBlock
+              spaceSlug={currentSpace.slug}
+              summary={summary}
+              memberWithNotesId={memberWithNotesId}
+              canEdit={canEditDashboard}
+            />
 
             <section className="rounded-[1.7rem] border border-white/75 bg-surface/94 p-5 shadow-soft ring-1 ring-border-soft/60 sm:p-6">
               <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-sage-green">Archive Workbench</p>

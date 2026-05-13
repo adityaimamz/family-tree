@@ -40,7 +40,7 @@ export const maybeAiRelationship = async (fallback: RelationshipResult, fromName
   const model = process.env.VERTEX_MODEL || "gemini-2.5-flash";
   const endpoint =
     process.env.VERTEX_AI_GENERATE_URL ||
-    `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent`;
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const prompt = [
     "You explain family relationships for a private family archive.",
     "Use only the supplied deterministic relationship result.",
@@ -76,11 +76,13 @@ export const maybeAiRelationship = async (fallback: RelationshipResult, fromName
     });
 
     if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
       aiLog("relationship_llm_response_not_ok", {
         feature: "relationship",
         model,
         status: response.status,
         durationMs: Date.now() - startedAt,
+        errorPreview: errorText.slice(0, 500),
         fallback: true,
       }, "warn");
       return fallback;

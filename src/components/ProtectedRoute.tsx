@@ -11,7 +11,7 @@ export const ProtectedRoute = ({ children }: Props) => {
 
   useEffect(() => {
     let cancelled = false;
-    getNeonAuthToken({ retries: 4, delayMs: 250 }).then((token) => {
+    getNeonAuthToken({ retries: 8, delayMs: 350 }).then((token) => {
       if (!cancelled) setStatus(token ? "ok" : "redirect");
     });
     return () => {

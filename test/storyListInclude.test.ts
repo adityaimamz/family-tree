@@ -47,7 +47,7 @@ describe("Story List Include Shape", () => {
         slugId: "test-story-1",
         title: "Test Story",
         content: "Test content with biography data that should not be fetched",
-        status: "draft",
+        origin: "manual",
       },
     });
 
@@ -108,7 +108,7 @@ describe("Story List Include Shape", () => {
         slugId: "test-story-2",
         title: "Test Story 2",
         content: "Test content",
-        status: "draft",
+        origin: "manual",
       },
     });
 

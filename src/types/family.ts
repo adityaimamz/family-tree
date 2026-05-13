@@ -100,6 +100,13 @@ export interface SpaceSummary {
   timelineCount: number;
   galleryCount: number;
   storiesCount: number;
+  /**
+   * Feature: ai-studio-experience (additive).
+   * slugId of the first member whose `notes` field is non-empty, or
+   * `null` when no member has notes. Powers the Dashboard AI Readiness
+   * Block's biography deep-link without loading the full members list.
+   */
+  memberWithNotesId?: string | null;
 }
 
 export interface GalleryItem {
@@ -136,13 +143,13 @@ export interface TimelineEvent {
   isAutomatic?: boolean;
 }
 
-export type StoryStatus = "draft" | "in_review" | "approved";
+export type StoryOrigin = "manual" | "ai_biography" | "ai_timeline";
 
 export interface Story {
   id: string;
   title: string;
   content: string;
-  status: StoryStatus;
+  origin: StoryOrigin;
   relatedMemberIds: string[];
   sourceNoteIds: string[];
   createdAt: string;
