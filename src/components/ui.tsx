@@ -1,3 +1,4 @@
+import { Skeleton } from "@syraui/core";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
@@ -523,17 +524,19 @@ export const EmptyState = ({ title, description }: { title: string; description?
 );
 
 export const LoadingState = () => (
-  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-    {["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"].map((key) => (
-      <div key={key} className="animate-pulse rounded-[1.6rem] border border-border-soft bg-surface p-5 shadow-soft">
-        <div className="h-14 w-14 rounded-full bg-surface-soft" />
-        <div className="mt-5 h-4 w-28 rounded-full bg-surface-soft" />
-        <div className="mt-3 h-5 w-4/5 rounded-full bg-surface-soft" />
-        <div className="mt-3 h-4 w-full rounded-full bg-surface-soft" />
-      </div>
-    ))}
-    <span className="sr-only">Loading family data...</span>
-  </div>
+  <Skeleton loading={true} baseColor="#EAECF0" highlightColor="#F8F9FB" speed={1.8}>
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8"].map((key) => (
+        <div key={key} className="rounded-[1.6rem] border border-border-soft bg-surface p-5 shadow-soft">
+          <div className="h-14 w-14 rounded-full bg-surface-soft" />
+          <div className="mt-5 h-4 w-28 rounded-full bg-surface-soft" />
+          <div className="mt-3 h-5 w-4/5 rounded-full bg-surface-soft" />
+          <div className="mt-3 h-4 w-full rounded-full bg-surface-soft" />
+        </div>
+      ))}
+      <span className="sr-only">Loading family data...</span>
+    </div>
+  </Skeleton>
 );
 
 export const Toast = ({ message }: { message: string | null }) => (

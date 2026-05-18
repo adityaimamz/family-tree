@@ -19,6 +19,7 @@
     "@neondatabase/serverless": "^1.1.0",
     "@prisma/adapter-neon": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@syraui/core": "^0.1.3",
     "@uploadthing/react": "^7.3.3",
     "@vitejs/plugin-react": "^5.0.0",
     "cors": "^2.8.6",
