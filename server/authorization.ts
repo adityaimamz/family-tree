@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 import type { AppUser, FamilyMembership, FamilyRole, FamilySpace } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db.js";
+import { safeRequestPath } from "./security.js";
 
 declare global {
   namespace Express {
@@ -19,6 +20,12 @@ const forbidden = (res: Parameters<RequestHandler>[1], message: string) => {
 
 const unauthorized = (res: Parameters<RequestHandler>[1], message: string) => {
   res.status(401).json({ error: message });
+};
+
+const accountConflict = (res: Parameters<RequestHandler>[1]) => {
+  res.status(409).json({
+    error: "Account already exists. Use account recovery or contact support.",
+  });
 };
 
 const shouldLogAuthzDebug = () => process.env.NODE_ENV !== "production" && process.env.AUTH_DEBUG !== "0";
@@ -51,70 +58,74 @@ export const loadAppUser: RequestHandler = async (req, res, next) => {
   }
 
   try {
-    console.log("[debug] loadAppUser: fetching byAuthId for", req.user.id);
     const byAuthId = await prisma.appUser.findUnique({ where: { authUserId: req.user.id } });
-    console.log("[debug] loadAppUser: byAuthId result", !!byAuthId);
 
-    const byEmail = byAuthId ? null : await prisma.appUser.findUnique({ where: { email } });
-    if (!byAuthId) console.log("[debug] loadAppUser: byEmail result", !!byEmail);
+    let appUser: AppUser;
+    if (byAuthId) {
+      const emailChanged = byAuthId.email !== email;
+      const nameChanged = req.user?.name && byAuthId.name !== req.user.name;
 
-
-    const appUser = await (async () => {
-      if (byAuthId) {
-        console.log("[debug] loadAppUser: checking changes for byAuthId");
-        const emailChanged = byAuthId.email !== email;
-        const nameChanged = req.user?.name && byAuthId.name !== req.user.name;
-
-        if (!emailChanged && !nameChanged) {
-          console.log("[debug] loadAppUser: no changes, returning byAuthId");
-          return byAuthId;
+      if (emailChanged) {
+        const emailOwner = await prisma.appUser.findUnique({ where: { email } });
+        if (emailOwner && emailOwner.id !== byAuthId.id) {
+          authzLog(
+            "account_email_collision",
+            {
+              method: req.method,
+              path: safeRequestPath(req),
+              authUserId: req.user.id,
+              existingAppUserId: emailOwner.id,
+            },
+            "warn",
+          );
+          accountConflict(res);
+          return;
         }
-
-        console.log("[debug] loadAppUser: updating byAuthId", { emailChanged, nameChanged });
-        return prisma.appUser.update({
-          where: { id: byAuthId.id },
-          data: {
-            ...(emailChanged ? { email } : {}),
-            ...(nameChanged ? { name: req.user!.name } : {}),
-          },
-        });
       }
 
+      appUser =
+        emailChanged || nameChanged
+          ? await prisma.appUser.update({
+              where: { id: byAuthId.id },
+              data: {
+                ...(emailChanged ? { email } : {}),
+                ...(nameChanged ? { name: req.user!.name } : {}),
+              },
+            })
+          : byAuthId;
+    } else {
+      const byEmail = await prisma.appUser.findUnique({ where: { email } });
       if (byEmail) {
-        console.log("[debug] loadAppUser: linking byEmail");
-        const nameChanged = req.user?.name && byEmail.name !== req.user.name;
-        const authIdChanged = byEmail.authUserId !== req.user!.id;
-
-        if (!nameChanged && !authIdChanged) return byEmail;
-
-        return prisma.appUser.update({
-          where: { id: byEmail.id },
-          data: {
-            authUserId: req.user!.id,
-            ...(nameChanged ? { name: req.user!.name } : {}),
+        authzLog(
+          "account_email_collision",
+          {
+            method: req.method,
+            path: safeRequestPath(req),
+            authUserId: req.user.id,
+            existingAppUserId: byEmail.id,
           },
-        });
+          "warn",
+        );
+        accountConflict(res);
+        return;
       }
 
-      console.log("[debug] loadAppUser: creating new user");
-      return prisma.appUser.create({
+      appUser = await prisma.appUser.create({
         data: {
           authUserId: req.user!.id,
           email,
           name: req.user?.name ?? undefined,
         },
       });
-    })();
-    console.log("[debug] loadAppUser: success, appUserId", appUser.id);
-
+    }
 
     req.appUser = appUser;
     authzLog("app_user_loaded", {
       method: req.method,
-      path: req.originalUrl || req.path,
+      path: safeRequestPath(req),
       authUserId: req.user.id,
       appUserId: appUser.id,
-      email: appUser.email,
+      emailPresent: Boolean(appUser.email),
       platformRole: appUser.platformRole,
     });
     next();
@@ -133,9 +144,9 @@ export const requirePlatformAdmin: RequestHandler = (req, res, next) => {
   if (req.appUser.platformRole !== "platform_admin") {
     authzLog("platform_admin_denied", {
       method: req.method,
-      path: req.originalUrl || req.path,
+      path: safeRequestPath(req),
       appUserId: req.appUser.id,
-      email: req.appUser.email,
+      emailPresent: Boolean(req.appUser.email),
       platformRole: req.appUser.platformRole,
     }, "warn");
     forbidden(res, "Platform admin role required.");
@@ -144,9 +155,9 @@ export const requirePlatformAdmin: RequestHandler = (req, res, next) => {
 
   authzLog("platform_admin_allowed", {
     method: req.method,
-    path: req.originalUrl || req.path,
+    path: safeRequestPath(req),
     appUserId: req.appUser.id,
-    email: req.appUser.email,
+    emailPresent: Boolean(req.appUser.email),
     platformRole: req.appUser.platformRole,
   });
   next();
@@ -220,9 +231,9 @@ export const requireSpaceMembership: RequestHandler = async (req, res, next) => 
     if (!membership) {
       authzLog("space_membership_denied", {
         method: req.method,
-        path: req.originalUrl || req.path,
+        path: safeRequestPath(req),
         appUserId: req.appUser.id,
-        email: req.appUser.email,
+        emailPresent: Boolean(req.appUser.email),
         spaceSlug,
       }, "warn");
       forbidden(res, "FamilySpace membership required.");
@@ -233,9 +244,9 @@ export const requireSpaceMembership: RequestHandler = async (req, res, next) => 
     req.membership = membership;
     authzLog("space_membership_allowed", {
       method: req.method,
-      path: req.originalUrl || req.path,
+      path: safeRequestPath(req),
       appUserId: req.appUser.id,
-      email: req.appUser.email,
+      emailPresent: Boolean(req.appUser.email),
       spaceSlug,
       familySpaceId: familySpace.id,
       role: membership.role,

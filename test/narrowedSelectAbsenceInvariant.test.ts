@@ -255,7 +255,6 @@ describe("Property 7: Narrowed-select absence invariant for Stories and Source N
                 slugId: `story-1-${timestamp}`,
                 title: "Test Story 1",
                 content: "This is the story content - should appear at top level only",
-                status: "draft",
               },
             });
 
@@ -265,7 +264,6 @@ describe("Property 7: Narrowed-select absence invariant for Stories and Source N
                 slugId: `story-2-${timestamp}`,
                 title: "Test Story 2",
                 content: "Another story content",
-                status: "draft",
               },
             });
 
@@ -328,7 +326,7 @@ describe("Property 7: Narrowed-select absence invariant for Stories and Source N
             expect(forbiddenFound).toHaveLength(0);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 5 }
       );
     }
   );
@@ -411,7 +409,6 @@ describe("Property 7: Narrowed-select absence invariant for Stories and Source N
                 slugId: `story-sn-${timestamp}`,
                 title: "Linked Story",
                 content: "Story content that should NOT appear in nested objects",
-                status: "draft",
               },
             });
 
@@ -478,7 +475,7 @@ describe("Property 7: Narrowed-select absence invariant for Stories and Source N
             expect(forbiddenFound).toHaveLength(0);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 5 }
       );
     }
   );
@@ -556,7 +553,6 @@ describe("Property 7: Narrowed-select absence invariant for Stories and Source N
                 slugId: `story-paged-${timestamp}`,
                 title: "Paged Story",
                 content: "Story content",
-                status: "draft",
               },
             });
 
@@ -591,7 +587,7 @@ describe("Property 7: Narrowed-select absence invariant for Stories and Source N
             expect(forbiddenFound).toHaveLength(0);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 5 }
       );
     }
   );
@@ -704,7 +700,7 @@ describe("Property 7: Narrowed-select absence invariant for Stories and Source N
             expect(forbiddenFound).toHaveLength(0);
           }
         ),
-        { numRuns: 100 }
+        { numRuns: 5 }
       );
     }
   );

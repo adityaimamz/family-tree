@@ -1,4 +1,7 @@
+import { randomInt } from "node:crypto";
 import { prisma } from "../db.js";
+import { HttpError } from "../http/error.js";
+import { clampString, isHttpsUrl, limitedStringArray } from "../security.js";
 
 export const asStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
@@ -10,6 +13,37 @@ export const asNonEmptyString = (value: unknown): string | null =>
   typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 
 export const asRouteParam = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value) ?? "";
+
+const badRequest = (message: string): never => {
+  throw new HttpError(400, message);
+};
+
+const boundedString = (value: unknown, maxLength: number, field: string, fallback = "") => {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value !== "string") return fallback;
+  if (value.length > maxLength) badRequest(`${field} must be ${maxLength} characters or fewer.`);
+  return value;
+};
+
+const boundedNullableString = (value: unknown, maxLength: number, field: string) => {
+  if (value === undefined || value === null || value === "") return null;
+  const text = clampString(value, maxLength);
+  if (text === null) badRequest(`${field} must be ${maxLength} characters or fewer.`);
+  return text;
+};
+
+const httpsUrlOrNull = (value: unknown, field: string) => {
+  const text = boundedNullableString(value, 2048, field);
+  if (text === null) return null;
+  if (!isHttpsUrl(text)) badRequest(`${field} must be a valid HTTPS URL.`);
+  return text;
+};
+
+const safeIdArray = (value: unknown, field: string) => {
+  if (!Array.isArray(value)) return [];
+  if (value.length > 200) badRequest(`${field} can contain at most 200 items.`);
+  return limitedStringArray(value, 200, 128);
+};
 
 export const safeFilename = (value: string) =>
   value
@@ -234,83 +268,93 @@ export const mapSourceNote = (note: any) => ({
 });
 
 export const timelineDataFromBody = (event: any, fallbackId?: string) => ({
-  slugId: event.id || fallbackId,
-  year: event.year ?? "",
-  type: event.type ?? "Peristiwa Penting",
-  title: event.title ?? "",
-  description: event.description ?? "",
-  relatedMemberIds: asStringArray(event.relatedMemberIds),
-  memberIds: asStringArray(event.memberIds),
-  photo: asNullableString(event.photo),
+  slugId: boundedString(event.id || fallbackId, 128, "Timeline event id"),
+  year: boundedString(event.year, 64, "Timeline year"),
+  type: boundedString(event.type, 80, "Timeline type", "Peristiwa Penting"),
+  title: boundedString(event.title, 200, "Timeline title"),
+  description: boundedString(event.description, 4000, "Timeline description"),
+  relatedMemberIds: safeIdArray(event.relatedMemberIds, "relatedMemberIds"),
+  memberIds: safeIdArray(event.memberIds, "memberIds"),
+  photo: httpsUrlOrNull(event.photo, "Timeline photo"),
   isAutomatic: Boolean(event.isAutomatic),
 });
 
 export const galleryDataFromBody = (item: any, fallbackId?: string) => ({
-  slugId: item.id || fallbackId,
-  title: item.title ?? "",
-  date: item.date ?? "",
-  year: item.year ?? "",
-  event: asNullableString(item.event),
-  familyGroup: item.familyGroup ?? "",
-  description: item.description ?? "",
-  image: item.image ?? "",
+  slugId: boundedString(item.id || fallbackId, 128, "Gallery item id"),
+  title: boundedString(item.title, 200, "Gallery title"),
+  date: boundedString(item.date, 80, "Gallery date"),
+  year: boundedString(item.year, 64, "Gallery year"),
+  event: boundedNullableString(item.event, 200, "Gallery event"),
+  familyGroup: boundedString(item.familyGroup, 200, "Gallery family group"),
+  description: boundedString(item.description, 4000, "Gallery description"),
+  image: httpsUrlOrNull(item.image, "Gallery image") ?? "",
 });
 
 export const memberDataFromBody = (member: any) => ({
-  slugId: member.id,
-  fullName: member.fullName ?? "",
-  displayName: member.displayName ?? member.fullName ?? "",
-  gender: member.gender ?? "unknown",
+  slugId: boundedString(member.id, 128, "Member id"),
+  fullName: boundedString(member.fullName, 200, "Full name"),
+  displayName: boundedString(member.displayName ?? member.fullName, 200, "Display name"),
+  gender: boundedString(member.gender, 40, "Gender", "unknown"),
   generation: Number(member.generation ?? 0),
-  familyBranchId: member.familyBranch,
-  fatherId: asNullableString(member.fatherId),
-  motherId: asNullableString(member.motherId),
-  spouseIds: asStringArray(member.spouseIds),
-  formerSpouseIds: asStringArray(member.formerSpouseIds),
-  childrenIds: asStringArray(member.childrenIds),
-  siblingIds: asStringArray(member.siblingIds),
-  parentFamilyId: asNullableString(member.parentFamilyId),
-  nuclearFamilyIds: asStringArray(member.nuclearFamilyIds),
-  birthDate: asNullableString(member.birthDate),
-  marriageDate: asNullableString(member.marriageDate),
-  deathDate: asNullableString(member.deathDate),
+  familyBranchId: boundedString(member.familyBranch, 128, "Family branch"),
+  fatherId: boundedNullableString(member.fatherId, 128, "fatherId"),
+  motherId: boundedNullableString(member.motherId, 128, "motherId"),
+  spouseIds: safeIdArray(member.spouseIds, "spouseIds"),
+  formerSpouseIds: safeIdArray(member.formerSpouseIds, "formerSpouseIds"),
+  childrenIds: safeIdArray(member.childrenIds, "childrenIds"),
+  siblingIds: safeIdArray(member.siblingIds, "siblingIds"),
+  parentFamilyId: boundedNullableString(member.parentFamilyId, 128, "parentFamilyId"),
+  nuclearFamilyIds: safeIdArray(member.nuclearFamilyIds, "nuclearFamilyIds"),
+  birthDate: boundedNullableString(member.birthDate, 80, "Birth date"),
+  marriageDate: boundedNullableString(member.marriageDate, 80, "Marriage date"),
+  deathDate: boundedNullableString(member.deathDate, 80, "Death date"),
   isDeceased: Boolean(member.isDeceased),
-  deceasedLabel: asNullableString(member.deceasedLabel),
-  birthPlace: asNullableString(member.birthPlace),
-  biography: member.biography ?? "",
-  notes: member.notes ?? "",
-  photo: asNullableString(member.photo),
-  statusLabel: member.statusLabel ?? "",
-  relationshipToRoot: member.relationshipToRoot ?? "",
+  deceasedLabel: boundedNullableString(member.deceasedLabel, 80, "Deceased label"),
+  birthPlace: boundedNullableString(member.birthPlace, 200, "Birth place"),
+  biography: boundedString(member.biography, 8000, "Biography"),
+  notes: boundedString(member.notes, 8000, "Notes"),
+  photo: httpsUrlOrNull(member.photo, "Member photo"),
+  statusLabel: boundedString(member.statusLabel, 80, "Status label"),
+  relationshipToRoot: boundedString(member.relationshipToRoot, 160, "Relationship to root"),
 });
 
 export const branchDataFromBody = (branch: any, fallbackId?: string) => ({
-  slugId: branch.id || fallbackId,
-  name: branch.name ?? "",
-  headMemberIds: asStringArray(branch.headMemberIds),
-  spouseId: asNullableString(branch.spouseId),
-  description: branch.description ?? "",
-  summary: asNullableString(branch.summary),
-  memberIds: asStringArray(branch.memberIds),
-  color: asNullableString(branch.color),
+  slugId: boundedString(branch.id || fallbackId, 128, "Branch id"),
+  name: boundedString(branch.name, 200, "Branch name"),
+  headMemberIds: safeIdArray(branch.headMemberIds, "headMemberIds"),
+  spouseId: boundedNullableString(branch.spouseId, 128, "spouseId"),
+  description: boundedString(branch.description, 4000, "Branch description"),
+  summary: boundedNullableString(branch.summary, 4000, "Branch summary"),
+  memberIds: safeIdArray(branch.memberIds, "memberIds"),
+  color: boundedNullableString(branch.color, 80, "Branch color"),
 });
 
 export const storyDataFromBody = (story: any, fallbackId?: string) => ({
-  slugId: story.id || fallbackId,
-  title: story.title ?? "",
-  content: story.content ?? "",
-  origin: story.origin ?? "manual",
-  relatedMemberIds: asStringArray(story.relatedMemberIds),
-  sourceNoteIds: asStringArray(story.sourceNoteIds),
+  slugId: boundedString(story.id || fallbackId, 128, "Story id"),
+  title: boundedString(story.title, 200, "Story title"),
+  content: boundedString(story.content, 12000, "Story content"),
+  origin:
+    story.origin === "manual" || story.origin === "ai_biography" || story.origin === "ai_timeline"
+      ? story.origin
+      : "manual",
+  relatedMemberIds: safeIdArray(story.relatedMemberIds, "relatedMemberIds"),
+  sourceNoteIds: safeIdArray(story.sourceNoteIds, "sourceNoteIds"),
 });
 
 export const sourceNoteDataFromBody = (note: any, fallbackId?: string) => ({
-  slugId: note.id || fallbackId,
-  title: note.title ?? "",
-  content: note.content ?? "",
-  type: note.type ?? "note",
-  relatedMemberIds: asStringArray(note.relatedMemberIds),
-  storyIds: asStringArray(note.storyIds),
+  slugId: boundedString(note.id || fallbackId, 128, "Source note id"),
+  title: boundedString(note.title, 200, "Source note title"),
+  content: boundedString(note.content, 12000, "Source note content"),
+  type:
+    note.type === "note" ||
+    note.type === "photo_context" ||
+    note.type === "interview" ||
+    note.type === "document" ||
+    note.type === "chat"
+      ? note.type
+      : "note",
+  relatedMemberIds: safeIdArray(note.relatedMemberIds, "relatedMemberIds"),
+  storyIds: safeIdArray(note.storyIds, "storyIds"),
 });
 
 export const mapFamilySpace = (space: any) => ({
@@ -354,7 +398,7 @@ const INVITE_CODE_HALF_LENGTH = 4;
 const randomInviteHalf = () => {
   let out = "";
   for (let index = 0; index < INVITE_CODE_HALF_LENGTH; index += 1) {
-    const charIndex = Math.floor(Math.random() * INVITE_CODE_CHARSET.length);
+    const charIndex = randomInt(0, INVITE_CODE_CHARSET.length);
     out += INVITE_CODE_CHARSET[charIndex];
   }
   return out;

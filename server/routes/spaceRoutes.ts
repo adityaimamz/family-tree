@@ -3,7 +3,8 @@ import { Prisma } from "@prisma/client";
 import { loadAppUser, requireSpaceMembership, requireSpaceRole } from "../authorization.js";
 import { requireAuth } from "../neonAuth.js";
 import { prisma } from "../db.js";
-import { handleError } from "../http/error.js";
+import { handleError, HttpError } from "../http/error.js";
+import { clampString, isHttpsUrl } from "../security.js";
 import {
   asNonEmptyString,
   asNullableString,
@@ -74,8 +75,16 @@ spaceRoutes.post("/api/spaces", requireAuth, loadAppUser, async (req, res) => {
       res.status(400).json({ error: "Space name is required." });
       return;
     }
+    if (name.length > 160) {
+      res.status(400).json({ error: "Space name must be 160 characters or fewer." });
+      return;
+    }
 
     const description = asNullableString(req.body?.description);
+    if (description && description.length > 1000) {
+      res.status(400).json({ error: "Space description must be 1000 characters or fewer." });
+      return;
+    }
     const baseSlug = slugify(name) || `space-${Date.now()}`;
 
     let slug = baseSlug;
@@ -150,9 +159,17 @@ spaceRoutes.patch(
       }
 
       const name = asNonEmptyString(req.body?.name);
+      if (name && name.length > 160) {
+        res.status(400).json({ error: "Space name must be 160 characters or fewer." });
+        return;
+      }
       const description = req.body && Object.prototype.hasOwnProperty.call(req.body, "description")
         ? asNullableString(req.body.description)
         : undefined;
+      if (description && description.length > 1000) {
+        res.status(400).json({ error: "Space description must be 1000 characters or fewer." });
+        return;
+      }
 
       const space = await prisma.familySpace.update({
         where: { id: req.familySpace.id },
@@ -201,11 +218,23 @@ spaceRoutes.patch(
       }
 
       const displayName = req.body && Object.prototype.hasOwnProperty.call(req.body, "displayName")
-        ? asNullableString(req.body.displayName)
+        ? clampString(req.body.displayName, 120)
         : undefined;
       const avatarUrl = req.body && Object.prototype.hasOwnProperty.call(req.body, "avatarUrl")
         ? asNullableString(req.body.avatarUrl)
         : undefined;
+
+      if (
+        Object.prototype.hasOwnProperty.call(req.body ?? {}, "displayName") &&
+        typeof req.body.displayName === "string" &&
+        req.body.displayName.trim().length > 0 &&
+        displayName === null
+      ) {
+        throw new HttpError(400, "displayName must be 120 characters or fewer.");
+      }
+      if (avatarUrl && !isHttpsUrl(avatarUrl)) {
+        throw new HttpError(400, "avatarUrl must be a valid HTTPS URL.");
+      }
 
       const updates: Prisma.Sql[] = [];
       if (displayName !== undefined) updates.push(Prisma.sql`"displayName" = ${displayName}`);

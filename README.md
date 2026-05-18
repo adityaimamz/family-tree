@@ -289,8 +289,11 @@ NODE_ENV="development"
 APP_BASE_URL="http://localhost:8080"
 CORS_ALLOWED_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
 VITE_NEON_AUTH_URL="https://your-neon-auth-host/neondb/auth"
+NEON_AUTH_ISSUER="https://your-neon-auth-issuer"
+NEON_AUTH_AUDIENCE=""
 DEMO_AUTH_USER_ID="neon-auth-user-id-for-demo"
 UPLOADTHING_TOKEN="your-uploadthing-token"
+AI_EXTERNAL_ENABLED="0"
 API_KEY="your-ai-provider-api-key"
 VERTEX_API_KEY="your-vertex-or-google-ai-api-key"
 VERTEX_MODEL="gemini-2.5-flash"
@@ -303,6 +306,7 @@ VERTEX_AI_GENERATE_URL="https://optional-custom-generate-endpoint"
 |---|---:|---|---|
 | `DATABASE_URL` | Yes | Server/Prisma | PostgreSQL connection string. Keep secret. |
 | `VITE_NEON_AUTH_URL` | Yes | Frontend build + server JWT verifier | Public frontend config; also used by server to locate Neon Auth JWKS. |
+| `NEON_AUTH_ISSUER` | Yes in production | Server JWT verifier | Expected JWT issuer. Production auth rejects tokens when this is missing or mismatched. |
 | `UPLOADTHING_TOKEN` | Yes for uploads | Server UploadThing | Keep secret. |
 
 ### Optional / environment-specific
@@ -312,7 +316,9 @@ VERTEX_AI_GENERATE_URL="https://optional-custom-generate-endpoint"
 | `NODE_ENV` | Optional | Server/build | Use `production` in deployed service. |
 | `APP_BASE_URL` | Optional | Server CORS/auth redirect config | Public app URL such as Cloud Run URL. |
 | `CORS_ALLOWED_ORIGINS` | Optional | Server CORS | Comma-separated list of allowed origins. |
+| `NEON_AUTH_AUDIENCE` | Optional | Server JWT verifier | Comma-separated expected JWT audience values. Enforced when configured. |
 | `DEMO_AUTH_USER_ID` | Optional | Prisma seed | If omitted, seed uses a placeholder user id. |
+| `AI_EXTERNAL_ENABLED` | Optional | AI routes | Set to `1` to allow outbound AI provider calls. Defaults to deterministic fallback. |
 | `API_KEY` | Optional for AI | AI routes | Used as fallback provider API key. Keep secret. |
 | `VERTEX_API_KEY` | Optional for AI | AI routes | Preferred AI key when configured. Keep secret. |
 | `VERTEX_MODEL` | Optional | AI routes | Defaults to `gemini-2.5-flash`. |

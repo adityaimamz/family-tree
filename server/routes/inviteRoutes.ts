@@ -13,6 +13,9 @@ const requireSpaceAdmin = [
 ];
 
 const normalizeInviteCode = (value: string) => value.trim().toUpperCase();
+const isInviteCode = (value: string) => /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(value);
+const DEFAULT_INVITE_MAX_USES = 10;
+const DEFAULT_INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const getInviteStatus = (invite: {
   revokedAt: Date | null;
@@ -51,7 +54,7 @@ inviteRoutes.get("/api/spaces/:spaceSlug/invites", ...requireSpaceAdmin, async (
   }
 });
 
-// Create a new invite (default role: member, permanent, unlimited uses)
+// Create a new invite (default role: member, 10 uses, expires after 7 days)
 inviteRoutes.post("/api/spaces/:spaceSlug/invites", ...requireSpaceAdmin, async (req, res) => {
   try {
     if (!req.familySpace || !req.appUser) {
@@ -60,23 +63,23 @@ inviteRoutes.post("/api/spaces/:spaceSlug/invites", ...requireSpaceAdmin, async 
     }
 
     // Guard: only one active (non-revoked) invite allowed per space at a time
-    const existingActive = await prisma.familyInvite.findFirst({
+    const existingActiveInvite = await prisma.familyInvite.findFirst({
       where: {
         familySpaceId: req.familySpace.id,
         revokedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
-      select: { id: true },
     });
 
-    if (existingActive) {
+    if (existingActiveInvite && getInviteStatus(existingActiveInvite).isValid) {
       res.status(409).json({
         error: "An active invite already exists for this space. Revoke it before creating a new one.",
       });
       return;
     }
 
-    // Optional maxUses, default null (unlimited)
-    let maxUses: number | null = null;
+    // Optional maxUses, default 10.
+    let maxUses: number | null = DEFAULT_INVITE_MAX_USES;
     if (req.body && req.body.maxUses !== undefined && req.body.maxUses !== null) {
       const parsed = Number(req.body.maxUses);
       if (!Number.isInteger(parsed) || parsed < 1 || parsed > 1000) {
@@ -87,11 +90,19 @@ inviteRoutes.post("/api/spaces/:spaceSlug/invites", ...requireSpaceAdmin, async 
     }
 
     // Generate unique code (retry up to 5 times on collision)
-    let code = generateInviteCode();
+    let code: string | null = null;
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const existing = await prisma.familyInvite.findUnique({ where: { code } });
-      if (!existing) break;
-      code = generateInviteCode();
+      const candidate = generateInviteCode();
+      const existing = await prisma.familyInvite.findUnique({ where: { code: candidate } });
+      if (!existing) {
+        code = candidate;
+        break;
+      }
+    }
+
+    if (!code) {
+      res.status(503).json({ error: "Could not generate an invite code. Please try again." });
+      return;
     }
 
     const invite = await prisma.familyInvite.create({
@@ -101,6 +112,7 @@ inviteRoutes.post("/api/spaces/:spaceSlug/invites", ...requireSpaceAdmin, async 
         role: "member", // hardcoded, cannot be changed via request
         createdById: req.appUser.id,
         maxUses,
+        expiresAt: new Date(Date.now() + DEFAULT_INVITE_TTL_MS),
       },
     });
 
@@ -167,6 +179,11 @@ inviteRoutes.get("/api/invites/:code/preview", requireAuth, loadAppUser, async (
     }
 
     const code = normalizeInviteCode(raw);
+    if (!isInviteCode(code)) {
+      res.status(400).json({ error: "Invite code must use the XXXX-XXXX format." });
+      return;
+    }
+
     const invite = await prisma.familyInvite.findUnique({
       where: { code },
       include: { familySpace: true },
@@ -226,6 +243,11 @@ inviteRoutes.post("/api/invites/join", requireAuth, loadAppUser, async (req, res
     }
 
     const code = normalizeInviteCode(raw);
+    if (!isInviteCode(code)) {
+      res.status(400).json({ error: "Invite code must use the XXXX-XXXX format." });
+      return;
+    }
+
     const invite = await prisma.familyInvite.findUnique({
       where: { code },
       include: { familySpace: true },

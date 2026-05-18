@@ -138,9 +138,11 @@ describe("Bootstrap Composition Equivalence (Property 4)", () => {
             familySpaceId: space.id,
             slugId: `nuclear-family-${timestamp}`,
             name: "Test Nuclear Family",
-            husbandId: member1.id,
-            wifeId: member2.id,
+            parentIds: [member1.id],
+            childIds: [member2.id],
             childrenIds: [member2.id],
+            branchId: branch.slugId,
+            summary: "Test summary",
           },
         });
 

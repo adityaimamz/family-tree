@@ -2,13 +2,21 @@ import { Router } from "express";
 import { loadAppUser, requireSpaceMembership, requireSpaceRole } from "../authorization.js";
 import { requireAuth } from "../neonAuth.js";
 import { prisma } from "../db.js";
-import { handleError } from "../http/error.js";
-import { asNullableString, asRouteParam, galleryDataFromBody, mapGalleryItem, parsePagination } from "./shared.js";
+import { handleError, HttpError } from "../http/error.js";
+import { clampString } from "../security.js";
+import { asRouteParam, galleryDataFromBody, mapGalleryItem, parsePagination } from "./shared.js";
 
 const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
 const requireSpaceWrite = [requireAuth, loadAppUser, requireSpaceMembership, requireSpaceRole(["owner", "admin"])];
 
 export const galleryRoutes = Router();
+
+const optionalId = (value: unknown, field: string) => {
+  if (value === undefined || value === null || value === "") return null;
+  const text = clampString(value, 128);
+  if (text === null) throw new HttpError(400, `${field} must be 128 characters or fewer.`);
+  return text;
+};
 
 galleryRoutes.get("/api/spaces/:spaceSlug/gallery", ...requireSpaceRead, async (req, res) => {
   try {
@@ -77,8 +85,8 @@ galleryRoutes.post("/api/spaces/:spaceSlug/gallery", ...requireSpaceWrite, async
       data: {
         familySpaceId: req.familySpace.id,
         ...data,
-        memberId: asNullableString(req.body?.memberId),
-        timelineEventId: asNullableString(req.body?.timelineEventId),
+        memberId: optionalId(req.body?.memberId, "memberId"),
+        timelineEventId: optionalId(req.body?.timelineEventId, "timelineEventId"),
         uploadedById: req.appUser.id,
       },
     });
@@ -112,8 +120,8 @@ galleryRoutes.put("/api/spaces/:spaceSlug/gallery/:id", ...requireSpaceWrite, as
       data: {
         familySpaceId: req.familySpace.id,
         ...data,
-        memberId: asNullableString(req.body?.memberId),
-        timelineEventId: asNullableString(req.body?.timelineEventId),
+        memberId: optionalId(req.body?.memberId, "memberId"),
+        timelineEventId: optionalId(req.body?.timelineEventId, "timelineEventId"),
         uploadedById: req.appUser.id,
       },
     });

@@ -28,8 +28,8 @@ const parseAiJson = (text: string) => {
 
 export const maybeAiRelationship = async (fallback: RelationshipResult, fromName: string, toName: string) => {
   const apiKey = process.env.VERTEX_API_KEY || process.env.API_KEY;
-  if (!apiKey) {
-    aiLog("relationship_fallback_no_api_key", {
+  if (process.env.AI_EXTERNAL_ENABLED !== "1" || !apiKey) {
+    aiLog(process.env.AI_EXTERNAL_ENABLED === "1" ? "relationship_fallback_no_api_key" : "relationship_fallback_external_disabled", {
       feature: "relationship",
       pathLength: fallback.path.length,
       confidence: fallback.confidence,
@@ -82,7 +82,7 @@ export const maybeAiRelationship = async (fallback: RelationshipResult, fromName
         model,
         status: response.status,
         durationMs: Date.now() - startedAt,
-        errorPreview: errorText.slice(0, 500),
+        errorLength: errorText.length,
         fallback: true,
       }, "warn");
       return fallback;

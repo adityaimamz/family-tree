@@ -1,11 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { createRemoteJWKSet, decodeJwt, decodeProtectedHeader, jwtVerify, type JWTPayload } from "jose";
+import { prisma } from "./db.js";
+import { safeRequestPath } from "./security.js";
 
 export type AuthUser = {
   id: string;
   email: string | null;
   name: string | null;
+  emailVerified: boolean | null;
 };
 
 declare global {
@@ -45,6 +48,12 @@ const getJwks = () => {
   return jwks;
 };
 
+export const resetAuthJwksForTests = () => {
+  if (process.env.NODE_ENV !== "test") return;
+  jwks = null;
+  jwksUrl = null;
+};
+
 const bearerTokenFrom = (req: Request) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) return null;
@@ -59,7 +68,7 @@ const stringClaim = (payload: JWTPayload, key: string) => {
 const requestContext = (req: Request) => ({
   requestId: typeof req.headers["x-request-id"] === "string" ? req.headers["x-request-id"] : randomUUID(),
   method: req.method,
-  path: req.originalUrl || req.path,
+  path: safeRequestPath(req),
 });
 
 const isJwtLike = (token: string) => token.split(".").length === 3;
@@ -89,7 +98,7 @@ const jwtPayloadSummary = (token: string) => {
     const exp = typeof payload.exp === "number" ? new Date(payload.exp * 1000).toISOString() : null;
     return {
       sub: payload.sub,
-      email: stringClaim(payload, "email"),
+      emailPresent: Boolean(stringClaim(payload, "email")),
       iss: payload.iss,
       aud: payload.aud,
       exp,
@@ -108,7 +117,51 @@ const errorSummary = (error: unknown) => {
   };
 };
 
+const boolClaim = (payload: JWTPayload, key: string) => {
+  const value = payload[key];
+  return typeof value === "boolean" ? value : null;
+};
+
+const expectedIssuer = () => {
+  const issuer = process.env.NEON_AUTH_ISSUER?.trim();
+  if (issuer) return issuer;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("NEON_AUTH_ISSUER is not configured.");
+  }
+  return undefined;
+};
+
+const expectedAudience = () => {
+  const audience = process.env.NEON_AUTH_AUDIENCE?.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (!audience?.length) return undefined;
+  return audience.length === 1 ? audience[0] : audience;
+};
+
+const getTestUserFromHeaders = async (req: Request): Promise<AuthUser | null> => {
+  if (process.env.NODE_ENV !== "test") return null;
+
+  const appUserId = typeof req.headers["x-test-user-id"] === "string" ? req.headers["x-test-user-id"] : null;
+  const authUserId =
+    typeof req.headers["x-test-auth-user-id"] === "string" ? req.headers["x-test-auth-user-id"] : null;
+  if (!appUserId || !authUserId) return null;
+
+  const appUser = await prisma.appUser.findUnique({ where: { id: appUserId } });
+  if (!appUser || appUser.authUserId !== authUserId) return null;
+
+  return {
+    id: appUser.authUserId,
+    email: appUser.email,
+    name: appUser.name,
+    emailVerified: true,
+  };
+};
+
 export const getUserFromRequest = async (req: Request): Promise<AuthUser | null> => {
+  const testUser = await getTestUserFromHeaders(req);
+  if (testUser) return testUser;
+
   const context = requestContext(req);
   const token = bearerTokenFrom(req);
   if (!token) {
@@ -129,7 +182,12 @@ export const getUserFromRequest = async (req: Request): Promise<AuthUser | null>
     claims: jwtPayloadSummary(token),
   });
 
-  const { payload } = await jwtVerify(token, getJwks());
+  const issuer = expectedIssuer();
+  const audience = expectedAudience();
+  const { payload } = await jwtVerify(token, getJwks(), {
+    ...(issuer ? { issuer } : {}),
+    ...(audience ? { audience } : {}),
+  });
   if (!payload.sub) {
     authLog("missing_subject", { ...context, claims: jwtPayloadSummary(token) }, "warn");
     return null;
@@ -149,6 +207,7 @@ export const getUserFromRequest = async (req: Request): Promise<AuthUser | null>
     id: payload.sub,
     email,
     name: stringClaim(payload, "name"),
+    emailVerified: boolClaim(payload, "email_verified"),
   };
 };
 
@@ -161,7 +220,6 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     }
 
     req.user = user;
-    console.log("[debug] requireAuth: success, calling next() for", req.path);
     return next();
   } catch (error) {
     authLog("verify_failed", { ...requestContext(req), error: errorSummary(error) }, "error");

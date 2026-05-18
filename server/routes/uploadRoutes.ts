@@ -1,7 +1,8 @@
 import express, { Router } from "express";
-import { loadAppUser, requireSpaceMembership } from "../authorization.js";
+import { loadAppUser, requireSpaceMembership, requireSpaceRole } from "../authorization.js";
 import { handleError } from "../http/error.js";
 import { spaceSlugFromQuery } from "../middlewares/spaceSlugFromQuery.js";
+import { userRateLimit } from "../middlewares/userRateLimit.js";
 import { requireAuth } from "../neonAuth.js";
 import { safeFilename } from "./shared.js";
 import { uploadContentTypes, uploadOptimizedImage } from "../uploadthing.js";
@@ -11,6 +12,12 @@ export const uploadRoutes = Router();
 const rawImageBody = express.raw({
   limit: "4mb",
   type: [...uploadContentTypes],
+});
+
+const uploadLimiter = userRateLimit({
+  windowMs: 60_000,
+  limit: 12,
+  message: { error: "Too many upload attempts. Please try again later." },
 });
 
 const validateImageUpload = (req: express.Request, res: express.Response) => {
@@ -34,6 +41,8 @@ uploadRoutes.post(
   loadAppUser,
   spaceSlugFromQuery,
   requireSpaceMembership,
+  requireSpaceRole(["owner", "admin"]),
+  uploadLimiter,
   rawImageBody,
   async (req, res) => {
     try {
@@ -63,6 +72,7 @@ uploadRoutes.post(
   "/api/uploads/avatar",
   requireAuth,
   loadAppUser,
+  uploadLimiter,
   rawImageBody,
   async (req, res) => {
     try {

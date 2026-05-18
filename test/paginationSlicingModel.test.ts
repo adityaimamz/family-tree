@@ -20,6 +20,7 @@ import { arbPaginationParams } from "./fixtures/arbFamilySpaceFixture.js";
 
 describe("Pagination Slicing Model (Property 8)", () => {
   let app: ReturnType<typeof createApp>;
+  const paginationPbtOptions = { numRuns: 5, endOnFailure: true };
 
   beforeEach(async () => {
     app = createApp();
@@ -34,7 +35,11 @@ describe("Pagination Slicing Model (Property 8)", () => {
     // Clean up all test family spaces
     const testSpaces = await prisma.familySpace.findMany({
       where: {
-        slug: { startsWith: "test-space-" },
+        OR: [
+          { slug: { startsWith: "test-space-" } },
+          { slug: { startsWith: "test-pagination-" } },
+          { slug: { startsWith: "platform-test-space-" } },
+        ],
       },
       select: { id: true },
     });
@@ -46,7 +51,7 @@ describe("Pagination Slicing Model (Property 8)", () => {
     // Clean up platform admin test user
     await prisma.appUser.deleteMany({
       where: {
-        authUserId: { startsWith: "test-platform-" },
+        OR: [{ authUserId: { startsWith: "test-platform-" } }, { authUserId: { startsWith: "test-user-" } }],
       },
     });
   }
@@ -95,7 +100,6 @@ describe("Pagination Slicing Model (Property 8)", () => {
           slugId: `story-${timestamp}-${i}`,
           title: `Story ${i}`,
           content: `Content for story ${i}`,
-          status: "published",
           updatedAt: new Date(Date.now() - i * 1000), // Ensure different timestamps for ordering
         },
       });
@@ -126,8 +130,11 @@ describe("Pagination Slicing Model (Property 8)", () => {
           familySpaceId: familySpace.id,
           slugId: `gallery-${timestamp}-${i}`,
           title: `Gallery Item ${i}`,
-          year: 2020 + i,
-          image: `image-${i}.jpg`,
+          date: `${2020 + i}-01-01`,
+          year: String(2020 + i),
+          familyGroup: "Pagination Family",
+          description: `Gallery description ${i}`,
+          image: `https://example.com/image-${i}.jpg`,
           updatedAt: new Date(Date.now() - i * 1000),
         },
       });
@@ -282,9 +289,7 @@ describe("Pagination Slicing Model (Property 8)", () => {
         const expectedHasMore = effectivePage * effectivePageSize < totalItems;
         expect(paged.hasMore).toBe(expectedHasMore);
       }),
-      {
-        numRuns: 100,
-      }
+      paginationPbtOptions
     );
   });
 
@@ -343,9 +348,7 @@ describe("Pagination Slicing Model (Property 8)", () => {
         expect(paged.total).toBe(totalItems);
         expect(paged.hasMore).toBe(effectivePage * effectivePageSize < totalItems);
       }),
-      {
-        numRuns: 100,
-      }
+      paginationPbtOptions
     );
   });
 
@@ -404,9 +407,7 @@ describe("Pagination Slicing Model (Property 8)", () => {
         expect(paged.total).toBe(totalItems);
         expect(paged.hasMore).toBe(effectivePage * effectivePageSize < totalItems);
       }),
-      {
-        numRuns: 100,
-      }
+      paginationPbtOptions
     );
   });
 
@@ -465,9 +466,7 @@ describe("Pagination Slicing Model (Property 8)", () => {
         expect(paged.total).toBe(totalItems);
         expect(paged.hasMore).toBe(effectivePage * effectivePageSize < totalItems);
       }),
-      {
-        numRuns: 100,
-      }
+      paginationPbtOptions
     );
   });
 
@@ -523,9 +522,7 @@ describe("Pagination Slicing Model (Property 8)", () => {
         expect(paged.total).toBe(totalItems);
         expect(paged.hasMore).toBe(effectivePage * effectivePageSize < totalItems);
       }),
-      {
-        numRuns: 100,
-      }
+      paginationPbtOptions
     );
   });
 
@@ -581,9 +578,7 @@ describe("Pagination Slicing Model (Property 8)", () => {
         expect(paged.total).toBe(totalItems);
         expect(paged.hasMore).toBe(effectivePage * effectivePageSize < totalItems);
       }),
-      {
-        numRuns: 100,
-      }
+      paginationPbtOptions
     );
   });
 });

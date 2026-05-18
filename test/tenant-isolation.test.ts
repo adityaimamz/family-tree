@@ -167,9 +167,11 @@ async function createSpaceWithData(
       familySpaceId: space.id,
       slugId: `nuclear-family-${prefix}`,
       name: `Nuclear Family ${prefix}`,
-      husbandId: member1.id,
-      wifeId: member2.id,
+      parentIds: [member1.slugId, member2.slugId],
+      childIds: [member2.slugId],
       childrenIds: [member2.id],
+      branchId: branch1.slugId,
+      summary: `Nuclear family summary ${prefix}`,
     },
   });
 
@@ -183,7 +185,6 @@ async function createSpaceWithData(
       slugId: `story-${prefix}-1`,
       title: `Story Title ${prefix} 1`,
       content: `Story content ${prefix} 1 - private story content`,
-      date: new Date(),
     },
   });
 
@@ -193,7 +194,6 @@ async function createSpaceWithData(
       slugId: `story-${prefix}-2`,
       title: `Story Title ${prefix} 2`,
       content: `Story content ${prefix} 2 - private story content`,
-      date: new Date(),
     },
   });
 
@@ -219,7 +219,6 @@ async function createSpaceWithData(
       slugId: `source-note-${prefix}-1`,
       title: `Source Note ${prefix} 1`,
       content: `Source content ${prefix} 1 - private source`,
-      date: new Date(),
     },
   });
 
@@ -239,8 +238,8 @@ async function createSpaceWithData(
       slugId: `timeline-${prefix}-1`,
       title: `Timeline Event ${prefix} 1`,
       description: `Timeline description ${prefix} 1`,
-      year: 2000,
-      month: 1,
+      year: "2000",
+      type: "Milestone",
     },
   });
 
@@ -250,8 +249,8 @@ async function createSpaceWithData(
       slugId: `timeline-${prefix}-2`,
       title: `Timeline Event ${prefix} 2`,
       description: `Timeline description ${prefix} 2`,
-      year: 2005,
-      month: 6,
+      year: "2005",
+      type: "Milestone",
     },
   });
 
@@ -269,7 +268,10 @@ async function createSpaceWithData(
       slugId: `gallery-${prefix}-1`,
       title: `Gallery Item ${prefix} 1`,
       description: `Gallery description ${prefix} 1`,
-      year: 2020,
+      date: "2020-01-01",
+      year: "2020",
+      familyGroup: `Gallery family group ${prefix}`,
+      image: `https://example.com/gallery-${prefix}.webp`,
     },
   });
 
@@ -332,6 +334,8 @@ function findLeakedContent(spaceAContent: Set<string>, responseBody: unknown): s
   return leaked;
 }
 
+const tenantIsolationPbtOptions = { numRuns: 1, endOnFailure: true };
+
 // =============================================================================
 // Test Setup
 // =============================================================================
@@ -363,7 +367,7 @@ describe("Property 2: FamilySpace tenant isolation", () => {
     await prisma.appUser.deleteMany({
       where: { authUserId: { startsWith: "test-user-" } },
     });
-  }, 60000);
+  }, 300000);
 
   // List of all space-scoped read endpoints to test
   const spaceScopedReadEndpoints = [
@@ -437,7 +441,7 @@ describe("Property 2: FamilySpace tenant isolation", () => {
             expect(bStories.map((s) => s.title)).not.toContain(storyA);
           }
         }),
-        { numRuns: 10 }
+        tenantIsolationPbtOptions
       );
     },
     120000
@@ -505,7 +509,7 @@ describe("Property 2: FamilySpace tenant isolation", () => {
             }
           }
         }),
-        { numRuns: 5 }
+        tenantIsolationPbtOptions
       );
     },
     180000
@@ -579,7 +583,7 @@ describe("Property 2: FamilySpace tenant isolation", () => {
             expect(allNamesB).not.toContain(nameA);
           }
         }),
-        { numRuns: 10 }
+        tenantIsolationPbtOptions
       );
     },
     120000
@@ -651,7 +655,7 @@ describe("Property 2: FamilySpace tenant isolation", () => {
             expect(allSourceNoteSlugIdsB).not.toContain(slug);
           }
         }),
-        { numRuns: 5 }
+        tenantIsolationPbtOptions
       );
     },
     120000

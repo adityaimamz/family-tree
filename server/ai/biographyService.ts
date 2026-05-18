@@ -86,9 +86,11 @@ export const maybeAiBiography = async (
   tone: BiographyTone,
 ): Promise<BiographyGenerationResult> => {
   const apiKey = process.env.VERTEX_API_KEY || process.env.API_KEY;
-  if (!apiKey) {
+  if (process.env.AI_EXTERNAL_ENABLED !== "1" || !apiKey) {
     aiLog(
-      "biography_fallback_no_api_key",
+      process.env.AI_EXTERNAL_ENABLED === "1"
+        ? "biography_fallback_no_api_key"
+        : "biography_fallback_external_disabled",
       {
         feature: "biography",
         tone,
@@ -150,7 +152,7 @@ export const maybeAiBiography = async (
           model,
           status: response.status,
           durationMs: Date.now() - startedAt,
-          errorPreview: errorText.slice(0, 500),
+          errorLength: errorText.length,
           fallback: true,
         },
         "warn",
@@ -172,7 +174,6 @@ export const maybeAiBiography = async (
           model,
           durationMs: Date.now() - startedAt,
           responseTextLength: text.length,
-          rawResponsePreview: text.slice(0, 500),
           fallback: true,
         },
         "warn",

@@ -57,7 +57,7 @@ const authLimiter = rateLimit({
   message: { error: "Too many auth requests. Please try again later." },
 });
 
-// Feature: invite-family — tighter limit to blunt brute-force guessing of codes.
+// Feature: invite-family - tighter limit to blunt brute-force guessing of codes.
 const joinLimiter = rateLimit({
   windowMs: 60_000,
   limit: 5,
@@ -66,9 +66,18 @@ const joinLimiter = rateLimit({
   message: { error: "Too many join attempts. Please try again later." },
 });
 
+const invitePreviewLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many invite preview attempts. Please try again later." },
+});
+
 app.use("/api", globalLimiter);
 app.use("/api/auth", authLimiter);
 app.use("/api/invites/join", joinLimiter);
+app.use("/api/invites/:code/preview", invitePreviewLimiter);
 app.use("/api", apiLogger);
 app.use(express.json({ limit: "2mb" }));
 

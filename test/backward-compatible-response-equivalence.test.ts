@@ -8,7 +8,7 @@ import { describe, it, expect, afterAll, beforeEach } from "vitest";
 import * as fc from "fast-check";
 import request from "supertest";
 import { prisma } from "../server/db.js";
-import { createApp } from "./setup.js";
+import { createApp, cleanupDatabase } from "./setup.js";
 import {
   mapStory,
   mapSourceNote,
@@ -26,23 +26,16 @@ import {
 const createdSpaces: string[] = [];
 const createdUsers: string[] = [];
 
+function toHttpJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
+
 afterAll(async () => {
   // Clean up test data
   try {
-    for (const spaceId of createdSpaces) {
+    for (const spaceId of new Set(createdSpaces)) {
       try {
-        await prisma.familyMember.deleteMany({ where: { familySpaceId: spaceId } });
-        await prisma.storySourceNote.deleteMany({ where: { story: { familySpaceId: spaceId } } });
-        await prisma.storyMember.deleteMany({ where: { story: { familySpaceId: spaceId } } });
-        await prisma.sourceNoteMember.deleteMany({ where: { sourceNote: { familySpaceId: spaceId } } });
-        await prisma.story.deleteMany({ where: { familySpaceId: spaceId } });
-        await prisma.sourceNote.deleteMany({ where: { familySpaceId: spaceId } });
-        await prisma.galleryItem.deleteMany({ where: { familySpaceId: spaceId } });
-        await prisma.timelineEvent.deleteMany({ where: { familySpaceId: spaceId } });
-        await prisma.nuclearFamily.deleteMany({ where: { familySpaceId: spaceId } });
-        await prisma.familyBranch.deleteMany({ where: { familySpaceId: spaceId } });
-        await prisma.familyMembership.deleteMany({ where: { familySpaceId: spaceId } });
-        await prisma.familySpace.deleteMany({ where: { id: spaceId } });
+        await cleanupDatabase(spaceId);
       } catch (e) {
         // Ignore individual cleanup errors
       }
@@ -116,7 +109,6 @@ describe("Property 3: Backward-compatible response equivalence", () => {
             slugId: `story-${timestamp}`,
             title: "Test Story",
             content: "Story content",
-            status: "draft",
           },
         });
 
@@ -145,7 +137,7 @@ describe("Property 3: Backward-compatible response equivalence", () => {
 
         // Compare
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(reference);
+        expect(response.body).toEqual(toHttpJson(reference));
       }),
       { numRuns: 5 }
     );
@@ -191,7 +183,7 @@ describe("Property 3: Backward-compatible response equivalence", () => {
         const reference = sourceNotes.map(mapSourceNote);
 
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(reference);
+        expect(response.body).toEqual(toHttpJson(reference));
       }),
       { numRuns: 5 }
     );
@@ -209,8 +201,11 @@ describe("Property 3: Backward-compatible response equivalence", () => {
             familySpaceId: space.id,
             slugId: `gallery-${timestamp}`,
             title: "Test Gallery",
-            year: 2024,
+            date: "2024-01-01",
+            year: "2024",
             familyGroup: "Test Family",
+            description: "Test gallery description",
+            image: "https://example.com/gallery.jpg",
           },
         });
 
@@ -232,7 +227,7 @@ describe("Property 3: Backward-compatible response equivalence", () => {
         const reference = items.map(mapGalleryItem);
 
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(reference);
+        expect(response.body).toEqual(toHttpJson(reference));
       }),
       { numRuns: 5 }
     );
@@ -249,7 +244,7 @@ describe("Property 3: Backward-compatible response equivalence", () => {
           data: {
             familySpaceId: space.id,
             slugId: `timeline-${timestamp}`,
-            year: 2024,
+            year: "2024",
             title: "Test Event",
             type: "Peristiwa Penting",
           },
@@ -273,7 +268,7 @@ describe("Property 3: Backward-compatible response equivalence", () => {
         const reference = events.map(mapTimelineEvent);
 
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(reference);
+        expect(response.body).toEqual(toHttpJson(reference));
       }),
       { numRuns: 5 }
     );
@@ -326,7 +321,7 @@ describe("Property 3: Backward-compatible response equivalence", () => {
         const reference = members.map(mapMember);
 
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(reference);
+        expect(response.body).toEqual(toHttpJson(reference));
       }),
       { numRuns: 5 }
     );
@@ -364,7 +359,7 @@ describe("Property 3: Backward-compatible response equivalence", () => {
         const reference = branches.map(mapBranch);
 
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(reference);
+        expect(response.body).toEqual(toHttpJson(reference));
       }),
       { numRuns: 5 }
     );
@@ -403,7 +398,7 @@ describe("Property 3: Backward-compatible response equivalence", () => {
         const reference = families.map(mapNuclearFamily);
 
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(reference);
+        expect(response.body).toEqual(toHttpJson(reference));
       }),
       { numRuns: 5 }
     );
@@ -432,7 +427,7 @@ describe("Property 3: Backward-compatible response equivalence", () => {
         const reference = spaceData ? mapFamilySpace(spaceData) : null;
 
         expect(response.status).toBe(200);
-        expect(response.body.space).toEqual(reference);
+        expect(response.body.space).toEqual(toHttpJson(reference));
       }),
       { numRuns: 5 }
     );
@@ -458,7 +453,7 @@ describe("Property 3: Backward-compatible response equivalence", () => {
         const reference = await computeSpaceSummary(space.id);
 
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(reference);
+        expect(response.body).toEqual(toHttpJson(reference));
       }),
       { numRuns: 5 }
     );
@@ -488,7 +483,7 @@ describe("Property 3: Backward-compatible response equivalence", () => {
         const reference = membership ? mapCurrentMembership(membership, space) : null;
 
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(reference);
+        expect(response.body).toEqual(toHttpJson(reference));
       }),
       { numRuns: 5 }
     );
@@ -525,23 +520,30 @@ describe("Property 3: Backward-compatible response equivalence", () => {
 
         // Get all users for reference
         const users = await prisma.appUser.findMany({
+          include: {
+            _count: {
+              select: { memberships: true },
+            },
+          },
           orderBy: { createdAt: "desc" },
         });
 
-        // Map to expected format (id, email, name)
         const reference = users.map((u) => ({
           id: u.id,
           email: u.email,
           name: u.name,
+          platformRole: u.platformRole,
+          spacesCount: u._count.memberships,
+          createdAt: u.createdAt,
         }));
 
         expect(response.status).toBe(200);
         // Check if it's the legacy array format
         if (Array.isArray(response.body)) {
-          expect(response.body).toEqual(reference);
+          expect(response.body).toEqual(toHttpJson(reference));
         } else if (response.body.items) {
           // Paginated format - compare items
-          expect(response.body.items).toEqual(reference);
+          expect(response.body.items).toEqual(toHttpJson(reference));
         }
       }),
       { numRuns: 3 }
@@ -579,24 +581,42 @@ describe("Property 3: Backward-compatible response equivalence", () => {
 
         // Get all spaces for reference
         const spaces = await prisma.familySpace.findMany({
+          include: {
+            _count: {
+              select: {
+                members: true,
+                timelineEvents: true,
+                galleryItems: true,
+              },
+            },
+            memberships: {
+              select: { role: true },
+            },
+          },
           orderBy: { createdAt: "desc" },
         });
 
-        // Map to expected format
         const reference = spaces.map((s) => ({
           id: s.id,
           slug: s.slug,
           name: s.name,
-          description: s.description,
+          ownerCount: s.memberships.filter((membership) => membership.role === "owner").length,
+          memberCount: s.memberships.length,
+          recordCounts: {
+            members: s._count.members,
+            timeline: s._count.timelineEvents,
+            gallery: s._count.galleryItems,
+          },
+          createdAt: s.createdAt,
         }));
 
         expect(response.status).toBe(200);
         // Check if it's the legacy array format
         if (Array.isArray(response.body)) {
-          expect(response.body).toEqual(reference);
+          expect(response.body).toEqual(toHttpJson(reference));
         } else if (response.body.items) {
           // Paginated format - compare items
-          expect(response.body.items).toEqual(reference);
+          expect(response.body.items).toEqual(toHttpJson(reference));
         }
       }),
       { numRuns: 3 }

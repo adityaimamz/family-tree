@@ -194,9 +194,11 @@ export const maybeAiTimelineStory = async (
   tone: TimelineStoryTone,
 ): Promise<TimelineStoryResult> => {
   const apiKey = process.env.VERTEX_API_KEY || process.env.API_KEY;
-  if (!apiKey) {
+  if (process.env.AI_EXTERNAL_ENABLED !== "1" || !apiKey) {
     aiLog(
-      "timeline_story_fallback_no_api_key",
+      process.env.AI_EXTERNAL_ENABLED === "1"
+        ? "timeline_story_fallback_no_api_key"
+        : "timeline_story_fallback_external_disabled",
       {
         feature: "timeline_story",
         tone,
@@ -267,7 +269,7 @@ export const maybeAiTimelineStory = async (
           model,
           status: response.status,
           durationMs: Date.now() - startedAt,
-          errorPreview: errorText.slice(0, 500),
+          errorLength: errorText.length,
           fallback: true,
         },
         "warn",
@@ -289,7 +291,6 @@ export const maybeAiTimelineStory = async (
           model,
           durationMs: Date.now() - startedAt,
           responseTextLength: text.length,
-          rawResponsePreview: text.slice(0, 500),
           fallback: true,
         },
         "warn",

@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { loadAppUser, requireSpaceMembership } from "../authorization.js";
+import { loadAppUser, requireSpaceMembership, requireSpaceRole } from "../authorization.js";
 import { requireAuth } from "../neonAuth.js";
 import { prisma } from "../db.js";
 import { handleError } from "../http/error.js";
 import { asNonEmptyString } from "./shared.js";
+import { userRateLimit } from "../middlewares/userRateLimit.js";
 import { maybeAiRelationship } from "../relationship/aiExplain.js";
 import { deterministicRelationship } from "../relationship/deterministic.js";
 import {
@@ -33,7 +34,20 @@ import {
 } from "../ai/timelineService.js";
 import { isCacheFresh } from "../ai/relationshipCache.js";
 
+const aiLimiter = userRateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  message: { error: "Too many AI requests. Please try again later." },
+});
+
 const requireSpaceRead = [requireAuth, loadAppUser, requireSpaceMembership];
+const requireSpaceAi = [
+  requireAuth,
+  loadAppUser,
+  requireSpaceMembership,
+  aiLimiter,
+  requireSpaceRole(["owner", "admin"]),
+];
 
 const aiLog = (
   event: string,
@@ -45,7 +59,7 @@ const aiLog = (
 
 export const aiRoutes = Router();
 
-aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-biography", ...requireSpaceRead, async (req, res) => {
+aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-biography", ...requireSpaceAi, async (req, res) => {
   try {
     if (!req.familySpace) {
       res.status(500).json({ error: "FamilySpace context not loaded." });
@@ -141,7 +155,7 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-biography", ...requireSpaceRea
   }
 });
 
-aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-timeline-story", ...requireSpaceRead, async (req, res) => {
+aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-timeline-story", ...requireSpaceAi, async (req, res) => {
   try {
     if (!req.familySpace) {
       res.status(500).json({ error: "FamilySpace context not loaded." });
@@ -223,7 +237,7 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/generate-timeline-story", ...requireSpa
   }
 });
 
-aiRoutes.post("/api/spaces/:spaceSlug/ai/explain-relationship", ...requireSpaceRead, async (req, res) => {
+aiRoutes.post("/api/spaces/:spaceSlug/ai/explain-relationship", ...requireSpaceAi, async (req, res) => {
   try {
     if (!req.familySpace) {
       res.status(500).json({ error: "FamilySpace context not loaded." });
@@ -380,7 +394,7 @@ aiRoutes.post("/api/spaces/:spaceSlug/ai/explain-relationship", ...requireSpaceR
   }
 });
 
-aiRoutes.delete("/api/spaces/:spaceSlug/ai/relationship-history/:historyId", ...requireSpaceRead, async (req, res) => {
+aiRoutes.delete("/api/spaces/:spaceSlug/ai/relationship-history/:historyId", ...requireSpaceAi, async (req, res) => {
   try {
     if (!req.familySpace) {
       res.status(500).json({ error: "FamilySpace context not loaded." });
